@@ -74,22 +74,24 @@ The functions are defined as fields in the `Function` and `MutationFunction` typ
 
 All generated queries, mutations, and functions are split into module hierarchy, which allows to organize the schema in a modular way. The modules are defined using the `@module` directive, which allows to group related queries, mutations, and functions together.
 
-##### 1. References subquery fields
+### Compilation flow
+
+#### 1. References subquery fields
 
 The `hugr` generates references subquery fields for the data objects (tables and views) based on the defined relations in the schema. The subquery fields are added to the both objects that are involved in the relation, allowing for easy access to related data.
 
 - The relations are defined using the `@field_references` or `@relation` directives on the side of `one` object.
 - M2M relations are defined using the `@field_references` or `@relation` directives on both sides of the m2m tables, that is marked as m2m (`@table(name: "some_m2m_table", is_m2m: true)`). By m2m relations in the both sides of objects, the `hugr` generates subquery fields with the same name and type of the related object.
 
-##### 2. Include query time join fields
+#### 2. Include query time join fields
 
 The `hugr` generates query time join fields for the data objects (tables and views), this allows to join selected data objects in query time, without the need to define the join in the schema. The query time join fields are added to the data objects that are involved in the relation, allowing for easy access to related data.
 
-###### 3. Spatial joins fields
+##### 3. Spatial joins fields
 
 If a data object contains field with the type `Geometry`, the `hugr` generates spatial join field, which allows to join the data object with other data objects that contain spatial fields. The spatial join field is added to the data object and can be used in queries to filter or aggregate data based on spatial relationships.
 
-##### 4. Filter input types
+#### 4. Filter input types
 
 The `hugr` generates filter input types for the data objects (tables and views) based on the defined fields in the schema. The filter input types are used to filter the data when querying the data objects.
 
@@ -99,7 +101,7 @@ A filter input type contains all table or view fields, except the join subquery 
 - For a reference subquery field to the filter input type will be added the input field with the same filter input type as for the related object, allowing to filter by the related object fields. If original subquery field is a list, the filter input type provide following operators: `any_of`, `all_of`, `none_of`, which allows to filter by the related object fields in the list.
 - For the m2m subquery fields, the filter input type will contain the same filter input type as for the related object, allowing to filter by the related object fields. If original subquery field is a list, the filter input type provide following operators: `any_of`, `all_of`, `none_of`, which allows to filter by the related object fields in the list.
 
-##### 5. Data queries
+#### 5. Data queries
 
 If a data object contains primary key field, the query to get a single row from the table or view will be generated. The query will be named as `object_name_by_pk`, where `object_name` is the name of the data object. The query will accept an argument that corresponds to the primary key field and return a single row from the table or view.
 
@@ -115,7 +117,7 @@ Data query will be generated with name `object_name`, where `object_name` is the
 
 Views can be parameterized, which means that they can accept arguments to perform query. For that type of views, arguments input object should be defined in the schema, and the `hugr` will add argument called `args` to the query, which will be of the type of the arguments input object.
 
-##### 6. Aggregation types
+#### 6. Aggregation types
 
 The `hugr` generates aggregation types for the data objects (tables and views) based on the defined fields in the schema. The aggregation types are used to perform aggregations on the data when querying the data objects.
 An aggregation type contains all table or view fields, including query time join and spatial join fields, relation subquery fields, joins and function calls. For the scalar fields, the aggregation type will contain predefined aggregations, such as `count`, `sum`, `avg`, `min`, `max`, etc.
@@ -127,7 +129,7 @@ To perform bucket aggregations, the `hugr` generates bucket aggregation types fo
 - `key`: a type of the data object, to select fields to group by.
 - `aggregations`: an aggregation type that contains the aggregation results for the data object, which is the same as the aggregation type for the data object. It can accept arguments - `filter`, `order_by`, which are the same as for the data query.
 
-##### 7. Aggregation queries
+#### 7. Aggregation queries
 
 The `hugr` generates aggregation queries for the data objects (tables and views):
 
@@ -136,7 +138,7 @@ The `hugr` generates aggregation queries for the data objects (tables and views)
 
 The queries will be added to the Schema and as subquery fields to the data object types, that contains subqueries for the relations and joins, as well as in the query time join and spatial join.
 
-##### 8. Mutation input types
+#### 8. Mutation input types
 
 The `hugr` generates mutation input types for the tables mutation queries - `insert` and `update`.
 
