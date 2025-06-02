@@ -45,7 +45,7 @@ One catalog source can be used to describe data schema of multiple data sources.
 
 ## Schema Definition Language (SDL)
 
-The `hugr` uses the GraphQL schema definition language (SDL) to define the schema of tables, views and functions in the data source. To define schema objects, relations, functions, etc, it is used hugr-specific directives, such as `@table`, `@view`, `@function`, `@field_references`, `@pk`, `@join`, etc. All directives are described in the [Query Engine Configuration section](docs/3-engine-configuration/3-schema-definition)
+The `hugr` uses the GraphQL schema definition language (SDL) to define the schema of tables, views and functions in the data source. To define schema objects, relations, functions, etc, it is used hugr-specific directives, such as `@table`, `@view`, `@function`, `@field_references`, `@pk`, `@join`, etc. All directives are described in the [Query Engine Configuration section](./4-engine-configuration/index.md).
 
 Tables and views are defined as GraphQL types, and functions are defined as GraphQL queries or mutations in special `Function` and `MutationFunction` types.
 

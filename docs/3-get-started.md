@@ -316,7 +316,7 @@ Finally, we describe the `customer_customer_demo` table, which is a many-to-many
 - `references_query`: the name of the query field that will be added to the referenced table in the GraphQL schema
 - `references_description`: a description for the query field in the referenced table
 
-You can add relations between tables by many fields using the `@references` directive for the table type. (See details in the [Query Engine Configuration/Schema Definition](/docs/category/schema-definitions) guide).
+You can add relations between tables by many fields using the `@references` directive for the table type. (See details in the [Query Engine Configuration/Schema Definition](./4-engine-configuration/3-schema-definition/index.md) guide).
 
 If we load this schema, we will see generated queries and mutations for the `customers` table, as well as for the `customers_types` and `customers_linked_types` tables. For each table the following queries and mutations will be generated in the module `northwind`:
 
@@ -957,4 +957,4 @@ The `hugr` supports a lot of advanced features, such as:
 
 ## Next steps
 
-You can continue with the [GraphQL Operations: Queries & Mutations](/docs/5-graphql) guide to learn more about how to interact with your data using GraphQL.
+You can continue with the [GraphQL Operations: Queries & Mutations](./5-graphql/index.md) guide to learn more about how to interact with your data using GraphQL.

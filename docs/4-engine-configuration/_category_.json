@@ -2,6 +2,7 @@
   "label": "Query engine configuration",
   "position": 4,
   "link": {
-    "type": "generated-index"
+    "type": "generated-index",
+    "description": "Learn how to configure the query engine for your GraphQL API. This section covers the setup, optimization, and management of query execution, ensuring efficient data retrieval and manipulation."
   }
 }
