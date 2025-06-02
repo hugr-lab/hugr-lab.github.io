@@ -21,3 +21,72 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Use Cases Section Styling */
+.useCasesSection {
+  background: var(--ifm-background-surface-color);
+  padding: 2rem 0;
+  margin: 1rem 0;
+  border-radius: 0;
+}
+
+.sectionHeader {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--ifm-heading-color);
+  line-height: 1.2;
+  position: relative;
+}
+
+.sectionHeader::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--ifm-color-primary), var(--ifm-color-secondary));
+  border-radius: 2px;
+}
+
+/* Main content wrapper */
+.mainContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Ensure proper spacing between major sections */
+.mainContent > * {
+  margin-bottom: 2rem;
+}
+
+.mainContent > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 996px) {
+  .useCasesSection {
+    padding: 3rem 0;
+    margin: 2rem 0;
+  }
+  
+  .sectionHeader {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .useCasesSection {
+    padding: 2rem 0;
+    margin: 1.5rem 0;
+  }
+  
+  .sectionHeader {
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+  }
+}

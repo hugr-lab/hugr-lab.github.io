@@ -1,0 +1,75 @@
+/* DuckDB Section Styles */
+.duckdbSection {
+  padding: 60px 0;
+  background: #f8fafc;
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.logoContainer {
+  flex-shrink: 0;
+}
+
+.logo {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+}
+
+.textContent {
+  flex: 1;
+}
+
+.title {
+  font-size: 1.75rem;
+  line-height: 1.4;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: var(--ifm-heading-color);
+}
+
+.logoLink {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.logoLink:hover {
+  transform: scale(1.05);
+}
+
+.description {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--ifm-font-color-base);
+}
+
+.description strong {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .content {
+    flex-direction: column;
+    text-align: center;
+    gap: 30px;
+  }
+  
+  .logo {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .title {
+    font-size: 2rem;
+  }
+  
+  .description {
+    font-size: 1rem;
+  }
+}

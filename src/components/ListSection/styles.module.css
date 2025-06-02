@@ -1,0 +1,160 @@
+/* ListSection Improved Styles */
+.useCaseSection {
+  padding: 3rem 0;
+  border-bottom: 2px solid var(--ifm-color-emphasis-300);
+  position: relative;
+}
+
+.useCaseSection:last-child {
+  border-bottom: none;
+}
+
+/* Decorative separator line */
+.useCaseSection::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ifm-color-primary), var(--ifm-color-secondary));
+  border-radius: 2px;
+}
+
+.useCaseSection:last-child::after {
+  display: none;
+}
+
+.useCaseGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3rem;
+  align-items: center;
+  min-height: 300px;
+}
+
+.useCaseContent {
+  flex: 1 1 55%;
+  min-width: 320px;
+}
+
+.useCaseContent h3 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--ifm-heading-color);
+  line-height: 1.3;
+}
+
+.useCaseContent p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  color: var(--ifm-color-content-secondary);
+}
+
+.useCaseContent ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.useCaseContent li {
+  position: relative;
+  padding-left: 2rem;
+  margin-bottom: 0.8rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ifm-color-content);
+}
+
+.useCaseContent li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--ifm-color-primary);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.useCaseVisual {
+  flex: 1 1 40%;
+  min-width: 280px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  border-radius: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.useCaseVisual:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.useCaseVisual img {
+  max-width: 100%;
+  height: auto;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+}
+
+/* Alternate layout for visual variety */
+.useCaseSection:nth-child(even) .useCaseGrid {
+  flex-direction: row-reverse;
+}
+
+
+
+/* Responsive Design */
+@media (max-width: 996px) {
+  .useCaseGrid {
+    flex-direction: column !important;
+    gap: 2rem;
+    text-align: center;
+  }
+  
+  .useCaseContent {
+    flex: 1 1 100%;
+    min-width: unset;
+  }
+  
+  .useCaseVisual {
+    flex: 1 1 100%;
+    min-width: unset;
+    order: -1;
+  }
+  
+  .useCaseContent h3 {
+    font-size: 1.6rem;
+  }
+  
+  .useCaseContent p {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .useCaseSection {
+    padding: 2rem 0;
+  }
+  
+  .useCaseVisual {
+    padding: 1.5rem;
+  }
+  
+  .useCaseContent li {
+    padding-left: 1.5rem;
+    font-size: 0.95rem;
+  }
+}
+
+/* Fix for images in use case sections */
+.useCaseVisual img {
+  max-width: 100%;
+  max-height: 200px;
+  height: auto;
+  object-fit: contain;
+}

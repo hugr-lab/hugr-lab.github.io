@@ -1,0 +1,39 @@
+.descriptionGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3rem;
+  align-items: center;
+}
+
+.descriptionVisual {
+  flex: 1 1 40%;
+  min-width: 280px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.descriptionVisual img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.descriptionContent {
+  flex: 1 1 50%;
+  min-width: 280px;
+}
+
+.headline {
+  font-size: 1.75rem;
+  line-height: 1.4;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: var(--ifm-heading-color);
+}
+
+.paragraph {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--ifm-font-color-base);
+}

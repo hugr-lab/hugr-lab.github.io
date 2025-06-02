@@ -1,0 +1,151 @@
+/* Key Benefits Section */
+.benefits {
+  padding: 4rem 0;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  position: relative;
+}
+
+.benefits::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.benefits .container {
+  position: relative;
+  z-index: 1;
+}
+
+.sectionTitle {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 3rem;
+  color: var(--ifm-heading-color);
+  text-align: center;
+  position: relative;
+}
+
+.sectionTitle::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--ifm-color-primary), var(--ifm-color-secondary));
+  border-radius: 2px;
+}
+
+.benefitRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.benefitItem {
+  flex: 0 1 calc(33.333% - 1.5rem);
+  min-width: 280px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.iconContainer {
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.keySvg {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+}
+
+.benefitItem:hover .keySvg {
+  transform: scale(1.05);
+}
+
+.benefitTitle {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--ifm-heading-color);
+  line-height: 1.3;
+}
+
+.benefitDescription {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ifm-color-content-secondary);
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 996px) {
+  .benefits {
+    padding: 3rem 0;
+  }
+  
+  .benefitRow {
+    gap: 2rem 1.5rem;
+  }
+  
+  .benefitItem {
+    flex: 0 1 calc(50% - 1rem);
+    min-width: 250px;
+  }
+  
+  .sectionTitle {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+  }
+  
+  .keySvg {
+    width: 150px;
+    height: 150px;
+  }
+}
+
+@media (max-width: 768px) {
+  .benefits {
+    padding: 2rem 0;
+  }
+  
+  .benefitRow {
+    gap: 2rem;
+  }
+  
+  .benefitItem {
+    flex: 1 1 100%;
+    min-width: unset;
+  }
+  
+  .sectionTitle {
+    font-size: 1.8rem;
+  }
+  
+  .keySvg {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .benefitTitle {
+    font-size: 1.2rem;
+  }
+  
+  .benefitDescription {
+    font-size: 0.95rem;
+  }
+}
