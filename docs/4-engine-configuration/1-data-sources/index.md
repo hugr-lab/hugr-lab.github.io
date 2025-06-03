@@ -190,4 +190,4 @@ Variables:
 }
 ```
 
-To learn how to mutation works go to the [GraphQL Operations - Mutations](../5-graphql/2-mutations.md) section.
+To learn how to mutation works go to the [GraphQL Operations - Mutations](../../5-graphql/2-mutations.md) section.
