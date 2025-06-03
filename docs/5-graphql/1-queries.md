@@ -1,4 +1,4 @@
 ---
 title: "GraphQL Queries"
-sidebar_position: 1
+sidebar_position: 2
 ---

@@ -1,4 +1,5 @@
 ---
 slug: /docs/4-engine-configuration
-title: Engine Configuration
+title: Overview of Engine Configuration
+sidebar_position: 1
 ---

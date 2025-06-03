@@ -1,4 +1,4 @@
 ---
 title: "Special Table Types: Cube & Hypertable"
-sidebar_position: 8
+sidebar_position: 9
 ---

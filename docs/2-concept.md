@@ -17,7 +17,8 @@ The following types of data sources are currently supported:
 - **DuckDB**: A high-performance SQL database designed for analytics, which supports SQL queries and provides a unified interface for data access. DuckDB files can be stored in a file system or in object storage, such as S3.
 - **PostgreSQL**: A relational database management system that uses SQL for querying.
 - **HTTP REST API**: A data source that allows you to access data from any RESTful API, enabling integration with various web services and applications. It supports various authentication methods, including API keys, OAuth2, and basic authentication.
-- **MySQL**: Another relational database management system that uses SQL for querying (in development).
+- **MySQL**: Another relational database management system that uses SQL for querying.
+- **DuckLake**: A data lake solution that supports various storage systems, including cloud storage and distributed file systems. DuckLake is designed to handle large volumes of data and provides efficient querying capabilities and able to manage data and schema changes through snapshots (in development).
 - **Extension**: A special data source that allows you to extend schema data objects (tables and views) to add additional subquery fields and function calls. This is useful for creating custom logic or aggregations using data from other sources. The extension data source can also defines cross-data source views, which allow you to combine data from multiple data sources into a single view. This is useful for creating complex queries that span multiple data sources.
 
 The PostgreSQL data source supports aggregations and joins pushing down to the database level, allowing for efficient data retrieval and manipulation. The DuckDB data source supports SQL queries and provides a unified interface for data access, allowing for efficient data retrieval and manipulation.
@@ -87,7 +88,7 @@ The `hugr` generates references subquery fields for the data objects (tables and
 
 The `hugr` generates query time join fields for the data objects (tables and views), this allows to join selected data objects in query time, without the need to define the join in the schema. The query time join fields are added to the data objects that are involved in the relation, allowing for easy access to related data.
 
-##### 3. Spatial joins fields
+#### 3. Spatial joins fields
 
 If a data object contains field with the type `Geometry`, the `hugr` generates spatial join field, which allows to join the data object with other data objects that contain spatial fields. The spatial join field is added to the data object and can be used in queries to filter or aggregate data based on spatial relationships.
 
