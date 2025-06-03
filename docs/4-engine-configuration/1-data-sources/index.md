@@ -18,6 +18,8 @@ The following data sources are supported by the `hugr` query engine:
 - **DuckLake**: A data lake solution that supports various storage systems, including cloud storage and distributed file systems. DuckLake is designed to handle large volumes of data and provides efficient querying capabilities and able to manage data and schema changes through snapshots (in development).
 - **Extension**: A special data source types that allows you to extend GraphQL data objects (tables and views) to add extra subquery (joins) and function calls fields. This is useful for creating custom logic or aggregations using data from other sources. The extension data source can also defines cross-data source views, which allow you to combine data from multiple data sources into a single view. This is useful for creating complex queries that span multiple data sources.
 
+The file views (spatial formats, CSV, parquet, etc.) are supported through the DuckDB data source, which can read and write various file formats and locations directly.
+
 ## Configuration
 
 ### System tables

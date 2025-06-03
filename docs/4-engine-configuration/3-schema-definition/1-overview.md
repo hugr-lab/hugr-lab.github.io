@@ -1,4 +1,4 @@
 ---
-title: Overview & Data Types
+title: Data Types
 sidebar_position: 2
 ---

@@ -1,4 +1,4 @@
 ---
-title: Subquery fields
+title: Subqueries
 sidebar_position: 7
 ---
