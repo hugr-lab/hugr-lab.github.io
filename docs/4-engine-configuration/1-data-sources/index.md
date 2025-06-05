@@ -47,6 +47,8 @@ The `data_sources` table contains the following fields:
 | `read_only`   | Boolean  | Indicates if the data source is read-only, it would not allow to generate GraphQL mutations.|
 | `self_defined`| Boolean  | Indicates if the data source is self-defined, some of the data source types may return their schema definition with out needs to make catalogs. |
 
+The path can contain environment variables, which will be resolved at runtime. This allows for flexible configuration without hardcoding sensitive information like passwords. The name of the environment variable should be passed in the format `[$ENV_VAR_NAME]`.
+
 #### Catalog sources Table
 
 The `catalog_sources` table contains the following fields:

@@ -31,7 +31,7 @@ const config: Config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
-
+  
   presets: [
     [
       'classic',
@@ -65,7 +65,16 @@ const config: Config = {
     ],
   ],
   
-
+  plugins: [
+    [
+      '@docusaurus/plugin-google-gtag',
+      {
+        trackingID: 'G-BJYMJK7EPF', 
+        anonymizeIP: true,
+      },
+    ],
+  ],
+  
   themeConfig: {
     image: 'img/hugr-social-card.jpg',
     navbar: {
