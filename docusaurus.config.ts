@@ -31,7 +31,7 @@ const config: Config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
-  
+
   presets: [
     [
       'classic',
@@ -62,16 +62,6 @@ const config: Config = {
           customCss: './src/css/custom.css',
         },
       } satisfies Preset.Options,
-    ],
-  ],
-  
-  plugins: [
-    [
-      '@docusaurus/plugin-google-gtag',
-      {
-        trackingID: 'G-BJYMJK7EPF', 
-        anonymizeIP: true,
-      },
     ],
   ],
   
