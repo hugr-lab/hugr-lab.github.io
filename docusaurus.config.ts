@@ -40,8 +40,10 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/hugr-lab/site/',
+          editUrl: 'https://github.com/hugr-lab/site/',
+
+          showLastUpdateAuthor: true,
+          showLastUpdateTime: true,
         },
         /*blog: {
           showReadingTime: true,
@@ -61,12 +63,23 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
+        
+        sitemap: {
+          changefreq: 'weekly',
+          priority: 0.5,
+          ignorePatterns: ['/tags/**'],
+          filename: 'sitemap.xml',
+        },
       } satisfies Preset.Options,
     ],
   ],
   
   themeConfig: {
-    image: 'img/hugr-social-card.jpg',
+    metadata: [
+      {name: 'keywords', content: 'Data Mesh, GraphQL, Data Backend, Data Lake, Distributed Data, DuckDB, API, Data Governance, Data Access Layer, PostgreSQL, Spatial Data, Data Federation, Data Integration, Open Source'},
+      {name: 'description', content: 'hugr - Open Source Data Mesh platform and high-performance GraphQL backend for distributed data sources. Supporting cross data source queries, spatial analysis, data lakes, databases, and APIs with centralized control and governance.'},
+    ],
+    image: 'img/hugr-social-card.png',
     navbar: {
       title: 'hugr',
       logo: {
@@ -134,6 +147,37 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
     },
   } satisfies Preset.ThemeConfig,
+
+  headTags: [
+    {
+      tagName: 'meta',
+      attributes: {
+        property: 'og:type',
+        content: 'website',
+      },
+    },
+    {
+      tagName: 'meta',
+      attributes: {
+        property: 'og:site_name',
+        content: 'Hugr lab',
+      },
+    },
+    {
+      tagName: 'meta',
+      attributes: {
+        name: 'robots',
+        content: 'index, follow',
+      },
+    },
+    {
+      tagName: 'meta',
+      attributes: {
+        name: 'google-site-verification',
+        content: 'google123456789.html',
+      },
+    },
+  ],
 };
 
 export default config;

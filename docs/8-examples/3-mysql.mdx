@@ -1,11 +1,15 @@
 ---
 sidebar_position: 3
-title: MySQL Example
+title: "MySQL: HR CRM Example"
 ---
 
 The working example demonstrates how to set up a MySQL database with Hugr, including the creation of tables, functions, and mutations. It provides a practical guide for developers looking to integrate MySQL with Hugr.
 
 You can find the complete example in the [Hugr examples repository](https://github.com/hugr-lab/examples).
+
+## Limitations
+
+Currently, the hugr doesn't support auto_increment fields in MySQL mutations, so you can only use queries to retrieve data. However, you can still perform mutations to update existing records or insert new ones without auto-increment fields.
 
 import RemoteMarkdown from '@site/src/components/RemoteMarkdown';
 import Tabs from '@theme/Tabs';
