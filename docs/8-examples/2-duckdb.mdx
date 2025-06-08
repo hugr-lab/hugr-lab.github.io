@@ -1,0 +1,45 @@
+---
+sidebar_position: 2
+title: "DuckDB: Healthcare - Providers Open Payments Data"
+---
+
+In this example, we will use DuckDB to query the Open Payments data from the Centers for Medicare & Medicaid Services (CMS). This dataset contains information about financial relationships between healthcare providers and pharmaceutical companies.
+
+This is open government data, and you can find the original dataset on the [CMS website](https://www.cms.gov/openpayments).
+
+You can find this example in the [hugr examples repository](https://github.com/hugr-lab/examples).
+
+In this example, we will demonstrate how to set up a DuckDB database as Hugr data source and how is works the self describe feature.
+
+To read more about the DuckDB data source, see the [DuckDB data source documentation](../4-engine-configuration/1-data-sources/1-duckdb.md).
+
+## Example
+
+import RemoteMarkdown from '@site/src/components/RemoteMarkdown';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+<Tabs>
+  <TabItem value="readme" label="Getting Started">
+    <RemoteMarkdown 
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/open-payments/README.md"
+      fallback="📄 Loading documentation..."
+    />
+  </TabItem>
+  
+  <TabItem value="schema" label="GraphQL Schema">
+    <RemoteMarkdown 
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/open-payments/schema.graphql"
+      fallback="📋 Loading schema..."
+      transform={(content) => '```graphql\n' + content + '\n```'}
+    />
+  </TabItem>
+
+  <TabItem value="extra schema" label="Extra schema with relationships">
+    <RemoteMarkdown 
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/open-payments/extra.graphql"
+      fallback="📋 Loading data..."
+      transform={(content) => '```graphql\n' + content + '\n```'}
+    />
+  </TabItem>
+</Tabs>
