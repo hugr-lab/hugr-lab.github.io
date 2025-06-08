@@ -38,7 +38,7 @@ Variables:
 ```json
 {
   "data": {
-    "name": "ds",
+    "name": "quack",
     "type": "duckdb",
     "path": "/workplace/my-duckdb-file.duckdb",
     "prefix": "ds1",
@@ -49,10 +49,10 @@ Variables:
     "disabled": false,
     "catalogs": [
       {
-        "name": "ds_catalog",
-        "description": "",
-        "path": "",
-        "type": "duckdb"
+        "name": "quack_catalog",
+        "description": "My DuckDB catalog source",
+        "path": "s3://my-bucket/my-duckdb-catalog.graphql",
+        "type": "uriFile"
       }
     ]
   }
