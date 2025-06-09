@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
-title: DuckDB Data Source
+title: DuckDB
+description: DuckDB data source allows you to connect to a DuckDB database file, that can be accessed by multiple users. It can be placed in the file system or in a object storage like S3 or GCS.
 ---
 
 The DuckDB data source allows you to connect to a DuckDB database file, that can be accessed by multiple users. It can be placed in the file system or in a object storage like S3 or GCS.

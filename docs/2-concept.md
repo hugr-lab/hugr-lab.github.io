@@ -1,7 +1,7 @@
 ---
 title: Key concepts
 sidebar_position: 2
-description: "Understanding the core concepts of our application"
+description: "Understanding the core concepts of hugr, including data sources, schema definition, and how to access and manipulate data."
 ---
 
 The `hugr` is a powerful tool designed to simplify provide access to all your data.

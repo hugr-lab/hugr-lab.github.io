@@ -1,13 +1,6 @@
 User-agent: *
 Allow: /
-
-# Разрешаем индексацию всего сайта
-Disallow: /search
-Disallow: /_next/
-Disallow: /api/
-
-# Указываем sitemap
-Sitemap: https://your-domain.com/sitemap.xml
+Sitemap: https://hugr-lab.github.io/sitemap.xml
 
 # Для конкретных ботов
 User-agent: Googlebot

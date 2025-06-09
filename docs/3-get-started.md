@@ -1,8 +1,8 @@
 ---
 sidebar_position: 3
+title: Get Started
+description: "Getting started with hugr, including installation, setup, and basic usage."
 ---
-
-# Get Started
 
 To try out `hugr`, you can use the get started example provided in the [examples repository](https://github.com/hugr-lab/examples) on GitHub.
 

@@ -1,9 +1,16 @@
 ---
 sidebar_position: 2
-title: PostgreSQL Data Source
+title: PostgreSQL
+description: PostgreSQL data source configuration and usage in Hugr engine. Includes query push-down, range types, PostGIS, and TimescaleDB support.
 ---
 
 The PostgreSQL data source allows you to connect to a PostgreSQL database. It can be used to access and manipulate data stored in PostgreSQL tables and views.
+
+The PostgreSQL data source is a powerful feature of the Hugr engine, allowing you to leverage the capabilities of PostgreSQL, including query push-down, range data types, PostGIS support, and TimescaleDB support. You can use it to rapid develop a data backend for your applications and services, while taking advantage of the rich features of PostgreSQL.
+
+As well PostgreSQL with TimescaleDB, PostGIS and pg_duckdb extensions can be used as a data data warehouse, and hugr can be used as data access layer for your data warehouse, providing a unified GraphQL API for your data.
+
+## Setting up PostgreSQL data source
 
 To set up a PostgreSQL data source you need to add data source record to the `data_sources` table through the GraphQL API.
 

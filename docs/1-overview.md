@@ -1,8 +1,8 @@
 ---
 sidebar_position: 1
+title: Overview
+description: Overview of the hugr platform, its features, architecture, and use cases.
 ---
-
-# Overview
 
 ## Introduction
 
