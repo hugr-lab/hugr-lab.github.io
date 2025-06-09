@@ -174,7 +174,7 @@ const config: Config = {
       tagName: 'meta',
       attributes: {
         name: 'google-site-verification',
-        content: 'google123456789.html',
+        content: 'oOE10EHH6DYiVidJkz9BmWI4832W_udAVtPrjMuEHlE',
       },
     },
   ],
