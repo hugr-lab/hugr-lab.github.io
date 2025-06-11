@@ -51,7 +51,7 @@ Data objects can have relationships between them, such as one-to-many or many-to
 
 Functions can be presented with their arguments as GraphQL queries and mutations, allowing you to execute them through the unified GraphQL API. Data objects on the other hand, can presented as GraphQL types with their fields and relationships and standardized queries and mutations for CRUD operations. This allows you to work with your data in a consistent way, regardless of where it is stored or how it is accessed.
 
-The schema definitions syntax is based on the GraphQL schema definition language (SDL), which is a standard way to define GraphQL schemas. See the [Schema Definition Overview](./3-schema-definition/1-overview.md) for more details on how to define your schema.
+The schema definitions syntax is based on the GraphQL schema definition language (SDL), which is a standard way to define GraphQL schemas. See the [Schema Definition Overview](./3-schema-definition/index.md) for more details on how to define your schema.
 
 Functions and tables (their queries and mutations) can be organized into modules, which allows you to group related functionality together and manage it as a single unit. The modules are the fields of root query and mutation GraphQL types, and can have their own sub-modules, which allows you to create a hierarchical structure of your schema definitions. This is useful for organizing your schema definitions and making them easier to maintain, especially in **data access management**.
 
@@ -63,7 +63,7 @@ To manage data sources, the `hugr` engine has the CoreDB system data source, whi
 
 The hugr provide a set of system data sources, called runtime data sources, which are used to manage hugr instance and access their functionality in the unified GraphQL API. If you are using the `hugr` as embedded engine in your service, you can add your own data sources to the runtime data sources, which will be available in the unified GraphQL API or can be used to extend the engine functionality.
 
-All data sources attached to the `DuckDB` in-process instance, and make it available to work as they are in one data base.
+All data sources attached to the `DuckDB` in-process instance, and make it available to work as they are in one database.
 The `engine` will transform the GraphQL queries and mutations to the SQL queries and execute them in the DuckDB instance. This allows you to make cross-data source joins and aggregations, as well as to use the full power of the DuckDB SQL engine to query your data.
 
 The data sources can be also represented as modules in the GraphQL schema, which allows you to reuse the data processing logic in the different data sources with same catalogs.
