@@ -1,0 +1,26 @@
+---
+sidebar_position: 5
+title: "DuckDB: Spatial - OpenStreetMap Example"
+description: "An example of using DuckDB with OpenStreetMap data."
+---
+
+The `hugr` GraphQL engine can integrate with DuckDB, a high-performance SQL database that supports spatial data. This example demonstrates how to set up a simple GraphQL schema that queries OpenStreetMap (OSM) data using DuckDB.
+
+## Technical Overview
+
+The `hugr` engine implements the data source type for DuckDB - `duckdb`. Technically, DuckDB data sources are used to fetch data through the SQL queries executed by the DuckDB engine. The engine supports spatial data types and functions, allowing you to perform complex spatial queries.
+
+The OpenStreetMap data can be imported into DuckDB using the `DuckDB` spatial extension, we provide a [DuckDB OSM dbt project](https://github.com/hugr-lab/osm_dbt) to load and parse OpenStreetMap data in the DuckDB database.
+
+In this example, we will demonstrate how to set up a DuckDB database as a Hugr data source and how it works with the self-describe feature and how to use `DuckDB` databases that are placed in the **object storage**.
+
+## Example
+
+import RemoteMarkdown from '@site/src/components/RemoteMarkdown';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+<RemoteMarkdown 
+  url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/osm/README.md"
+  fallback="📄 Loading documentation..."
+/>

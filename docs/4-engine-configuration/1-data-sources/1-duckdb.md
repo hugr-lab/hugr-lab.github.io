@@ -103,3 +103,4 @@ The files like CSV are very slow to query, so it is recommended to load the data
 You can find the examples of the DuckDB data source:
 
 - [DuckDB: Healthcare - Providers Open Payments Data](../../8-examples/2-duckdb.mdx).
+- [DuckDB: Spatial - OpenStreetMap](../../8-examples/5-duckdb-spatial.mdx).
