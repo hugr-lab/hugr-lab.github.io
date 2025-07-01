@@ -24,4 +24,3 @@ You can also check out the [examples](https://hugr-lab.github.io/hugr/docs/examp
 ## Community and Support
 
 Join the Hugr community on [GitHub](https://github.com/hugr-lab/hugr) to connect with other users, report issues, and contribute to the project.
-
