@@ -64,8 +64,8 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
-        
-        sitemap: {
+        sitemap: false,
+        /*sitemap: {
           changefreq: 'weekly',
           priority: 0.5,
           ignorePatterns: ['/tags/**'],
@@ -77,7 +77,7 @@ const config: Config = {
               !item.url.includes('/docs/docs/') 
             );
           }
-        },
+        },*/
       } satisfies Preset.Options,
     ],
   ],
