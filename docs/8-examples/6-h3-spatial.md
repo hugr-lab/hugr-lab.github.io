@@ -14,7 +14,7 @@ We will use the OpenStreetMap (OSM) data for Baden-Württemberg, Germany, and Po
 
 ### Create a OSM data source
 
-To create a data source for the OSM data you can use the existing [OSM dbt project](https://github.com/hugr-lab/osm-dbt) as a starting point or following by the Example (./5-duckdb-spatial.mdx) to create a DuckDB database with the OSM data.
+To create a data source for the OSM data you can use the existing [OSM dbt project](https://github.com/hugr-lab/osm_dbt) as a starting point or following by the [Example](./5-duckdb-spatial.mdx) to create a DuckDB database with the OSM data.
 
 Additionally, we should extend the OSM data source to add calculated field for the county code (osm tag `de:amtlicher_gemeindeschluesselz`) in osm_administrative_boundaries table. This will allow us to join the OSM data with the population data later.
 
