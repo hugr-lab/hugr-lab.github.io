@@ -78,6 +78,8 @@ const config: Config = {
     metadata: [
       {name: 'keywords', content: 'Data Mesh, GraphQL, Data Backend, Data Lake, Distributed Data, DuckDB, API, Data Governance, Data Access Layer, PostgreSQL, Spatial Data, Data Federation, Data Integration, Open Source'},
       {name: 'description', content: 'hugr - Open Source Data Mesh platform and high-performance GraphQL backend for distributed data sources. Supporting cross data source queries, spatial analysis, data lakes, databases, and APIs with centralized control and governance.'},
+      {name: 'robots', content: 'index,follow'},
+      {name: 'googlebot', content: 'index,follow'},
     ],
     image: 'img/hugr-social-card.png',
     navbar: {
