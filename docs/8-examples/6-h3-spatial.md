@@ -4,7 +4,7 @@ sidebar_position: 6
 description: "Learn how to create geoembeddings using H3 hexagons with Hugr."
 ---
 
-HUgr can help you to create geoembeddings from your data based on the H3 DSG. H3 is a geospatial indexing system that allows you to represent geographic locations as hexagonal grids. This can be useful for various applications, such as spatial analysis, mapping, and data visualization.
+Hugr can help you to create geoembeddings from your data based on the H3 DSG. H3 is a geospatial indexing system that allows you to represent geographic locations as hexagonal grids. This can be useful for various applications, such as spatial analysis, mapping, and data visualization.
 
 Hugr provides a special type of data query called `h3` that allows you to aggregate you data into h3 hexagons. The `h3` query can be used to create geoembeddings from your data by aggregating it into H3 hexagons based on the spatial fields in your data tables and views.
 
@@ -68,7 +68,6 @@ mutation reloadOsmDataSource {
   }
 }
 ```
-
 
 ### Create a Population data source
 
