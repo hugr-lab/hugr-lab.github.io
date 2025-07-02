@@ -1,13 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://hugr-lab.github.io/sitemap.xml
-
-# Для конкретных ботов
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: YandexBot
-Allow: /
+Sitemap: /
