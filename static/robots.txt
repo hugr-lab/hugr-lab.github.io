@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://hugr-lab.github.io/sitemap_index.xml
+Sitemap: https://hugr-lab.github.io/sitemap.xml

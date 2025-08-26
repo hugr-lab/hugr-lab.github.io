@@ -69,7 +69,7 @@ const config: Config = {
           changefreq: 'weekly',
           priority: 0.5,
           ignorePatterns: ['/tags/**', '/redirects/**'],
-          filename: 'sitemap_index.xml',
+          filename: 'sitemap.xml',
           createSitemapItems: async (params) => {
             const {defaultCreateSitemapItems, ...rest} = params;
             const items = await defaultCreateSitemapItems(rest);
@@ -124,19 +124,19 @@ const config: Config = {
           items: [
             {
               label: 'Overview',
-              to: '/docs/overview',
+              to: '/docs/overview/',
             },
             {
               label: 'Key Concepts',
-              to: '/docs/concept',
+              to: '/docs/concept/',
             },
             {
               label: 'Get Started',
-              to: '/docs/get-started',
+              to: '/docs/get-started/',
             },
             {
               label: 'Query engine configuration',
-              to: '/docs/category/query-engine-configuration',
+              to: '/docs/category/query-engine-configuration/',
             },
           ],
         },
@@ -145,7 +145,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/hugr-lab/hugr',
+              href: 'https://github.com/hugr-lab/hugr/',
             },
           ],
         },
