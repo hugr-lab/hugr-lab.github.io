@@ -5,8 +5,9 @@ description: Overview of the data sources supported by the `hugr` query engine a
 ---
 
 
+
 The `hugr` query engine supports multiple data sources, allowing you to connect to various databases and data stores. Each data source can be configured with its own connection settings and schema definitions (catalogs).
-This flexibility enables you to work with different types of data and integrate them into your applications seamlessly.
+This flexibility enables you to work with different types of data and integrate them seamlessly into your applications.
 
 ## Supported Data Sources
 
@@ -15,22 +16,22 @@ The following data sources are supported by the `hugr` query engine:
 - **DuckDB**: A lightweight, embedded database engine (see [DuckDB](1-duckdb.md)).
 - **PostgreSQL**: A powerful, open-source relational database system (see [PostgreSQL](2-postgres.md)).
 - **MySQL**: A widely used open-source relational database management system (see [MySQL](3-mysql.md)).
-- **DuckLake**: A data lake solution that supports various storage systems, including cloud storage and distributed file systems. DuckLake is designed to handle large volumes of data and provides efficient querying capabilities and able to manage data and schema changes through snapshots (in development).
+- **DuckLake**: A data lake solution that supports various storage systems, including cloud storage and distributed file systems. DuckLake is designed to handle large volumes of data, provides efficient querying capabilities, and is able to manage data and schema changes through snapshots (in development).
 - **HTTP RESTful API**: Allows you to connect to any RESTful API endpoint (see [HTTP RESTful API](4-http.md)).
-- **Extension**: A special data source types that allows you to extend GraphQL data objects (tables and views) to add extra subquery (joins) and function calls fields. This is useful for creating custom logic or aggregations using data from other sources. The extension data source can also defines cross-data source views, which allow you to combine data from multiple data sources into a single view. This is useful for creating complex queries that span multiple data sources.
+- **Extension**: A special data source type that allows you to extend GraphQL data objects (tables and views) by adding extra subquery (joins) and function call fields. This is useful for creating custom logic or aggregations using data from other sources. The extension data source can also define cross-data source views, which allow you to combine data from multiple data sources into a single view. This is useful for creating complex queries that span multiple data sources.
 
-The file views (spatial formats, CSV, parquet, etc.) are supported through the DuckDB data source, which can read and write various file formats and locations directly.
+File views (spatial formats, CSV, Parquet, etc.) are supported through the DuckDB data source, which can read and write various file formats and locations directly.
 
 ## Configuration
 
 ### System tables
 
-Data sources can be configured by unified GraphQL API. This allows for a consistent and streamlined approach to managing data sources across different environments and use cases.
+Data sources can be configured via a unified GraphQL API. This allows for a consistent and streamlined approach to managing data sources across different environments and use cases.
 The following system tables are available for managing data sources:
 
 - `data_sources`: Contains information about all configured data sources.
-- `catalog_sources`: Contains information about the one or more schema definitions (catalogs).
-- `catalogs`: Contains information about the assigned catalogs to the data sources.
+- `catalog_sources`: Contains information about one or more schema definitions (catalogs).
+- `catalogs`: Contains information about catalogs assigned to the data sources.
 
 #### Data Sources Table
 
@@ -45,12 +46,12 @@ The `data_sources` table contains the following fields:
 | `as_module`   | Boolean  | Indicates if the data source should be attached to the GraphQL schema as a module. |
 | `disabled`    | Boolean  | Indicates if the data source is disabled, and shouldn't be loaded at startup. |
 | `path`        | String   | Connection string or path, it depends on data source type.|
-| `read_only`   | Boolean  | Indicates if the data source is read-only, it would not allow to generate GraphQL mutations.|
-| `self_defined`| Boolean  | Indicates if the data source is self-defined, some of the data source types may return their schema definition with out needs to make catalogs. |
+| `read_only`   | Boolean  | Indicates if the data source is read-only; GraphQL mutations will not be generated for it.|
+| `self_defined`| Boolean  | Indicates if the data source is self-defined; some data source types may return their schema definition without the need to create catalogs. |
 
-The path can contain environment variables, which will be resolved at runtime. This allows for flexible configuration without hardcoding sensitive information like passwords. The name of the environment variable should be passed in the format `[$ENV_VAR_NAME]`.
+The path can contain environment variables, which will be resolved at runtime. This allows for flexible configuration without hardcoding sensitive information like passwords. The name of the environment variable should be specified in the format `[$ENV_VAR_NAME]`.
 
-#### Catalog sources Table
+#### Catalog Sources Table
 
 The `catalog_sources` table contains the following fields:
 
@@ -63,7 +64,7 @@ The `catalog_sources` table contains the following fields:
 
 ### System functions
 
-To manually load/reload or unload the data sources you can use the `load_data_sources` and `unload_data_sources` mutation function. These mutations allow you to dynamically manage the data sources without needing to restart the engine.
+To manually load/reload or unload data sources, you can use the `load_data_sources` and `unload_data_sources` mutation functions. These mutations allow you to dynamically manage data sources without needing to restart the engine.
 
 ```graphql
 mutation loadDataSources {
@@ -87,9 +88,9 @@ mutation unloadDataSources {
 }
 ```
 
-All GraphQL queries and mutations to manage data sources are available in the module `core` in the root query and mutation types.
+All GraphQL queries and mutations to manage data sources are available in the `core` module in the root query and mutation types.
 
-In clustered environments, to load/reload or unload data sources, you can use the `load_data_sources` and `unload_data_sources` mutations in `core.cluster` module. These mutations ensure that the data sources are synchronized across all nodes in the cluster.
+In clustered environments, to load/reload or unload data sources, you can use the `load_data_sources` and `unload_data_sources` mutations in the `core.cluster` module. These mutations ensure that data sources are synchronized across all nodes in the cluster.
 
 ```graphql
 mutation loadDataSources {
@@ -195,13 +196,13 @@ Variables:
 }
 ```
 
-To learn how to mutation works go to the [GraphQL Operations - Mutations](../../5-graphql/2-mutations.md) section.
+To learn how this mutation works, go to the [GraphQL Operations - Mutations](../../5-graphql/2-mutations.md) section.
 
 ## Self-Describing Data Sources
 
-The data sources can be marked as self-describing (`self_defined: true`), which means that the data source will provide its own schema definition. This is useful for data sources that can generate their schema dynamically or have a predefined schema that does not require external catalogs.
+Data sources can be marked as self-describing (`self_defined: true`), which means that the data source will provide its own schema definition. This is useful for data sources that can generate their schema dynamically or have a predefined schema that does not require external catalogs.
 
-When a data source is self-defined, it will automatically generate the GraphQL schema. All rational data sources (DuckDB, PostgreSQL, MySQL) support self-defined schema generation based on the metadata of the database objects (tables and views), you can use the following query to retrieve the schema:
+When a data source is self-defined, it will automatically generate the GraphQL schema. All relational data sources (DuckDB, PostgreSQL, MySQL) support self-defined schema generation based on the metadata of the database objects (tables and views). You can use the following query to retrieve the schema:
 
 ```graphql
 query schema{
@@ -213,13 +214,14 @@ query schema{
 }
 ```
 
-The argument `self: true` indicates that the schema should be generated based on the data source metadata, if it is not set, the schema will generate based on linked catalogs and self-defined flag. The `log: true` argument will log the generated schema to the stdout, it can be useful for debugging purposes.
+The argument `self: true` indicates that the schema should be generated based on the data source metadata. If it is not set, the schema will be generated based on linked catalogs and the self-defined flag. The `log: true` argument will log the generated schema to stdout, which can be useful for debugging purposes.
 
-## Rational databases
+## Relational Databases
 
-The `hugr` uses the rational database data sources (DuckDB, PostgreSQL, MySQL, DuckLake) as attached databases to the DuckDB query engine. You can explore the internal data sources structure (tables, views, constraints) by using metadata queries by views in core.meta module.
 
-For example, this query is used to define the schema for the self-defined data sources:
+`hugr` uses relational database data sources (DuckDB, PostgreSQL, MySQL, DuckLake) as attached databases to the DuckDB query engine. You can explore the internal data source structure (tables, views, constraints) by using metadata queries via views in the `core.meta` module.
+
+For example, this query is used to define the schema for self-defined data sources:
 
 ```graphql
 query dbMeta($name: String!) {
@@ -286,6 +288,6 @@ query dbMeta($name: String!) {
 }
 ```
 
-## Service data sources
+## Service Data Sources
 
 The `hugr` query engine also supports service data sources, which are used to connect to external services or APIs (e.g., REST). These data sources can be used to fetch data from RESTful APIs or other external services.

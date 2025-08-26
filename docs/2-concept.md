@@ -4,11 +4,14 @@ sidebar_position: 2
 description: "Understanding the core concepts of hugr, including data sources, schema definition, and how to access and manipulate data."
 ---
 
-The `hugr` is a powerful tool designed to simplify provide access to all your data.
 
-The key concept of `hugr` is data sources. A data source in `hugr` represents a physical or logical source of data, such as a database, an API, or a data lake. Each data source can contain tables, views or functions, which are the fundamental building blocks of data organization in `hugr`.
+`hugr` is a powerful tool designed to simplify and provide access to all your data.
 
-The tables, views, and functions within a data source can be accessed and manipulated through a unified GraphQL API and described using a GraphQL schema definition language (SDL). The files, that contain the schema definitions, can be stored in a file systems or in object storage, such as S3.
+
+The key concept of `hugr` is data sources. A data source in `hugr` represents a physical or logical source of data, such as a database, an API, or a data lake. Each data source can contain tables, views, or functions, which are the fundamental building blocks of data organization in `hugr`.
+
+
+The tables, views, and functions within a data source can be accessed and manipulated through a unified GraphQL API and described using a GraphQL schema definition language (SDL). The files that contain the schema definitions can be stored in file systems or in object storage, such as S3.
 
 ## Data Sources
 
@@ -18,62 +21,78 @@ The following types of data sources are currently supported:
 - **PostgreSQL**: A relational database management system that uses SQL for querying.
 - **HTTP REST API**: A data source that allows you to access data from any RESTful API, enabling integration with various web services and applications. It supports various authentication methods, including API keys, OAuth2, and basic authentication.
 - **MySQL**: Another relational database management system that uses SQL for querying.
-- **DuckLake**: A data lake solution that supports various storage systems, including cloud storage and distributed file systems. DuckLake is designed to handle large volumes of data and provides efficient querying capabilities and able to manage data and schema changes through snapshots (in development).
-- **Extension**: A special data source that allows you to extend schema data objects (tables and views) to add additional subquery fields and function calls. This is useful for creating custom logic or aggregations using data from other sources. The extension data source can also defines cross-data source views, which allow you to combine data from multiple data sources into a single view. This is useful for creating complex queries that span multiple data sources.
+- **DuckLake**: A data lake solution that supports various storage systems, including cloud storage and distributed file systems. DuckLake is designed to handle large volumes of data, provides efficient querying capabilities, and is able to manage data and schema changes through snapshots (in development).
+- **Extension**: A special data source that allows you to extend schema data objects (tables and views) by adding additional subquery fields and function calls. This is useful for creating custom logic or aggregations using data from other sources. The extension data source can also define cross-data source views, which allow you to combine data from multiple data sources into a single view. This is useful for creating complex queries that span multiple data sources.
 
-The PostgreSQL data source supports aggregations and joins pushing down to the database level, allowing for efficient data retrieval and manipulation. The DuckDB data source supports SQL queries and provides a unified interface for data access, allowing for efficient data retrieval and manipulation.
 
-Other types of data sources, such as files (CSV, Parquet, JSON or Spatial data formats), support by DuckDB data source - you can define views over them.
+The PostgreSQL data source supports aggregations and joins pushed down to the database level, allowing for efficient data retrieval and manipulation. The DuckDB data source supports SQL queries and provides a unified interface for data access, allowing for efficient data retrieval and manipulation.
 
-The `hugr` contains a built-in data sources, called **runtime data sources**. These data sources are used to access the metadata and configuration of the `hugr` itself, such as the list of available data sources, tables, views, and functions. The runtime data sources are not intended for direct user interaction but provide essential information about the `hugr` environment.
+
+Other types of data sources, such as files (CSV, Parquet, JSON, or spatial data formats), are supported by the DuckDB data source—you can define views over them.
+
+
+`hugr` contains built-in data sources, called **runtime data sources**. These data sources are used to access the metadata and configuration of `hugr` itself, such as the list of available data sources, tables, views, and functions. The runtime data sources are not intended for direct user interaction but provide essential information about the `hugr` environment.
 
 ## CoreDB
 
-The data source definitions are stored in the CoreDB runtime datasource. The CoreDB can be DuckDB file or PostgreSQL database, depending on the configuration of the `hugr`. The CoreDB also contains roles and permissions tables, which are used to manage access to the data sources, tables, views, and functions.
 
-Data sources are loaded at the startup of the `hugr`.
+The data source definitions are stored in the CoreDB runtime data source. The CoreDB can be a DuckDB file or a PostgreSQL database, depending on the configuration of `hugr`. The CoreDB also contains roles and permissions tables, which are used to manage access to the data sources, tables, views, and functions.
+
+
+Data sources are loaded at the startup of `hugr`.
 
 ## Catalog Sources
 
+
 The catalog source can be used to define the schema of tables, views, and functions in the data source.
-Each data source has a unique name and number of catalogs. The catalog source defines where the schema definition files are stored. Currently, the following catalog sources types are supported:
+Each data source has a unique name and a number of catalogs. The catalog source defines where the schema definition files are stored. Currently, the following catalog source types are supported:
 
 - **File System**: A local or network file system where the schema definition files are stored.
-- **uri**: A URI that points to the schema definition files, such as file system, http or s3 path.
-- **uriFile**: A URI that points to a single schema definition file, such as file system, http or s3 path.
+- **uri**: A URI that points to the schema definition files, such as a file system, HTTP, or S3 path.
+- **uriFile**: A URI that points to a single schema definition file, such as a file system, HTTP, or S3 path.
 
-One catalog source can be used to describe data schema of multiple data sources.
+
+One catalog source can be used to describe the data schema of multiple data sources.
 
 ## Schema Definition Language (SDL)
 
-The `hugr` uses the GraphQL schema definition language (SDL) to define the schema of tables, views and functions in the data source. To define schema objects, relations, functions, etc, it is used hugr-specific directives, such as `@table`, `@view`, `@function`, `@field_references`, `@pk`, `@join`, etc. All directives are described in the [Query Engine Configuration section](./4-engine-configuration/index.md).
+
+`hugr` uses the GraphQL schema definition language (SDL) to define the schema of tables, views, and functions in the data source. To define schema objects, relations, functions, etc., it uses hugr-specific directives, such as `@table`, `@view`, `@function`, `@field_references`, `@pk`, `@join`, etc. All directives are described in the [Query Engine Configuration section](./4-engine-configuration/index.md).
+
 
 Tables and views are defined as GraphQL types, and functions are defined as GraphQL queries or mutations in special `Function` and `MutationFunction` types.
 
+
 The general GraphQL schema is generated by defined catalogs for the attached data sources. It performs the following steps:
 
-1. **Data source schema compilation**: The `hugr` compiles the schema definition files from the catalog sources into a unified GraphQL schema. This includes validation, prefixing types and fields, and generating queries, mutations, and functions.
-2. **Merging data source schemas**: The `hugr` merges the schemas of all attached data sources into a single GraphQL schema. This allows for querying data from multiple data sources in a single query.
-3. **Apply extensions**: The `hugr` applies the extensions to the merged schema, which allows to extend the schema with additional subquery fields and function calls. This is useful for creating custom logic or aggregations using data from other sources.
+1. **Data source schema compilation**: `hugr` compiles the schema definition files from the catalog sources into a unified GraphQL schema. This includes validation, prefixing types and fields, and generating queries, mutations, and functions.
+2. **Merging data source schemas**: `hugr` merges the schemas of all attached data sources into a single GraphQL schema. This allows for querying data from multiple data sources in a single query.
+3. **Apply extensions**: `hugr` applies the extensions to the merged schema, which allows you to extend the schema with additional subquery fields and function calls. This is useful for creating custom logic or aggregations using data from other sources.
 
 ### Data source schema compilation
 
-At the data source loading time, the `hugr` combine all catalog sources in the single source, validate and compile it to the GraphQL data source schema.
+
+At data source loading time, `hugr` combines all catalog sources into a single source, validates, and compiles it to the GraphQL data source schema.
 
 #### Validation
 
-The schema definition files are validated at the loading time to ensure that they conform to the GraphQL SDL syntax and the `hugr` specific directives. The validation process checks for syntax errors, missing required fields, and other inconsistencies in the schema definition files. If any errors are found, the `hugr` will not start until the issues are resolved.
 
-At this stage, the `hugr` also add prefix to the types and fields to avoid name collisions between different data sources. If the prefix is not specified in the schema definition file, the `hugr` will not add any prefix to the types and fields.
+The schema definition files are validated at loading time to ensure that they conform to the GraphQL SDL syntax and the `hugr`-specific directives. The validation process checks for syntax errors, missing required fields, and other inconsistencies in the schema definition files. If any errors are found, `hugr` will not start until the issues are resolved.
+
+
+At this stage, `hugr` also adds a prefix to the types and fields to avoid name collisions between different data sources. If the prefix is not specified in the schema definition file, `hugr` will not add any prefix to the types and fields.
 
 #### Compilation
 
-At the compilation stage, the `hugr` processes the schema definition files and generates a GraphQL schema that represents the data source.
 
-For the data objects (tables and views), the `hugr` generates GraphQL types with fields that correspond to the columns in the data source.
-The functions are defined as fields in the `Function` and `MutationFunction` types - already queries.
+At the compilation stage, `hugr` processes the schema definition files and generates a GraphQL schema that represents the data source.
 
-All generated queries, mutations, and functions are split into module hierarchy, which allows to organize the schema in a modular way. The modules are defined using the `@module` directive, which allows to group related queries, mutations, and functions together.
+
+For the data objects (tables and views), `hugr` generates GraphQL types with fields that correspond to the columns in the data source.
+The functions are defined as fields in the `Function` and `MutationFunction` types—already queries.
+
+
+All generated queries, mutations, and functions are split into a module hierarchy, which allows you to organize the schema in a modular way. The modules are defined using the `@module` directive, which allows you to group related queries, mutations, and functions together.
 
 ### Compilation flow
 

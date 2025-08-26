@@ -4,7 +4,8 @@ title: Get Started
 description: "Getting started with hugr, including installation, setup, and basic usage."
 ---
 
-To try out `hugr`, you can use the get started example provided in the [examples repository](https://github.com/hugr-lab/examples) on GitHub.
+
+To try out `hugr`, you can use the getting started example provided in the [examples repository](https://github.com/hugr-lab/examples) on GitHub.
 
 ## Prerequisites
 
@@ -29,7 +30,8 @@ Navigate to the cloned `hugr` example directory:
 cd examples
 ```
 
-Start the examples entire environment using docker-compose:
+
+Start the entire example environment using docker-compose:
 
 ```bash
 sh scripts/start.sh
@@ -37,11 +39,13 @@ sh scripts/start.sh
 
 This will start the `hugr` server and all the necessary services. You can access the `hugr` GraphQL API at `http://localhost:18000/graphql`.
 
-You can change configuration settings by modifying the example.env file or create a new `.env` file in the `examples` directory.
+
+You can change configuration settings by modifying the `example.env` file or creating a new `.env` file in the `examples` directory.
 
 ## Create an example database
 
-To create the example database, you can use the provided `get-started/setup.sh` script. This script will create a new database with the sample data.
+
+To create the example database, you can use the provided `get-started/setup.sh` script. This script will create a new database with sample data.
 The example database is a PostgreSQL Northwind database, which is a sample database used for demonstration purposes (see [README](https://github.com/hugr-lab/examples/blob/main/get-started/README.md)).
 You can run the script with the following command:
 
@@ -52,10 +56,12 @@ sh /setup.sh
 
 ## Basic Configuration
 
-After the example database is created, you can add this database as a data source in `hugr`.
-The hugr data sources are added through GraphQL mutations. For the data source should be defined one or more catalogs, that contains the schema definitions for the data source. The catalogs are defined in the `hugr` configuration file, which is located in the `get-started/schema/` GraphQL files.
 
-Open browser and go to `http://localhost:18000/admin` (port can be changed through .env). You will see the hugr admin UI (GraphiQL).
+After the example database is created, you can add this database as a data source in `hugr`.
+The hugr data sources are added through GraphQL mutations. For each data source, one or more catalogs should be defined, containing the schema definitions for the data source. The catalogs are defined in the `hugr` configuration file, which is located in the `get-started/schema/` directory as GraphQL files.
+
+
+Open your browser and go to `http://localhost:18000/admin` (the port can be changed through `.env`). You will see the hugr admin UI (GraphiQL).
 Create a new data source with the following mutation:
 
 ```graphql
@@ -106,10 +112,12 @@ Add variables:
 }
 ```
 
-Here we add a new data source named `northwind`, which is a PostgreSQL database. The `path` field contains the connection string to the database, and the `catalogs` field contains the path to the schema definitions.
-We define the data source as a module (`as_module: true`), which means that all queries, mutations and functions will be placed in general GraphQL schema inside the separate object and attached in field with the name of the data source (in this case `northwind`) in base schema fields (`query`, `mutation`, `function`).
 
-After it you can load the data source manually by running the following mutation:
+Here we add a new data source named `northwind`, which is a PostgreSQL database. The `path` field contains the connection string to the database, and the `catalogs` field contains the path to the schema definitions.
+We define the data source as a module (`as_module: true`), which means that all queries, mutations, and functions will be placed in the general GraphQL schema inside a separate object and attached in a field with the name of the data source (in this case `northwind`) in the base schema fields (`query`, `mutation`, `function`).
+
+
+After that, you can load the data source manually by running the following mutation:
 
 ```graphql
 mutation loadNorthwindDataSource {
@@ -124,9 +132,11 @@ mutation loadNorthwindDataSource {
 }
 ```
 
-By default, the data source is loaded automatically when the `hugr` server starts. However, you can also load or reload (if the schema definitions was changed) it manually using the above mutation.
 
-After the data source is loaded, you can explore see the generated GraphQL queries, mutations and functions in the `hugr` admin UI (GraphiQL) at `http://localhost:18000/admin`. The following query will return the query and mutation types of the generated schema:
+By default, the data source is loaded automatically when the `hugr` server starts. However, you can also load or reload it manually (if the schema definitions were changed) using the above mutation.
+
+
+After the data source is loaded, you can explore the generated GraphQL queries, mutations, and functions in the `hugr` admin UI (GraphiQL) at `http://localhost:18000/admin`. The following query will return the query and mutation types of the generated schema:
 
 ```graphql
 {
@@ -244,15 +254,18 @@ It returns the schema definition for the query and mutation types, including the
 }
 ```
 
-If you add the data source as not a module (i.e. `as_module: false`), the queries, mutations and functions will be added to the root base schema directly. But to avoid name conflicts with other data sources, it is recommended to set the prefix for the data source (i.e. `prefix: "nw"`). In this case, the queries, mutations and functions will be added to the root base schema with the prefix `nw_`, for example `nw_customers`, `nw_orders`, etc.
+
+If you add the data source as not a module (i.e. `as_module: false`), the queries, mutations, and functions will be added to the root base schema directly. But to avoid name conflicts with other data sources, it is recommended to set the prefix for the data source (i.e. `prefix: "nw"`). In this case, the queries, mutations, and functions will be added to the root base schema with the prefix `nw_`, for example `nw_customers`, `nw_orders`, etc.
 
 ## Your First Schema
 
 This example uses the Northwind database, which contains a variety of tables such as `customers`, `orders`, `products`, etc. You can explore the schema definitions in the `get-started/schema` directory.
 
-You can create schema definitions by yourself or use the provided schema definitions in the `get-started/schema` directory. The schema definitions are written in GraphQL SDL (Schema Definition Language) and can be used to define the structure of your data.
 
-To create your first schema, create the new GraphQL file in the `get-started/schema` directory, for example `my_northwind_schema.graphql`. You can define your schema using the GraphQL SDL syntax. Open the file and add the following content
+You can create schema definitions yourself or use the provided schema definitions in the `get-started/schema` directory. The schema definitions are written in GraphQL SDL (Schema Definition Language) and can be used to define the structure of your data.
+
+
+To create your first schema, create a new GraphQL file in the `get-started/schema` directory, for example `my_northwind_schema.graphql`. You can define your schema using the GraphQL SDL syntax. Open the file and add the following content:
 
 ### Customers tables schema
 
@@ -304,7 +317,8 @@ type customers_linked_types @table(name: "customer_customer_demo", is_m2m: true)
 
 Here we describe the `customers` table (directive `@table`), which contains information about customers. We will use id in GraphQL schema as the primary key instead `customer_id` (directives `@pk` and `@field_source` are used for this purpose).
 
-Than we describe the `customer_types` table (base on `customer_demographics` database table), which contains information about customer types. We will use id in GraphQL schema as the primary key instead `customer_type_id`.
+
+Then we describe the `customer_types` table (based on the `customer_demographics` database table), which contains information about customer types. We will use `id` in the GraphQL schema as the primary key instead of `customer_type_id`.
 
 Finally, we describe the `customer_customer_demo` table, which is a many-to-many relationship between customers and customer types. We use the `@field_references` directive to define the relationship between the tables, as well as `REFERENCES` SQL clause for the field at table creation. Arguments for the `@field_references` directive:
 
@@ -316,15 +330,17 @@ Finally, we describe the `customer_customer_demo` table, which is a many-to-many
 - `references_query`: the name of the query field that will be added to the referenced table in the GraphQL schema
 - `references_description`: a description for the query field in the referenced table
 
+
 You can add relations between tables by many fields using the `@references` directive for the table type. (See details in the [Query Engine Configuration/Schema Definition](./4-engine-configuration/3-schema-definition/index.md) guide).
 
-If we load this schema, we will see generated queries and mutations for the `customers` table, as well as for the `customers_types` and `customers_linked_types` tables. For each table the following queries and mutations will be generated in the module `northwind`:
+
+If we load this schema, we will see generated queries and mutations for the `customers` table, as well as for the `customers_types` and `customers_linked_types` tables. For each table, the following queries and mutations will be generated in the module `northwind`:
 
 - query `customers_by_pk`: query to get a customer by id (primary key), with required argument `id`
 - query `customers`: query to get all customers, with optional arguments `filter`, `distinct_on`, `order_by`, `limit`, and `offset`
 - query `customers_aggregation`: query to get aggregated data for customers with optional arguments `filter`, `distinct_on`, `order_by`, `limit`, and `offset`
 - query `customers_bucket_aggregation`: query to get bucket aggregated data for customers with optional arguments `filter`, `distinct_on`, `order_by`, `limit`, and `offset`
-- mutation `insert_customers`: mutation to insert a new customer,with required argument `data` of type `nw_customers_mut_input_data!`
+- mutation `insert_customers`: mutation to insert a new customer, with required argument `data` of type `nw_customers_mut_input_data!`
 - mutation `update_customers`: mutation to update an existing customer, with required argument `data` of type `nw_customers_mut_data!` and optional argument `filter` to filter the customers to update
 - mutation `delete_customers`: mutation to delete a customer, with optional argument `filter` to filter the customers to delete.
 
@@ -358,13 +374,17 @@ query MyQuery {
 }
 ```
 
-The filter input object generated for the `customers` table will contain all fields of the table, so you can filter by any field. The `eq` operator is used to filter by equality, but you can also use other operators like `ne`, `gt`, `lt`, etc, it depends on the field type. As well to the `filter` will be added references objects based on the `@field_references` directive references type (many-to-many, one-to-many, many-to-one).
 
-As well the subquery fields will be added to the `customers` table type, so you can get the linked customer types for each customer, all subqueries will be added with their filter, distinct, order_by, limit, offset arguments.
+The filter input object generated for the `customers` table will contain all fields of the table, so you can filter by any field. The `eq` operator is used to filter by equality, but you can also use other operators like `ne`, `gt`, `lt`, etc., depending on the field type. References objects based on the `@field_references` directive (many-to-many, one-to-many, many-to-one) will also be added to the `filter`.
 
-The input data for the `insert_customers` mutation will contain all fields of the `customers` table, so you can insert a new customer with field values. As well the input data type also contains the references objects based on the `@field_references` directive references type, so you can insert a new customer with linked customer types, that will be created at the same time as the customer. For m2m relations, the input data will contain a field for the linked objects (customers types), and if they will be passed in the `insert_customers` mutation, they will be created and linked to the customer. If you want to link existing customer types, you should run separate `insert_customers_linked_types` mutation with the customer id and customer type id.
 
-Aggregation query will include `_rows_count` field and fields for each field of the `customers` table with aggregation functions like `sum`, `avg`, `min`, `max`, etc, based on field types. For example, to get the number of customers and list of distinct countries, you can use the following query:
+Subquery fields will also be added to the `customers` table type, so you can get the linked customer types for each customer. All subqueries will be added with their `filter`, `distinct`, `order_by`, `limit`, and `offset` arguments.
+
+
+The input data for the `insert_customers` mutation will contain all fields of the `customers` table, so you can insert a new customer with field values. The input data type also contains reference objects based on the `@field_references` directive, so you can insert a new customer with linked customer types, which will be created at the same time as the customer. For m2m relations, the input data will contain a field for the linked objects (customer types), and if they are passed in the `insert_customers` mutation, they will be created and linked to the customer. If you want to link existing customer types, you should run a separate `insert_customers_linked_types` mutation with the customer id and customer type id.
+
+
+The aggregation query will include the `_rows_count` field and fields for each field of the `customers` table with aggregation functions like `sum`, `avg`, `min`, `max`, etc., based on field types. For example, to get the number of customers and a list of distinct countries, you can use the following query:
 
 ```graphql
 query aggCustomers {
@@ -396,7 +416,8 @@ query bucketAggCustomers {
 }
 ```
 
-You can add filter to each aggregation query, for example, to get the number of all customers and customers, thats names contains 'am' by countries, you can use the following query:
+
+You can add a filter to each aggregation query. For example, to get the number of all customers and customers whose names contain 'am' by countries, you can use the following query:
 
 ```graphql
 query bucketAggCustomers {
@@ -636,7 +657,8 @@ type order_details @table(name: "order_details") {
 }
 ```
 
-Here we describe the order_details table, which contains information about the products in the order. We use the `@field_references` directive to define the relationship between the tables, as well as `REFERENCES` SQL clause for the field at table creation. The `total` field is calculated using the SQL expression, which calculates the total amount of ordered product based on the unit price, quantity and discount.
+
+Here we describe the `order_details` table, which contains information about the products in the order. We use the `@field_references` directive to define the relationship between the tables, as well as the `REFERENCES` SQL clause for the field at table creation. The `total` field is calculated using the SQL expression, which calculates the total amount of ordered product based on the unit price, quantity, and discount.
 
 ### Create orders view
 
@@ -757,19 +779,24 @@ query shippedAgg {
 
 This query will return the number of shipped products grouped by category and customer, as well as the total amount and quantity of shipped products for each group.
 
-By the view will be generated the following queries in the module `northwind`:
+
+For the view, the following queries will be generated in the module `northwind`:
 
 - query `shipped_products_view`: query to get all shipped products, with optional arguments `filter`, `distinct_on`, `order_by`, `limit`, and `offset`
 - query `shipped_products_view_aggregation`: query to get aggregated data for shipped products with optional arguments `filter`, `distinct_on`, `order_by`, `limit`, and `offset`
 - query `shipped_products_view_bucket_aggregation`: query to get bucket aggregated data for shipped products with optional arguments `filter`, `distinct_on`, `order_by`, `limit`, and `offset`
 
-As well this queries will be added to the references objects in the `customers`, `employees`, `products`, `shippers` and `categories` tables, so you can get the shipped products for each customer, employee, product, shipper and category.
 
-The views supports `parameterization`, so you can use the `@args` directive to define the input type that will use as parameters for the view. The input parameters can be used in the SQL query of the view by name, for example: `[$requested_time]`.
+These queries will also be added to the reference objects in the `customers`, `employees`, `products`, `shippers`, and `categories` tables, so you can get the shipped products for each customer, employee, product, shipper, and category.
+
+
+The views support `parameterization`, so you can use the `@args` directive to define the input type that will be used as parameters for the view. The input parameters can be used in the SQL query of the view by name, for example: `[$requested_time]`.
 
 ## Some example queries
 
+
 You can use the following queries to explore the data in the Northwind database:
+
 
 ### Get the list of customers with their sum of orders from the Northwind database
 
@@ -791,7 +818,8 @@ You can use the following queries to explore the data in the Northwind database:
 }
 ```
 
-### Get the total amount and products count by category and shipper
+
+### Get the total amount and product count by category and shipper
 
 ```graphql
 {
@@ -826,6 +854,7 @@ You can use the following queries to explore the data in the Northwind database:
 }
 ```
 
+
 ### Get the total shipped products (amount) by years and months
 
 ```graphql
@@ -859,7 +888,8 @@ You can use the following queries to explore the data in the Northwind database:
 }
 ```
 
-### Get the total shipped products (amount) by month bucket and in the orders were shipped by suppliers from Finland and France
+
+### Get the total shipped products (amount) by month bucket in the orders shipped by suppliers from Finland and France
 
 ```graphql
 {
@@ -898,6 +928,7 @@ You can use the following queries to explore the data in the Northwind database:
   }
 }
 ```
+
 
 ### Get the total shipped products (amount) by month bucket and shipped by suppliers from Finland and France
 
@@ -940,21 +971,23 @@ You can use the following queries to explore the data in the Northwind database:
 
 ## Advanced features
 
-The `hugr` supports a lot of advanced features, such as:
+
+`hugr` supports a lot of advanced features, such as:
 
 - **Joins**: You can define joins between tables using the `@join` directive. The joins can be defined as many-to-many, one-to-many, or many-to-one relationships. The joins will be added to the GraphQL schema as subqueries, so you can query the related data in a single query.
-- **Geometry types**: You can use the scalar type `geometry` to represent geometric fields (Postgis for PostgreSQL, and spatial for DuckDB). The `Geometry` fields has their own filter operators and aggregation functions.
-- **Json types**: You can use the scalar type `JSON` to represent JSON fields (PostgreSQL `jsonb`, DuckDB `json`). it will allow you to store and query JSON data in the database. The `JSON` fields has their own filter operators and aggregation functions.
-- **Nested types**: You can define fields that contains nested objects or arrays of objects. The nested objects can be defined as normal GraphQL types and will be accessible to query, aggregate and filter. (For PostgreSQL it should be defined as `jsonb`, for DuckDB as `struct`).
-- **Functions**: You can define custom functions in the schema, which can be used to perform complex operations on the data. The functions can be defined using the `@function` directive and can be used in the queries and mutations.
+- **Geometry types**: You can use the scalar type `geometry` to represent geometric fields (PostGIS for PostgreSQL, and spatial for DuckDB). The `geometry` fields have their own filter operators and aggregation functions.
+- **JSON types**: You can use the scalar type `JSON` to represent JSON fields (PostgreSQL `jsonb`, DuckDB `json`). This allows you to store and query JSON data in the database. The `JSON` fields have their own filter operators and aggregation functions.
+- **Nested types**: You can define fields that contain nested objects or arrays of objects. The nested objects can be defined as normal GraphQL types and will be accessible to query, aggregate, and filter. (For PostgreSQL it should be defined as `jsonb`, for DuckDB as `struct`).
+- **Functions**: You can define custom functions in the schema, which can be used to perform complex operations on the data. The functions can be defined using the `@function` directive and can be used in queries and mutations.
 - **Query time joins**: Each data object contains a `_join` field, which can be used to join the data with other data objects. The `_join` field can be used to join the data with other data objects in the same data source or in other data sources.
-- **Spatial queries**: Each data object that has `Geometry` fields, contains a `_spatial` field. The spatial queries can be used to filter the data by distance, intersection, containment, etc.
+- **Spatial queries**: Each data object that has `geometry` fields contains a `_spatial` field. The spatial queries can be used to filter the data by distance, intersection, containment, etc.
 - **JQ transformations**: You can use the `jq` query language to transform the query results. The `jq` query can be used in the `jq` query field, which will return the transformed data in the `extension` field.
-- **HTTP data sources**: You can define HTTP data sources, that will allow you to query data from external APIs. The API could be secured with JWT or API key, and the data can be transformed using the `jq` query language.
-- **Extensions**: You can extend the general schema data types, to add cross data sources subqueries (joins) and function calls.
+- **HTTP data sources**: You can define HTTP data sources, which allow you to query data from external APIs. The API can be secured with JWT or API key, and the data can be transformed using the `jq` query language.
+- **Extensions**: You can extend the general schema data types to add cross-data source subqueries (joins) and function calls.
 - **Field-level permissions**: You can define permissions for each field in the view, so you can control who can access the data.
 - **Caching**: You can enable caching for the view, so you can improve performance by reducing the number of database queries.
 
 ## Next steps
+
 
 You can continue with the [GraphQL Operations: Queries & Mutations](./5-graphql/index.md) guide to learn more about how to interact with your data using GraphQL.

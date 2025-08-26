@@ -12,13 +12,14 @@ Let's discover **hugr** in less than 5 minutes.
 
 ### What is hugr?
 
+
 hugr combines the power of modern data architecture patterns with the flexibility of GraphQL to create a comprehensive solution for:
 
-- **Data Mesh Architecture**: Enabling decentralized data ownership while maintaining unified access
-- **Rapid API Development**: Quickly creating GraphQL APIs over existing data sources
+- **Data Mesh Architecture**: Enables decentralized data ownership while maintaining unified access
+- **Rapid API Development**: Quickly create GraphQL APIs over existing data sources
 - **Analytics & BI**: Optimized for OLAP workloads and large-scale analytical queries
 - **Geospatial Processing**: Native support for spatial data types and operations
-- **Application Backends**: Serving as a universal data access layer for applications
+- **Application Backends**: Serves as a universal data access layer for applications
 
 ### Project Status
 
@@ -52,13 +53,12 @@ Schemas are defined using GraphQL SDL with extended directives, offering:
 ### 3. Supported Data Sources
 
 **Relational Databases**, native connectors:
-
-- DuckDB - used as the core query engine and supports attaching DuckDB databases as sources,
-- PostgreSQL (with PostGIS, TimescaleDB). Hugr supports filters, sorting, limits, aggregations and in source joins pushing down to the PostgreSQL databases.
+	- DuckDB – used as the core query engine and supports attaching DuckDB databases as sources
+	- PostgreSQL (with PostGIS, TimescaleDB). Hugr supports filters, sorting, limits, aggregations, and in-source joins pushed down to PostgreSQL databases.
 
 **Files**:
 
-Through DuckDB hugr provides access to various file formats and storage systems:
+Through DuckDB, hugr provides access to various file formats and storage systems:
 
 - Parquet, Apache Iceberg, Delta Lake, CSV, JSON
 - Hive-style partitioning
@@ -66,13 +66,13 @@ Through DuckDB hugr provides access to various file formats and storage systems:
 
 **Services**:
 
-- REST APIs (HTTP). Supports outbound requests authentication with OpenAPI flows: http Basic, ApiKey (in headers or parameters), OAuth2 (client credentials, password).
+- REST APIs (HTTP). Supports outbound request authentication with OpenAPI flows: HTTP Basic, ApiKey (in headers or parameters), OAuth2 (client credentials, password)
 - Arrow Flight (in development)
 
 **Planned**:
 
-- MySQL (through DuckDB with out joins pushing down)
-- SQLite (through DuckDB with out joins pushing down)
+- MySQL (through DuckDB without join pushdown)
+- SQLite (through DuckDB without join pushdown)
 - ClickHouse
 
 ### 4. Analytics and Geospatial Support
@@ -82,7 +82,7 @@ hugr is optimized for analytical workloads:
 - **OLAP Operations**: Key-based aggregation, including referenced and joined data
 - **Spatial Analytics**: Native spatial types and cross-source spatial joins and aggregations
 - **Large Dataset Processing**: Efficient handling of big data through DuckDB
-- **Arrow IPC**: Custom protocol for efficient data transfer and put it into Python environments
+- **Arrow IPC**: Custom protocol for efficient data transfer and integration with Python environments
 
 ### 5. Advanced Features
 
@@ -149,15 +149,15 @@ hugr uses [DuckDB](https://duckdb.org/) as its primary analytical engine, provid
 
 ### Core DB
 
-The core database that is used by query engine to store and retrieve:
+The core database is used by the query engine to store and retrieve:
 
-- **Catalog sources**: Source of catalog files logical grouped by data source type and domains
-- **Data sources**: Registered data sources with their connection parameters and Catalogs
+- **Catalog sources**: Source of catalog files logically grouped by data source type and domain
+- **Data sources**: Registered data sources with their connection parameters and catalogs
 - **Roles**: User roles with permissions (access control policies)
 
 The core database can be DuckDB (file or memory) or PostgreSQL, depending on the deployment configuration. It is used to store metadata about data sources, schemas, and access control policies.
 
-CoreDB can be configured as read-only - it defines by configuration parameters or always for a DuckDB file, that is stored in the S3 bucket.
+CoreDB can be configured as read-only—this is defined by configuration parameters or always for a DuckDB file that is stored in an S3 bucket.
 
 ### Go Core Engine
 
@@ -172,7 +172,8 @@ The core logic is implemented in the open-source Go package [hugr-lab/query-engi
 
 ### Hugr server
 
-The `server` server is a lightweight HTTP server, written in Go, that:
+
+The `server` is a lightweight HTTP server, written in Go, that:
 
 - Serves the GraphQL API
 - Handles schema management and introspection
@@ -180,7 +181,8 @@ The `server` server is a lightweight HTTP server, written in Go, that:
 - Provides a web interface for schema exploration and query testing (GraphiQL)
 - Supports configuration via environment variables
 
-[hugr-lab/hugr](https://github.com/hugr-lab/hugr/cmd/server) repository contains the server implementation, which can be run as a standalone binary or as a Docker container.
+
+The [hugr-lab/hugr](https://github.com/hugr-lab/hugr/cmd/server) repository contains the server implementation, which can be run as a standalone binary or as a Docker container.
 
 ### Hugr cluster management
 
@@ -190,11 +192,12 @@ The `management` component manages multi-node deployments, providing:
 - **Node health monitoring**: Monitoring and management of cluster nodes
 - **Core DB migration**: Core database schema migrations for cluster-wide consistency
 
-[hugr-lab/hugr](https://github.com/hugr-lab/hugr/cmd/management) repository contains the management node implementation, which can be run as a standalone binary or as a Docker container.
+The [hugr-lab/hugr](https://github.com/hugr-lab/hugr/cmd/management) repository contains the management node implementation, which can be run as a standalone binary or as a Docker container.
 
 ### Schema & Access Separation
 
-hugr maintains clean separation between:
+
+hugr maintains a clean separation between:
 
 - **Data Schema Logic**: Defined in GraphQL SDL with custom directives
 - **Access Control Policies**: Role-based permissions, visibility rules, and security filters
@@ -211,16 +214,16 @@ hugr implements a custom HTTP Multipart IPC protocol for efficient data transfer
 - Specification available at: [hugr-ipc.md](https://github.com/hugr-lab/query-engine/blob/main/hugr-ipc.md)
 
 The Python client library `hugr-client` provides a convenient interface for working with the Arrow IPC protocol, allowing users to easily query data and process results in Python environments.
-[hugr-lab/docker](https://github.com/hugr-lab/hugr-client) repository contains the client implementation, which can be installed via pip.
+The [hugr-lab/docker](https://github.com/hugr-lab/hugr-client) repository contains the client implementation, which can be installed via pip.
 
-## 1.5. Scalability & Clustering
+## Scalability & Clustering
 
 hugr is designed for enterprise-scale deployments:
 
 ### Multi-Node Operation
 
 - **Source Synchronization**: Consistent data access across cluster nodes
-- **Load Balancing**: Distribute query load across multiple instances
+- **Load Balancing**: Distributes query load across multiple instances
 - **Fault Tolerance**: Resilient to individual node failures
 
 ### Horizontal Scaling
@@ -236,7 +239,7 @@ Two-level caching architecture:
 - **In-Memory Cache**: Fast access to frequently requested data
 - **External Cache**: Redis or Memcached for shared cache across cluster nodes
 
-[hugr-lab/docker](https://github.com/hugr-lab/docker) contains Docker images for both the `server` server and `management` management components, allowing easy deployment in containerized environments.
+The [hugr-lab/docker](https://github.com/hugr-lab/docker) repository contains Docker images for both the `server` and `management` components, allowing easy deployment in containerized environments.
 It also provides **k8s chart templates** to deploy hugr in Kubernetes clusters, including support for multi-node setups with load balancing and caching.
 
 This comprehensive architecture makes hugr suitable for both small-scale applications and large enterprise data platforms, providing the flexibility to grow with your data needs while maintaining high performance and reliability.
