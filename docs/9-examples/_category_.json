@@ -1,0 +1,8 @@
+{
+    "label": "Examples",
+    "position": 10,
+    "link": {
+        "type": "generated-index",
+        "description": "Explore practical examples of using GraphQL with various data sources and configurations. This section provides hands-on guides and code snippets to help you implement GraphQL in real-world scenarios."
+    }
+}

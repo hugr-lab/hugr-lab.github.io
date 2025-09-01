@@ -1,0 +1,67 @@
+---
+sidebar_position: 4
+title: "HTTP REST API: OpenWeatherMap Example"
+description: "An example of using the HTTP REST API with OpenWeatherMap as a data source."
+---
+
+The `hugr` GraphQL engine can integrate with HTTP REST APIs, allowing you to fetch data from external services like OpenWeatherMap. This example demonstrates how to set up a simple GraphQL schema that queries weather data using the OpenWeatherMap API.
+
+## Technical Overview
+
+The `hugr` engine implements the data source type for HTTP REST APIs - `http`. Technically, http data sources are used DuckDB backend to fetch data through the special SQL function `http_data_source_request_scalar`. This function allows you to make HTTP requests and retrieve data in a structured format, which can then be used in your GraphQL queries. To add HTTP RESTFull APIs to the unified GraphQL schema, the `hugr` functions should be defined as `http_data_source_request_scalar` calls.
+
+The function also accessible through the `hugr` GraphQL API, allowing you to query data from external REST APIs directly in your GraphQL queries:
+
+```graphql
+query getCurrentWeather{
+  function{
+    core{
+      http_data_source_request_scalar(
+        source: "owm"
+        path: "/data/2.5/weather"
+        method: "GET"
+        headers: {},
+        parameters: {
+          lat: 35.6895
+          lon: 139.6917
+        },
+        body: {},
+        jq: ""
+      )
+    }
+  }
+}
+```
+
+It uses the data source parameters to perform http requests.
+
+## Example
+
+import RemoteMarkdown from '@site/src/components/RemoteMarkdown';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+<Tabs>
+  <TabItem value="readme" label="Getting Started">
+    <RemoteMarkdown 
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/openweathermap/README.md"
+      fallback="📄 Loading documentation..."
+    />
+  </TabItem>
+  
+  <TabItem value="manual_schema" label="Manual GraphQL Schema">
+    <RemoteMarkdown 
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/openweathermap/schema.graphql"
+      fallback="📋 Loading schema..."
+      transform={(content) => '```graphql\n' + content + '\n```'}
+    />
+  </TabItem>
+
+  <TabItem value="OpenAPI spec" label="OpenAPI Specification">
+    <RemoteMarkdown 
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/openweathermap/spec.yaml"
+      fallback="📋 Loading data..."
+      transform={(content) => '```yaml\n' + content + '\n```'}
+    />
+  </TabItem>
+</Tabs>

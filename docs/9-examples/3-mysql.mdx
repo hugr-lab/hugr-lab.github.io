@@ -1,0 +1,59 @@
+---
+sidebar_position: 3
+title: "MySQL: HR CRM Example"
+---
+
+The working example demonstrates how to set up a MySQL database with Hugr, including the creation of tables, functions, and mutations. It provides a practical guide for developers looking to integrate MySQL with Hugr.
+
+You can find the complete example in the [Hugr examples repository](https://github.com/hugr-lab/examples).
+
+## Limitations
+
+Currently, the hugr doesn't support auto_increment fields in MySQL mutations, so you can only use queries to retrieve data. However, you can still perform mutations to update existing records or insert new ones without auto-increment fields.
+
+## Example
+
+import RemoteMarkdown from '@site/src/components/RemoteMarkdown';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+<Tabs>
+  <TabItem value="readme" label="Getting Started">
+    <RemoteMarkdown 
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/hr-crm/README.md"
+      fallback="📄 Loading documentation..."
+    />
+  </TabItem>
+  
+  <TabItem value="schema" label="GraphQL Schema">
+    <RemoteMarkdown 
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/hr-crm/schema/schema.graphql"
+      fallback="📋 Loading schema..."
+      transform={(content) => '```graphql\n' + content + '\n```'}
+    />
+  </TabItem>
+
+  <TabItem value="erd" label="ER Diagram">
+    <div style={{textAlign: 'center'}}>
+      <h3>📊 Database Schema</h3>
+      <img 
+        src="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/hr-crm/schema.png"
+        alt="HR CRM ER Diagram"
+        style={{
+          maxWidth: '100%',
+          height: 'auto',
+          border: '1px solid #ccc',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}
+      />
+      <p>
+        <small>
+          <a href="https://github.com/hugr-lab/examples/blob/main/examples/hr-crm/schema.png" target="_blank">
+            View full size
+          </a>
+        </small>
+      </p>
+    </div>
+  </TabItem>
+</Tabs>
