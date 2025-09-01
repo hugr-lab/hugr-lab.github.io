@@ -141,4 +141,4 @@ It will return the schema definition as a GraphQL string, which you can use to c
 
 ## Example
 
-- PostgreSQL data source example with the Northwind database: [Get Started with PostgreSQL](../../8-examples/1-postgres-get-started.mdx)
+- PostgreSQL data source example with the Northwind database: [Get Started with PostgreSQL](../../9-examples/1-postgres-get-started.mdx)

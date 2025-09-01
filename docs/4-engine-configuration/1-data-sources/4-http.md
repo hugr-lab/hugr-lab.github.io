@@ -392,4 +392,4 @@ Once the data source is configured and the functions are defined, you can use th
 
 You can find examples of using HTTP RESTful APIs as data sources in the `hugr` examples repository. Notable examples include:
 
-- [OpenWeatherMap Example](../../8-examples/4-rest-owm.mdx) – demonstrates how to use the OpenWeatherMap API to fetch current weather data, using API key authentication.
+- [OpenWeatherMap Example](../../9-examples/4-rest-owm.mdx) – demonstrates how to use the OpenWeatherMap API to fetch current weather data, using API key authentication.

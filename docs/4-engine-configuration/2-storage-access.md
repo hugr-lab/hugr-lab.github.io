@@ -31,43 +31,43 @@ To register a new object storage in standalone mode, you can use the following m
 
 ```graphql
 mutation(
-		$type: String!,
-		$name: String!,
-		$key: String!,
-		$secret: String!,
-		$region: String!,
-		$endpoint: String!,
-		$scope: String!,
-		$use_ssl: Boolean!,
-		$url_style: String!,
-		$url_compatibility: Boolean,
-		$kms_key_id: String,
-		$account_id: String
-	){
-		function {
-			core {
-				storage {
-					register_object_storage(
-						type: $type,
-						name: $name,
-						key: $key,
-						secret: $secret,
-						region: $region,
-						endpoint: $endpoint,
-						scope: $scope,
-						use_ssl: $use_ssl,
-						url_style: $url_style,
-						url_compatibility: $url_compatibility,
-						kms_key_id: $kms_key_id,
-						account_id: $account_id
-					) {
-						success
-						message
-					}
-				}
-			}
-		}
-	}
+  $type: String!,
+  $name: String!,
+  $key: String!,
+  $secret: String!,
+  $region: String!,
+  $endpoint: String!,
+  $scope: String!,
+  $use_ssl: Boolean!,
+  $url_style: String!,
+  $url_compatibility: Boolean,
+  $kms_key_id: String,
+  $account_id: String
+){
+  function {
+    core {
+      storage {
+        register_object_storage(
+          type: $type,
+          name: $name,
+          key: $key,
+          secret: $secret,
+          region: $region,
+          endpoint: $endpoint,
+          scope: $scope,
+          use_ssl: $use_ssl,
+          url_style: $url_style,
+          url_compatibility: $url_compatibility,
+          kms_key_id: $kms_key_id,
+          account_id: $account_id
+        ) {
+          success
+          message
+        }
+      }
+    }
+  }
+}
 ```
 
 
@@ -75,43 +75,43 @@ To register a new object storage in cluster mode (it will propagate to all nodes
 
 ```graphql
 mutation(
-		$type: String!,
-		$name: String!,
-		$key: String!,
-		$secret: String!,
-		$region: String!,
-		$endpoint: String!,
-		$scope: String!,
-		$use_ssl: Boolean!,
-		$url_style: String!,
-		$url_compatibility: Boolean,
-		$kms_key_id: String,
-		$account_id: String
-	){
-		function {
-			core {
-				cluster {
-					register_object_storage(
-						type: $type,
-						name: $name,
-						key: $key,
-						secret: $secret,
-						region: $region,
-						endpoint: $endpoint,
-						scope: $scope,
-						use_ssl: $use_ssl,
-						url_style: $url_style,
-						url_compatibility: $url_compatibility,
-						kms_key_id: $kms_key_id,
-						account_id: $account_id
-					) {
-						success
-						message
-					}
-				}
-			}
-		}
-	}
+  $type: String!,
+  $name: String!,
+  $key: String!,
+  $secret: String!,
+  $region: String!,
+  $endpoint: String!,
+  $scope: String!,
+  $use_ssl: Boolean!,
+  $url_style: String!,
+  $url_compatibility: Boolean,
+  $kms_key_id: String,
+  $account_id: String
+){
+  function {
+    core {
+      cluster {
+        register_object_storage(
+          type: $type,
+          name: $name,
+          key: $key,
+          secret: $secret,
+          region: $region,
+          endpoint: $endpoint,
+          scope: $scope,
+          use_ssl: $use_ssl,
+          url_style: $url_style,
+          url_compatibility: $url_compatibility,
+          kms_key_id: $kms_key_id,
+          account_id: $account_id
+        ) {
+          success
+          message
+        }
+      }
+    }
+  }
+}
 ```
 
 
@@ -143,21 +143,21 @@ In standalone mode:
 
 ```graphql
 mutation(
-		$name: String!
-	){
-		function {
-			core {
-				storage {
-					unregister_object_storage(
-						name: $name
-					) {
-						success
-						message
-					}
-				}
-			}
-		}
-	}
+  $name: String!
+){
+  function {
+    core {
+      storage {
+        unregister_object_storage(
+          name: $name
+        ) {
+          success
+          message
+        }
+      }
+    }
+  }
+}
 ```
 
 
@@ -165,21 +165,21 @@ In cluster mode (it will propagate to all nodes):
 
 ```graphql
 mutation(
-		$name: String!
-	){
-		function {
-			core {
-				cluster {
-					unregister_object_storage(
-						name: $name
-					) {
-						success
-						message
-					}
-				}
-			}
-		}
-	}
+  $name: String!
+){
+  function {
+    core {
+      cluster {
+        unregister_object_storage(
+          name: $name
+        ) {
+          success
+          message
+        }
+      }
+    }
+  }
+}
 ```
 
 ## Registered Object Storage
@@ -189,24 +189,24 @@ To list all registered object storages, you can use the following query:
 
 ```graphql
 query {
-	function {
-		core {
-			storage {
-				registered_object_storages {
-					name
-					type
-					region
-					endpoint
-					scope
-					use_ssl
-					url_style
-					url_compatibility
-					kms_key_id
-					account_id
-				}
-			}
-		}
-	}
+  function {
+    core {
+      storage {
+        registered_object_storages {
+          name
+          type
+          region
+          endpoint
+          scope
+          use_ssl
+          url_style
+          url_compatibility
+          kms_key_id
+          account_id
+        }
+      }
+    }
+  }
 }
 ```
 
@@ -215,25 +215,25 @@ In cluster mode:
 
 ```graphql
 query {
-	function {
-		core {
-			cluster {
-				registered_object_storages {
-                    node
-					name
-					type
-					region
-					endpoint
-					scope
-					use_ssl
-					url_style
-					url_compatibility
-					kms_key_id
-					account_id
-				}
-			}
-		}
-	}
+  function {
+    core {
+      cluster {
+        registered_object_storages {
+          node
+          name
+          type
+          region
+          endpoint
+          scope
+          use_ssl
+          url_style
+          url_compatibility
+          kms_key_id
+          account_id
+        }
+      }
+    }
+  }
 }
 ```
 

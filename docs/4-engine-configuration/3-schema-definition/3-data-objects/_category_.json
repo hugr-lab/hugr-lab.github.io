@@ -1,0 +1,8 @@
+{
+  "label": "Data objects",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "The data objects section provides an overview of the data structures used in the Hugr query engine."
+  }
+}

@@ -105,5 +105,5 @@ Files like CSV are very slow to query, so it is recommended to load the data int
 
 You can find examples of the DuckDB data source:
 
-- [DuckDB: Healthcare - Providers Open Payments Data](../../8-examples/2-duckdb.mdx).
-- [DuckDB: Spatial - OpenStreetMap](../../8-examples/5-duckdb-spatial.mdx).
+- [DuckDB: Healthcare - Providers Open Payments Data](../../9-examples/2-duckdb.mdx).
+- [DuckDB: Spatial - OpenStreetMap](../../9-examples/5-duckdb-spatial.mdx).

@@ -84,4 +84,4 @@ You can also add multiple catalogs to the MySQL data source. All data source cat
 
 ## Example
 
-- [MySQL: HR CRM Example](../../8-examples/3-mysql.mdx)
+- [MySQL: HR CRM Example](../../9-examples/3-mysql.mdx)
