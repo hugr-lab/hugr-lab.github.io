@@ -30,6 +30,10 @@ hugr combines the power of modern data architecture patterns with the flexibilit
 - **Docker Images**: [hugr-lab/docker](https://github.com/r/hugr-lab/docker)
 - **Documentation**: [docs](https://hugr-lab.github.io/docs/)
 
+We are in active development, but you can already use `hugr` for your projects.
+
+We welcome contributions and feedback from the community.
+
 ## Key Features
 
 ### 1. Unified GraphQL API
@@ -239,7 +243,15 @@ Two-level caching architecture:
 - **In-Memory Cache**: Fast access to frequently requested data
 - **External Cache**: Redis or Memcached for shared cache across cluster nodes
 
-The [hugr-lab/docker](https://github.com/hugr-lab/docker) repository contains Docker images for both the `server` and `management` components, allowing easy deployment in containerized environments.
-It also provides **k8s chart templates** to deploy hugr in Kubernetes clusters, including support for multi-node setups with load balancing and caching.
+### Deployment Options
 
-This comprehensive architecture makes hugr suitable for both small-scale applications and large enterprise data platforms, providing the flexibility to grow with your data needs while maintaining high performance and reliability.
+The [hugr-lab/docker](https://github.com/hugr-lab/docker) repository contains Docker images for both the `server` and `management` components, allowing easy deployment in containerized environments.
+It also provides **k8s chart templates** to deploy `hugr` in Kubernetes clusters, including support for multi-node setups with load balancing and caching.
+
+This comprehensive architecture makes `hugr` suitable for both small-scale applications and large enterprise data platforms, providing the flexibility to grow with your data needs while maintaining high performance and reliability.
+
+## Support
+
+We provide community support through our GitHub repository, where you can report issues, ask questions, and share feedback. Join our community to stay updated on the latest developments and contribute to the project.
+
+If you want to use `hugr` in your own projects, we can help you get started with setup and integration, just reach out to us in the GitHub discussions.

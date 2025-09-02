@@ -103,9 +103,19 @@ Define default values or sequences for auto-generated IDs:
 type customers @table(name: "customers") {
   id: Int! @pk @default(sequence: "customers_id_seq")
   status: String! @default(value: "active")
-  created_at: Timestamp!
+  # preprocessed value - process_func, SQL func, should accept int and JSON (JSONB in Postgres) and return JSON (JSONB in Postgres)
+  data: JSON @default(
+    insert_exp: "process_func([$id], [$data])"
+    update_exp: "process_func(objects.id, [$data])"
+  )
+  created_at: Timestamp @default(insert_exp: "NOW()", update_exp: "objects.created_at")
+  created_by: String @default(insert_exp: "[$auth.user_id]", update_exp: "objects.created_by")
+  updated_at: Timestamp @default(update_exp: "NOW()", insert_exp: "NULL")
+  updated_by: String @default(update_exp: "[$auth.user_id]", insert_exp: "NULL")
 }
 ```
+
+You can define insert and update SQL expressions for the field value, in them you can reference other input values ([$<input_field>]), auth vars or fields using the `objects` alias (in a `update_exp`).
 
 ## Soft Delete
 
