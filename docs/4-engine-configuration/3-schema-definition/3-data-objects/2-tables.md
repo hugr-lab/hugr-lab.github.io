@@ -115,7 +115,7 @@ type customers @table(name: "customers") {
 }
 ```
 
-You can define insert and update SQL expressions for the field value, in them you can reference other input values ([$<input_field>]), auth vars or fields using the `objects` alias (in a `update_exp`).
+You can define insert and update SQL expressions for the field value, in them you can reference other input values (`[$<input_field>]`), auth vars or fields using the `objects` alias (in a `update_exp`).
 
 ## Soft Delete
 
