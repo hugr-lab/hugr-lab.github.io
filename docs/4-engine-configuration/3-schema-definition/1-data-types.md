@@ -29,6 +29,9 @@ scalar TimestampRange
 scalar BigIntRange
 
 scalar any
+
+# Represents a vector type for embedding and similarity search. For PostgreSQL data sources, it maps to the `vector` type. For duckdb data sources, it maps to the `FLOAT[]` type.
+scalar Vector
 ```
 
 These types can be used:
@@ -341,6 +344,103 @@ The following types of measurements are valid:
 - `intersection`: Returns the intersection of geometries.
 - `union`: Returns the union of geometries.
 - `extent`: Returns the extent of geometries.
+
+## Vector
+
+The `Vector` type is used to represent vector embeddings for similarity search. It can used only in data objects (tables and views) to perform similarity searches. Currently, it is supported only for PostgreSQL (using `vector` type and with the `pgvector` extension) and DuckDB (using `FLOAT[]` type and the `vss` extension).
+
+In filtering operations you can use only `is_null` operation.
+
+Input values can be formatted:
+- as a JSON array of numbers: `[0.1, 0.2, 0.3]`.
+- as a string (the same format as in the PostgreSQL vector representation): `[0.1,0.2,0.3]`.
+
+The output format - string (the same format as in the PostgreSQL vector representation): `[0.1,0.2,0.3]`.
+
+If the `Vector` type is used in a table or view, the `@dim` directive can be applied to specify the dimensionality of the vector. For example, `@dim(len: 768)` indicates that the vector dimension is 768, this will be checked during mutations (insert/update) and in similarity search queries.
+
+### Calculated fields
+
+For each `Vector` table or view field, a new field will be generated with the name: `_<field_name>_distance`, type `Float`, and the following parameters:
+- `vector: Vector` - The vector to calculate the distance to.
+- `distance: VectorDistanceType` - The type of distance to calculate.
+
+If the data object has the `@embeddings` directive defined, the field `_distance_query_to` will be generated, which calculates the distance from the vector field to the query text. The field returns `Float` and has the one parameter: `query: String!`.
+
+### Filter operations
+
+- `is_null` - Checks if the vector is null.
+
+### Aggregation functions
+
+The aggregations are not supported for the `Vector` type.
+
+### Vector similarity search
+
+For `Vector` fields, the `similarity` argument will be generated in the queries. This argument accepts input values in the following format:
+
+```graphql
+input VectorSearchInput @system {
+  "The name of vector field"
+  name: String!
+  "The vector to search"
+  vector: Vector!
+  "Distance type"
+  distance: VectorDistanceType!
+  "Limit to results"
+  limit: Int!
+}
+
+enum VectorDistanceType @system {
+  "L2 distance"
+  L2
+  "Cosine similarity"
+  Cosine
+  "Inner product"
+  Inner
+}
+```
+
+This argument allows you to perform similarity searches on vector fields. For example, to find the 10 most similar vectors to a given vector using cosine similarity in table `items` with vector field `embedding`, you would write:
+
+```graphql
+query {
+  items(
+    similarity: {
+      name: "embedding"
+      vector: [0.1, 0.2, 0.3]
+      distance: Cosine
+      limit: 10
+    }
+  ) {
+    id
+    name
+    embedding
+  }
+}    
+```
+
+You can also combine similarity searches and filters. For example, to find the 5 most similar vectors to a given vector using L2 distance in table `items` with vector field `embedding`, where the `category` is "books", you would write:
+
+```graphql
+query {
+  items(
+    similarity: {
+      name: "embedding"
+      vector: [0.1, 0.2, 0.3]
+      distance: L2
+      limit: 5
+    }
+    filter: {
+      category: { eq: "books" }
+    }
+  ) {
+    id
+    name
+    embedding
+  }
+}
+```
 
 ## List types
 

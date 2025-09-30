@@ -22,6 +22,7 @@ sidebar_position: 2
 | `@field_source` | Maps a field to a database column. |
 | `@geometry_info` | Adds geometry type and SRID information to a field. |
 | `@filter_required` | Requires a field in query filters. |
+| `@dim` | Set the dimension of the vector field. |
 | `@hypertable` | Marks an object as a TimescaleDB hypertable. |
 | `@timescale_key` | Marks a field as a TimescaleDB time key. |
 | `@cube` | Marks an object as a cube for pre-aggregation. |
@@ -646,6 +647,75 @@ type orders {
   category: String!
 }
 ```
+
+### @dim
+
+The `@dim` directive is used to specify the dimension of a vector field in your GraphQL schema. This is particularly useful when working with vector data types, such as those used for embeddings and similarity search.
+
+```graphql
+directive @dim(len: Int!) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION | ARGUMENT_DEFINITION
+```
+
+### @embeddings
+
+The `@embeddings` directive is used to specify embedding generation parameters for a vector field in your GraphQL schema. 
+
+```graphql
+directive @embeddings(
+	"The name of the data source type `embedding`"
+	model: String!
+	"The name of the field that contains embeddings vector"
+	vector: String!
+	"The distance metric to use for the vector search"
+	distance: VectorDistanceType!
+) on OBJECT
+
+enum VectorDistanceType @system {
+  "L2 distance"
+  L2
+  "Cosine similarity"
+  Cosine
+  "Inner product"
+  Inner
+}
+```
+
+The `model` argument specifies the name of the embedding data source that should be attached to the hugr engine configuration. The `vector` argument specifies the name of the field that contains the embeddings vector. The `distance` argument specifies the distance metric to use for the vector search.
+
+Example usage:
+
+```graphql
+type documents @table(name: "documents") @embeddings(
+  model: "text-embedding-3-small",
+  vector: "embedding",
+  distance: Cosine
+) {
+  id: BigInt! @pk
+  category: String!
+  content: String!
+  embedding: Vector! @dim(len: 1536)
+}
+```
+
+It allows you to perform semantic search queries on the `documents` table using the specified embedding model and distance metric.
+
+```graphql
+query {
+  documents(
+    filter: {category: {eq: "general"}}
+    semantic: {
+      query: "What is GraphQL?"
+      limit: 5
+    }
+  ) {
+    id
+    content
+    embedding
+  }
+}
+```
+
+
 
 ### @hypertable and @timescale_key
 

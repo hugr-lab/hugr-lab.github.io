@@ -19,9 +19,10 @@ The following types of data sources are currently supported:
 
 - **DuckDB**: A high-performance SQL database designed for analytics, which supports SQL queries and provides a unified interface for data access. DuckDB files can be stored in a file system or in object storage, such as S3.
 - **PostgreSQL**: A relational database management system that uses SQL for querying.
-- **HTTP REST API**: A data source that allows you to access data from any RESTful API, enabling integration with various web services and applications. It supports various authentication methods, including API keys, OAuth2, and basic authentication.
 - **MySQL**: Another relational database management system that uses SQL for querying.
 - **DuckLake**: A data lake solution that supports various storage systems, including cloud storage and distributed file systems. DuckLake is designed to handle large volumes of data, provides efficient querying capabilities, and is able to manage data and schema changes through snapshots (in development).
+- **HTTP REST API**: A data source that allows you to access data from any RESTful API, enabling integration with various web services and applications. It supports various authentication methods, including API keys, OAuth2, and basic authentication.
+- **Embedding**: A specialized data source for create vector embeddings using external services. Services should be compatible with OpenAI embeddings API. The embedding data source allows you to create and manage vector embeddings for text data, enabling advanced search and recommendation capabilities based on semantic similarity.
 - **Extension**: A special data source that allows you to extend schema data objects (tables and views) by adding additional subquery fields and function calls. This is useful for creating custom logic or aggregations using data from other sources. The extension data source can also define cross-data source views, which allow you to combine data from multiple data sources into a single view. This is useful for creating complex queries that span multiple data sources.
 
 
