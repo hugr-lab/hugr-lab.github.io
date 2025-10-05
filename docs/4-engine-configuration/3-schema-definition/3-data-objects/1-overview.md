@@ -19,8 +19,8 @@ Hugr supports the following types of data objects:
 
 Data objects are defined as GraphQL types and marked with corresponding directives:
 - `@table` for tables
-- `@view` for views  
-- `@args` for parameterized view arguments
+- `@view` for views
+- `@view` with additional `@args` for parameterized view arguments
 
 ## Generated Operations
 

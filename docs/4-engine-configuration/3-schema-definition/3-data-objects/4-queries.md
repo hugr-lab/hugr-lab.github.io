@@ -35,6 +35,10 @@ query {
 | `limit` | `Int` | Maximum records to return | 2000 |
 | `offset` | `Int` | Number of records to skip | 0 |
 | `distinct_on` | `[String]` | Fields for DISTINCT clause | - |
+| `args` | `<input_object>` | Arguments for parameterized views, a type is defined by `@args` directive| - |
+| `similarity` | `VectorSearchInput` | Similarity search parameters for vector fields | - |
+| `semantic` | `SemanticSearchInput` | Semantic search parameters for the vector field using defined embeddings model | - |
+
 
 ## Select by Primary Key
 
@@ -269,5 +273,80 @@ query {
     customer_id
     total_spent
   }
+}
+```
+
+## Similarity Search
+
+For data objects with vector fields, use the similarity parameter:
+
+```graphql
+query {
+  products(
+    similarity: {
+      field: "embedding"
+      vector: [0.1, 0.2, 0.3, 0.4]
+      limit: 5
+      distance: Cosine
+    }
+  ) {
+    id
+    name
+    embedding
+  }
+}
+```
+
+The similarity input type:
+
+```graphql
+input VectorSearchInput @system {
+  "The name of vector field"
+  name: String!
+  "The vector to search"
+  vector: Vector!
+  "Distance type"
+  distance: VectorDistanceType!
+  "Limit to results"
+  limit: Int!
+}
+
+enum VectorDistanceType @system {
+  "L2 distance"
+  L2
+  "Cosine similarity"
+  Cosine
+  "Inner product"
+  Inner
+}
+```
+
+## Semantic Search
+
+For data objects with vector fields and embeddings model defined for the data object (using `@embeddings`), use the semantic parameter:
+
+```graphql
+query {
+  documents(
+    semantic: {
+      query: "What is GraphQL?"
+      limit: 5
+    }
+  ) {
+    id
+    content
+    embedding
+  }
+}
+```
+
+The semantic input type:
+
+```graphql
+input SemanticSearchInput @system {
+  "The text to search"
+  query: String!
+  "Limit to results"
+  limit: Int!
 }
 ```

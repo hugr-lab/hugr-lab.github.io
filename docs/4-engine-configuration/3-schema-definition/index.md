@@ -75,4 +75,4 @@ query {
 }
 ```
 
-The generated mutations are generated the same way.
+The generated mutations are distributed by modules the same way.

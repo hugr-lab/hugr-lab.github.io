@@ -26,23 +26,6 @@ mutation {
 }
 ```
 
-### Batch Inserts
-
-Insert multiple records in a single mutation:
-
-```graphql
-mutation {
-  insert_products(data: [
-    { name: "Product A", price: 99.99 }
-    { name: "Product B", price: 149.99 }
-  ]) {
-    id
-    name
-    price
-  }
-}
-```
-
 ### Insert with Relations
 
 Insert related records in a single transaction:
@@ -300,6 +283,8 @@ mutation ComplexTransaction {
 }
 ```
 
+The mutations can be executed only in one data source context.
+
 ## Auto-Generated Values
 
 ### Sequences
@@ -322,24 +307,32 @@ Fields with default values are optional in mutations:
 ```graphql
 type customers @table(name: "customers") {
   status: String! @default(value: "pending")
-  created_at: Timestamp! @default(value: "NOW()")
+  created_at: Timestamp! @default(insert_exp: "NOW()", update_exp: "objects.created_at")
 }
 ```
 
-## Error Handling
+## Semantic Search and Embeddings
 
-Mutations return errors in the standard GraphQL error format:
+For data objects with embeddings, use the `summary` parameter to generate vector representations during insert or update mutations:
 
-```json
-{
-  "errors": [
-    {
-      "message": "Unique constraint violation",
-      "extensions": {
-        "code": "UNIQUE_VIOLATION",
-        "constraint": "customers_email_key"
-      }
+```graphql
+mutation {
+  insert_documents(
+    data: {
+      title: "GraphQL Overview"
+      content: "GraphQL is a query language for APIs."
     }
-  ]
+    summary: "GraphQL is a query language for APIs."
+  ) {
+    id
+  }
+  update_documents(
+    filter: { id: { eq: 1 } }
+    data: { content: "Updated content" }
+    summary: "Updated summary"
+  ) {
+    success
+    message
+    affected_rows
+  }
 }
-```
