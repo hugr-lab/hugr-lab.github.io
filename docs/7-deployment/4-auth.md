@@ -32,9 +32,16 @@ See the [hugr repository](https://github.com/hugr-lab/hugr) for detailed configu
 
 ## API Key Authentication
 
-API keys are ideal for service-to-service communication and automated access.
+API keys are ideal for service-to-service communication and automated access. Hugr supports two types of API keys:
 
-### Configuration
+1. **Static API Keys** - Defined in configuration files
+2. **Managed API Keys** - Stored in database and managed dynamically through GraphQL
+
+### Static API Keys
+
+Static API keys are defined directly in the configuration file.
+
+#### Configuration
 
 ```yaml
 auth:
@@ -53,7 +60,7 @@ auth:
         user_id: "admin_001"
 ```
 
-### Usage
+#### Usage
 
 Include the API key and user information in request headers:
 
@@ -66,15 +73,366 @@ curl -X POST https://api.example.com/graphql \
   -d '{"query": "{ customers { id name } }"}'
 ```
 
+### Managed API Keys
+
+Managed API keys allow dynamic management of API keys through the database without restarting the service. Keys are stored in the `api_keys` table in the core database module and can be created, updated, or deleted via GraphQL.
+
+#### Enabling Managed API Keys
+
+Enable managed API keys in the configuration:
+
+```yaml
+auth:
+  api_keys:
+    enabled: true
+    managed: true  # Enable managed API keys from database
+    header_username: "X-API-Username"  # Optional: for custom user info
+    header_user_id: "X-API-User-ID"    # Optional: for custom user info
+```
+
+When `managed: true`, Hugr will:
+1. Check static keys from configuration first
+2. Then check managed keys from the `api_keys` table
+3. Use the first matching valid key
+
+#### API Keys Table Schema
+
+The `api_keys` table has the following structure:
+
+```graphql
+type api_keys @module(name: "core")
+  @table(name: "api_keys")
+  @unique(fields: ["key"], query_suffix: "by_key") {
+  """
+    API key name (primary key)
+  """
+  name: String! @pk
+  """
+    API key description
+  """
+  description: String!
+  """
+    API key value (unique)
+  """
+  key: String!
+  """
+    Default role for the API key
+  """
+  default_role: String @field_references(
+    references_name: "roles",
+    field: "name",
+    references_query: "api_keys"
+  )
+  """
+    API key disabled flag
+  """
+  disabled: Boolean @default(value: false)
+  """
+    API key temporal flag (expires_at is required)
+  """
+  is_temporal: Boolean @default(value: false)
+  """
+    API key expiration date
+  """
+  expires_at: Timestamp
+  """
+    Headers for getting user info from request with the API key
+    JSON: {"role": "x-role", "user_id": "x-user-id", "user_name": "x-user-name"}
+  """
+  headers: JSON
+  """
+    Claims for the API key
+    JSON: {"role": "role", "user_id": "user-id", "user_name": "user-name"}
+  """
+  claims: JSON
+}
+```
+
+#### Creating Managed API Keys
+
+Create a basic API key:
+
+```graphql
+mutation {
+  core {
+    insert_api_keys(data: {
+      name: "mobile_app_key"
+      description: "API key for mobile application"
+      key: "mobile_app_abc123xyz456"
+      default_role: "app_user"
+    }) {
+      name
+      key
+      default_role
+    }
+  }
+}
+```
+
+Create a temporary API key with expiration:
+
+```graphql
+mutation {
+  core {
+    insert_api_keys(data: {
+      name: "temp_integration_key"
+      description: "Temporary key for external integration"
+      key: "temp_key_xyz789"
+      default_role: "integration"
+      is_temporal: true
+      expires_at: "2024-12-31T23:59:59Z"
+    }) {
+      name
+      key
+      expires_at
+    }
+  }
+}
+```
+
+#### Headers vs Claims
+
+Managed API keys support two ways to provide user information:
+
+**1. Headers** - Extract user info from request headers:
+
+```graphql
+mutation {
+  core {
+    insert_api_keys(data: {
+      name: "partner_api_key"
+      description: "Partner API with custom headers"
+      key: "partner_key_abc123"
+      default_role: "partner"
+      headers: {
+        role: "x-partner-role"
+        user_id: "x-partner-id"
+        user_name: "x-partner-name"
+      }
+    }) {
+      name
+      key
+    }
+  }
+}
+```
+
+Usage with custom headers:
+
+```bash
+curl -X POST https://api.example.com/graphql \
+  -H "Authorization: Bearer partner_key_abc123" \
+  -H "x-partner-role: premium_partner" \
+  -H "x-partner-id: partner_123" \
+  -H "x-partner-name: Acme Corp" \
+  -d '{"query": "{ customers { id name } }"}'
+```
+
+The role from the header (`x-partner-role`) takes precedence over `default_role` if provided.
+
+**2. Claims** - Use predefined claims from the API key configuration:
+
+```graphql
+mutation {
+  core {
+    insert_api_keys(data: {
+      name: "service_key"
+      description: "Service account with fixed identity"
+      key: "service_key_fixed_abc123"
+      default_role: "service"
+      claims: {
+        role: "data_processor"
+        user_id: "svc_processor_001"
+        user_name: "Data Processing Service"
+        department: "engineering"
+        region: "us-west"
+      }
+    }) {
+      name
+      key
+    }
+  }
+}
+```
+
+Usage with claims (no additional headers needed):
+
+```bash
+curl -X POST https://api.example.com/graphql \
+  -H "Authorization: Bearer service_key_fixed_abc123" \
+  -d '{"query": "{ customers { id name } }"}'
+```
+
+Claims are fixed in the database and cannot be overridden by request headers. This is useful for:
+- Service accounts with fixed identity
+- Keys with predefined permissions
+- Additional custom claims for permission filters
+
+#### Managing API Keys
+
+**List all API keys:**
+
+```graphql
+query {
+  core {
+    api_keys {
+      name
+      description
+      key
+      default_role
+      disabled
+      is_temporal
+      expires_at
+    }
+  }
+}
+```
+
+**Find key by value:**
+
+```graphql
+query {
+  core {
+    api_keys_by_key(key: "service_key_fixed_abc123") {
+      name
+      description
+      default_role
+      disabled
+      expires_at
+    }
+  }
+}
+```
+
+**Disable an API key without deleting:**
+
+```graphql
+mutation {
+  core {
+    update_api_keys(
+      filter: { name: { eq: "mobile_app_key" } }
+      data: { disabled: true }
+    ) {
+      success
+      affected_rows
+    }
+  }
+}
+```
+
+**Update key expiration:**
+
+```graphql
+mutation {
+  core {
+    update_api_keys(
+      filter: { name: { eq: "temp_integration_key" } }
+      data: {
+        expires_at: "2025-03-31T23:59:59Z"
+      }
+    ) {
+      success
+    }
+  }
+}
+```
+
+**Rotate an API key:**
+
+```graphql
+mutation {
+  core {
+    update_api_keys(
+      filter: { name: { eq: "partner_api_key" } }
+      data: {
+        key: "partner_key_new_xyz789"
+      }
+    ) {
+      success
+    }
+  }
+}
+```
+
+**Delete an API key:**
+
+```graphql
+mutation {
+  core {
+    delete_api_keys(
+      filter: { name: { eq: "old_key" } }
+    ) {
+      success
+      affected_rows
+    }
+  }
+}
+```
+
+#### Temporal Keys and Expiration
+
+Temporal keys automatically expire after the specified date:
+
+```graphql
+mutation {
+  core {
+    insert_api_keys(data: {
+      name: "demo_key"
+      description: "30-day demo access"
+      key: "demo_abc123"
+      default_role: "demo"
+      is_temporal: true
+      expires_at: "2024-02-15T00:00:00Z"
+    }) {
+      name
+      expires_at
+    }
+  }
+}
+```
+
+After expiration:
+- The key will be rejected during authentication
+- The key remains in the database for audit purposes
+- You can extend expiration by updating `expires_at`
+
+#### Best Practices for Managed API Keys
+
+1. **Use Descriptive Names**: Name keys after their purpose or owner
+2. **Set Expiration for Temporary Access**: Always use `is_temporal: true` and `expires_at` for temporary keys
+3. **Use Claims for Service Accounts**: Service accounts should use `claims` for fixed identity
+4. **Use Headers for Multi-tenant Keys**: When one key serves multiple users, use `headers` to identify them
+5. **Rotate Keys Regularly**: Update the `key` field periodically for security
+6. **Disable Before Delete**: Set `disabled: true` first to test impact before deletion
+7. **Audit Key Usage**: Keep descriptions updated and monitor key usage
+8. **Combine with Permissions**: Use role-based permissions to control what each key can access
+
+#### Static vs Managed Keys Comparison
+
+| Feature | Static Keys | Managed Keys |
+|---------|-------------|--------------|
+| **Configuration** | YAML/JSON file | Database table |
+| **Changes** | Requires restart | Dynamic, no restart |
+| **Management** | Manual file editing | GraphQL mutations |
+| **Expiration** | Not supported | Built-in with `expires_at` |
+| **Audit Trail** | Git history | Database history |
+| **Custom Claims** | Fixed in config | Flexible via `claims` field |
+| **Use Case** | Core system services | User-managed keys, integrations |
+
 ### Role Assignment
 
-For API keys, the role is explicitly configured in the `keys` section. The role determines what the authenticated service can access.
+For API keys, the role is determined by:
+
+1. **Headers** - If `headers.role` is configured and the header is present in request
+2. **Claims** - If `claims.role` is set in the API key
+3. **Default Role** - From `default_role` field or static configuration
 
 **Authentication Variables Available:**
-- `[$auth.user_name]` - From configuration or header
-- `[$auth.user_id]` - From configuration or header
-- `[$auth.role]` - From configuration
+- `[$auth.user_name]` - From headers, claims, or configuration
+- `[$auth.user_id]` - From headers, claims, or configuration
+- `[$auth.role]` - From headers, claims, or configuration
 - `[$auth.auth_type]` - "apikey"
+- Custom claims from `claims` field: `[$auth.custom_claim_name]`
 
 ## Anonymous Access
 
