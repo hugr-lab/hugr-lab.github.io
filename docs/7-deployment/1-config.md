@@ -16,6 +16,8 @@ Hugr can be configured using environment variables. This page describes all avai
   BIND=":15000"
   ```
 
+  If you want to bind only to localhost, use `127.0.0.1:15000` instead of `:15000`
+
 - **`SERVICE_BIND`** - Metrics and health check endpoint (default: empty)
   ```bash
   SERVICE_BIND=":15001"
@@ -25,6 +27,8 @@ Hugr can be configured using environment variables. This page describes all avai
   ```bash
   ADMIN_UI=true
   ```
+
+  When disabled, the GraphiQL interface will not be available, but the GraphQL API will still function
 
 - **`DEBUG`** - SQL query logging (default: `false`)
   ```bash
@@ -53,6 +57,8 @@ Hugr can be configured using environment variables. This page describes all avai
   DB_HOME_DIRECTORY=/path/to/credentials
   ```
 
+  This is where DuckDB stores credentials for remote data sources (e.g., S3, Azure, GCS)
+
 - **`DB_PATH`** - Management database file location
   ```bash
   DB_PATH=/path/to/management.db
@@ -74,6 +80,8 @@ Hugr can be configured using environment variables. This page describes all avai
   ```bash
   DB_MAX_MEMORY=4GB
   ```
+
+  Setting this too high may cause out-of-memory errors; too low will reduce query performance
 
 - **`DB_TEMP_DIRECTORY`** - Temporary storage location
   ```bash
@@ -102,6 +110,8 @@ The core database stores hugr metadata including data sources, catalogs, and sch
   # PostgreSQL connection
   CORE_DB_PATH=postgres://user:password@host:5432/database
   ```
+
+  For cluster deployments, PostgreSQL is required; DuckDB can only be used in read-only mode
 
 - **`CORE_DB_READONLY`** - Read-only mode flag
   ```bash
@@ -202,6 +212,8 @@ The management node coordinates synchronization across work nodes in the cluster
   ```bash
   CLUSTER_SECRET=your-cluster-secret
   ```
+
+  This secret must be identical across all work nodes and the management node
 
 - **`TIMEOUT`** - Node communication timeout (default: `30s`)
   ```bash

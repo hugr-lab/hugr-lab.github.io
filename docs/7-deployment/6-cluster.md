@@ -11,7 +11,7 @@ Hugr supports clustered deployment for high availability and scalability. In clu
 
 A hugr cluster consists of:
 
-1. **Management Node** - Manages cluster operations, schema synchronization, data sources, object storage, and authentication settings via GraphQL API
+1. **Management Node** - Manages cluster operations, schema synchronization, data sources, object storage, and authentication settings. The management node runs on port 14000 by default and uses gRPC for communication with work nodes
 2. **Work Nodes** - Handle GraphQL queries and mutations with load balancing
 3. **Shared Core Database** - PostgreSQL or DuckDB (read-only) accessible by all nodes
 4. **Distributed Cache** - Optional Redis/Memcached for shared L2 cache
@@ -22,7 +22,7 @@ A hugr cluster consists of:
 - **GraphQL API**: Work nodes provide the GraphQL API (including AdminUI). The management node does NOT expose GraphQL endpoints
 - **Cluster Operations**: When a work node receives a cluster operation request (via `core.cluster` module), it communicates with the management node to execute the operation
 - **Schema Synchronization**: The management node automatically synchronizes schemas, data sources, and object storage configurations across all work nodes
-- **No Distributed Query Execution**: Each work node processes queries independently; there is no distributed query processing across nodes
+- **No Distributed Query Execution**: Each work node processes queries independently; there is no distributed query processing across nodes. This means horizontal scaling is achieved by adding more work nodes behind a load balancer
 
 ```
                     ┌─────────────────┐
@@ -118,7 +118,7 @@ CACHE_L2_PASSWORD=redis_password
 - **`CLUSTER_NODE_URL`** should be accessible by the management node
 - **`CORE_DB_PATH`** must point to a shared database:
   - **PostgreSQL** (recommended) - Full read/write support
-  - **DuckDB** - Only in read-only mode (`CORE_DB_READONLY=true`), as DuckDB cannot handle concurrent writes from multiple processes to the same file
+  - **DuckDB** - Only in read-only mode (`CORE_DB_READONLY=true`), as DuckDB cannot handle concurrent writes from multiple processes to the same file. DuckDB cannot be used for the core database in write mode for cluster deployments due to its single-writer limitation
 - **L2 cache** is strongly recommended for cluster deployments to cache role permissions
 
 ### Roles and Permissions in Cluster Mode
@@ -1159,7 +1159,7 @@ All cluster operations are accessed via work nodes through the `core.cluster` mo
 - **Query Functions**: `query { function { core { cluster { nodes, storages, data_source_status } } } }`
 - **Mutation Functions**: `mutation { function { core { cluster { load_data_source, ... } } } }`
 
-**Note**: Cluster nodes and storages can be queried in two ways - directly as views or through functions. Both return the same data.
+**Note**: Cluster nodes and storages can be queried in two ways - directly as views or through functions. Both return the same data. Using direct view access is more efficient as it bypasses the function wrapper layer.
 
 **Workflow**:
 1. Execute GraphQL requests through any work node's endpoint or AdminUI

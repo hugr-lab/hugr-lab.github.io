@@ -14,7 +14,7 @@ Hugr provides three official Docker images:
 ### 1. Automigrate Image (Recommended for Single-Node Deployments)
 **Image**: `ghcr.io/hugr-lab/automigrate`
 
-Hugr server with automatic database schema migration for the core database. This image automatically applies schema updates on startup, making updates transparent and seamless.
+Hugr server with automatic database schema migration for the core database. This image automatically applies schema updates on startup, making updates transparent and seamless. The automigrate image includes the same functionality as the server image, plus automatic schema migration on startup.
 
 **Use this image for**:
 - Single-node (non-clustered) deployments
@@ -41,7 +41,7 @@ docker pull ghcr.io/hugr-lab/server:latest
 ### 3. Management Image (For Cluster Management Node)
 **Image**: `ghcr.io/hugr-lab/management`
 
-Management node for cluster mode deployments. This node coordinates schema synchronization, data source configuration, object storage, and authentication settings across multiple work nodes via GraphQL API.
+Management node for cluster mode deployments. This node coordinates schema synchronization, data source configuration, object storage, and authentication settings across multiple work nodes. The management node does not provide a GraphQL API; all queries must go through work nodes.
 
 **Use this image for**:
 - Management node in clustered deployments only

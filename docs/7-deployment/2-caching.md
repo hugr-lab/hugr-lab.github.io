@@ -29,6 +29,8 @@ This two-level approach provides:
   CACHE_TTL=5m
   ```
 
+  This setting affects how long query results remain cached before requiring re-execution
+
 ### L1 Cache (In-Memory)
 
 The L1 cache is a local in-memory cache that provides fast access to frequently used query results.
@@ -66,6 +68,8 @@ The L2 cache is an external distributed cache that can be shared across multiple
   ```bash
   CACHE_L2_BACKEND=redis
   ```
+
+  Redis is recommended for production deployments due to its reliability and feature set
 
 - **`CACHE_L2_ADDRESSES`** - Comma-separated list of cache server addresses
   ```bash
