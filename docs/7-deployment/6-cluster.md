@@ -127,7 +127,7 @@ CACHE_L2_PASSWORD=redis_password
 
 - All nodes can share a common core database (PostgreSQL or DuckDB in read-only mode)
 - Role permissions are cached using the standard caching mechanism (L1/L2) with default TTL from cache configuration
-- Authentication settings can be managed centrally through the management node's GraphQL API
+- Authentication settings are configured on the management node (via environment variables) and automatically distributed to work nodes
 
 ## Docker Compose Cluster Deployment
 
