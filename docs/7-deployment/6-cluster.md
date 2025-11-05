@@ -36,24 +36,31 @@ A hugr cluster consists of:
           ┌──────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐
           │ Work Node 1 │  │ Work Node 2 │  │ Work Node 3 │
           │  (GraphQL)  │  │  (GraphQL)  │  │  (GraphQL)  │
-          └──┬────┬──┬──┘  └──┬────┬──┬──┘  └──┬────┬──┬──┘
-             │    │  │        │    │  │        │    │  │
-             │    │  └────────┼────┼──┼────────┘    │  │
-             │    └───────────┼────┼──┼─────────────┘  │
-             └────────────────┼────┼──┼────────────────┘
-                              │    │  │
-       ┌────────────┬─────────┘    │  └──────────┬───────────┐
-       │            │              │             │           │
-┌──────▼──────┐ ┌──▼──────────┐ ┌─▼────────┐ ┌──▼──────┐ ┌─▼────────┐
-│ Management  │ │ PostgreSQL  │ │  Redis   │ │  MinIO  │ │ OIDC IdP │
-│    Node     │ │  (Core DB)  │ │ (Cache)  │ │(Storage)│ │(optional)│
-│  (gRPC)     │ └─────────────┘ └──────────┘ └─────────┘ └──────────┘
-└─────────────┘
+          └──┬───────┬──┘  └──┬───────┬──┘  └──┬───────┬──┘
+             │       │        │       │        │       │
+             │   ┌───┴────────┴───┬───┴────────┴───┐   │
+             │   │  HTTP (bidir)  │  HTTP (bidir)  │   │
+             │   ▼                ▼                ▼   │
+             │   ┌────────────────────────────────┐   │
+             │   │      Management Node (HTTP)    │   │
+             │   │  (coordinates work nodes via   │   │
+             │   │   bidirectional HTTP calls)    │   │
+             │   └────────────────────────────────┘   │
+             │                                         │
+         ┌───┴─────────┬──────────┬──────────┬────────┴────┐
+         │             │          │          │             │
+    ┌────▼────┐   ┌───▼─────┐ ┌──▼──────┐ ┌▼────────┐ ┌───▼──────┐
+    │PostgreSQL│   │  Redis  │ │  MinIO  │ │  Data   │ │ OIDC IdP │
+    │(Core DB) │   │ (Cache) │ │(Storage)│ │ Sources │ │(optional)│
+    └──────────┘   └─────────┘ └─────────┘ └─────────┘ └──────────┘
 ```
 
 **Architecture Notes:**
 - Work nodes communicate directly with core database (PostgreSQL), Redis, MinIO, and data sources
-- The management node only needs to perform operations across all nodes in the cluster and collect information about their configurations
+- Work nodes and management node communicate via **bidirectional HTTP**:
+  - When a work node receives a `core.cluster` GraphQL query, it makes an HTTP request to the management node
+  - The management node then makes HTTP requests to all work nodes to coordinate cluster operations
+- The management node performs operations across all nodes in the cluster and collects information about their configurations
 - You can add an OIDC Identity Provider (IdP) to the architecture that work nodes communicate with for authentication
 
 ## Cluster Configuration
