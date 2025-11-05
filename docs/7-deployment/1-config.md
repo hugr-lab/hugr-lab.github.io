@@ -57,7 +57,7 @@ Hugr can be configured using environment variables. This page describes all avai
   DB_HOME_DIRECTORY=/path/to/credentials
   ```
 
-  This is where DuckDB stores credentials for remote data sources (e.g., S3, Azure, GCS)
+  This is where DuckDB stores credentials for remote data sources (e.g., S3, Azure, GCS). Typically left empty to use in-memory DuckDB
 
 - **`DB_PATH`** - Management database file location
   ```bash
@@ -98,9 +98,11 @@ Hugr can be configured using environment variables. This page describes all avai
   DB_PG_CONNECTION_LIMIT=64
   ```
 
+  Used for each PostgreSQL data source to pool connections to the concrete data source
+
 ### Core Database Configuration
 
-The core database stores hugr metadata including data sources, catalogs, and schema definitions.
+The core database stores hugr metadata including data sources, catalogs, and schema definitions. Also stores roles and permissions, and managed API keys if enabled.
 
 - **`CORE_DB_PATH`** - DuckDB file or PostgreSQL DSN
   ```bash
@@ -120,7 +122,7 @@ The core database stores hugr metadata including data sources, catalogs, and sch
 
 #### S3 Storage Configuration
 
-For cloud-based core database storage:
+For DuckDB core database that is placed in S3 object storage:
 
 - **`CORE_DB_S3_ENDPOINT`** - S3 endpoint for cloud storage
   ```bash
@@ -145,7 +147,7 @@ For cloud-based core database storage:
 
 ### CORS Settings
 
-Configure Cross-Origin Resource Sharing (CORS) for web applications:
+Configure Cross-Origin Resource Sharing (CORS) for web applications. Also required for embedding AdminUI (GraphiQL) provided by hugr nodes as iframe:
 
 - **`CORS_ALLOWED_ORIGINS`** - Permitted domains (comma-separated)
   ```bash
@@ -248,6 +250,8 @@ For authentication with OpenID Connect providers:
   ```bash
   OIDC_COOKIE_NAME=hugr_session
   ```
+
+  Hugr uses this cookie name to extract the token if it is not provided in the Authorization header
 
 - **`OIDC_USERNAME_CLAIM`** / **`OIDC_USERID_CLAIM`** / **`OIDC_ROLE_CLAIM`** - Token attributes
   ```bash

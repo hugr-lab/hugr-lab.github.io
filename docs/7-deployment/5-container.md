@@ -41,7 +41,7 @@ docker pull ghcr.io/hugr-lab/server:latest
 ### 3. Management Image (For Cluster Management Node)
 **Image**: `ghcr.io/hugr-lab/management`
 
-Management node for cluster mode deployments. This node coordinates schema synchronization, data source configuration, object storage, and authentication settings across multiple work nodes. The management node does not provide a GraphQL API; all queries must go through work nodes.
+Management node for cluster mode deployments. This node coordinates schema synchronization, data source configuration, object storage, and authentication settings across multiple work nodes. The management node does not provide a GraphQL API; all queries must go through work nodes. The management node also applies core database migrations at startup if the core database is not in read-only mode.
 
 **Use this image for**:
 - Management node in clustered deployments only
@@ -413,6 +413,11 @@ The [hugr-lab/docker](https://github.com/hugr-lab/docker) repository contains Ku
 
 - **`/data`** - Core database and local DuckDB files
 - **`/workspace`** - Schema definitions and data source catalogs
+
+**Note**: Volume mounting is not strictly required, but provides several benefits:
+- **Easy editing**: Mount `/workspace` to edit data source schema definition files from the host
+- **Database access**: If using DuckDB for core database, mount `/data` directory and set the corresponding `CORE_DB_PATH` to access the database file
+- **Persistent secrets**: Mount a persistent volume to `DB_HOME_DIRECTORY` to make secrets storage independent and avoid losing credentials when the container is removed
 
 ### Optional Volumes
 

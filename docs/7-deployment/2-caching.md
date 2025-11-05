@@ -269,12 +269,15 @@ Hugr automatically generates cache keys based on:
 - User context (when authentication is enabled)
 - Data source configuration
 
+If the cache key is not explicitly provided, the user role is also included in the key generation
+
 ### Cache Invalidation
 
 Cache entries are invalidated when:
 - TTL expires
 - Data source schema is reloaded
 - Manual cache clear is triggered (via GraphQL mutation)
+- The `@invalidate_cache` directive is used (see [Directive Reference](/docs/graphql/directives) for cache directive explanations)
 
 ### Cache Warming
 

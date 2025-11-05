@@ -18,7 +18,7 @@ A hugr cluster consists of:
 
 ### How Cluster Mode Works
 
-- **Load Balancing**: GraphQL queries are distributed across work nodes by a load balancer (nginx/HAProxy)
+- **Load Balancing**: GraphQL queries are distributed across work nodes by a load balancer (nginx/HAProxy/Traefik)
 - **GraphQL API**: Work nodes provide the GraphQL API (including AdminUI). The management node does NOT expose GraphQL endpoints
 - **Cluster Operations**: When a work node receives a cluster operation request (via `core.cluster` module), it communicates with the management node to execute the operation
 - **Schema Synchronization**: The management node automatically synchronizes schemas, data sources, and object storage configurations across all work nodes
@@ -27,7 +27,8 @@ A hugr cluster consists of:
 ```
                     ┌─────────────────┐
                     │  Load Balancer  │
-                    │   (nginx/HAProxy)│
+                    │(nginx/HAProxy/  │
+                    │    Traefik)     │
                     └────────┬────────┘
                              │
             ┌────────────────┼────────────────┐
@@ -49,6 +50,11 @@ A hugr cluster consists of:
      │ (Core DB)   │  │   (Cache)   │  │ (Storage)  │
      └─────────────┘  └────────────┘  └────────────┘
 ```
+
+**Architecture Notes:**
+- Work nodes communicate directly with core database (PostgreSQL), Redis, MinIO, and data sources
+- The management node only needs to perform operations across all nodes in the cluster and collect information about their configurations
+- You can add an OIDC Identity Provider (IdP) to the architecture that work nodes communicate with for authentication
 
 ## Cluster Configuration
 
@@ -83,6 +89,8 @@ OIDC_USERNAME_CLAIM=preferred_username
 OIDC_USERID_CLAIM=sub
 OIDC_ROLE_CLAIM=roles
 ```
+
+For detailed authentication setup instructions, see the [Configuration Guide - Authentication Settings](./1-config.md#authentication-settings).
 
 **Authentication Distribution**: The management node distributes these authentication settings to all work nodes when they connect. Work nodes automatically receive and apply the configuration, ensuring consistent authentication across the cluster.
 
