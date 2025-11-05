@@ -683,6 +683,8 @@ All management operations are performed via GraphQL mutations on the management 
 
 The management node exposes GraphQL API endpoints for cluster operations. Access the management node's GraphQL interface at `http://management-node:14000/admin`.
 
+**Important**: All cluster-specific operations are available in the `core.cluster` module.
+
 #### Information Queries
 
 **Get cluster information and registered nodes:**
@@ -690,7 +692,7 @@ The management node exposes GraphQL API endpoints for cluster operations. Access
 ```graphql
 query {
   core {
-    cluster_info {
+    cluster {
       nodes {
         name
         url
@@ -704,7 +706,7 @@ query {
 }
 ```
 
-**List data sources:**
+**List data sources (core module):**
 
 ```graphql
 query {
@@ -731,11 +733,13 @@ query {
 ```graphql
 query {
   core {
-    cluster_stats {
-      active_nodes
-      total_queries
-      cache_hit_ratio
-      sync_events
+    cluster {
+      stats {
+        active_nodes
+        total_queries
+        cache_hit_ratio
+        sync_events
+      }
     }
   }
 }
@@ -831,15 +835,17 @@ mutation deleteDataSource($name: String!) {
 
 #### Object Storage Management
 
-**Configure S3/MinIO storage:**
+**Configure S3/MinIO storage (via cluster module):**
 
 ```graphql
 mutation configureObjectStorage($config: storage_config_input!) {
   core {
-    configure_storage(config: $config) {
-      success
-      message
-      storage_id
+    cluster {
+      configure_storage(config: $config) {
+        success
+        message
+        storage_id
+      }
     }
   }
 }
@@ -867,12 +873,14 @@ With variables:
 ```graphql
 query {
   core {
-    storage_configs {
-      name
-      type
-      endpoint
-      buckets
-      enabled
+    cluster {
+      storage_configs {
+        name
+        type
+        endpoint
+        buckets
+        enabled
+      }
     }
   }
 }
@@ -880,14 +888,16 @@ query {
 
 #### Authentication and Access Control
 
-**Update authentication settings:**
+**Update authentication settings (via cluster module):**
 
 ```graphql
 mutation updateAuthSettings($settings: auth_settings_input!) {
   core {
-    update_auth_settings(settings: $settings) {
-      success
-      message
+    cluster {
+      update_auth_settings(settings: $settings) {
+        success
+        message
+      }
     }
   }
 }
@@ -911,11 +921,13 @@ With variables:
 ```graphql
 mutation createApiKey($data: api_key_input!) {
   core {
-    create_api_key(data: $data) {
-      key
-      name
-      role
-      expires_at
+    cluster {
+      create_api_key(data: $data) {
+        key
+        name
+        role
+        expires_at
+      }
     }
   }
 }
@@ -926,11 +938,13 @@ mutation createApiKey($data: api_key_input!) {
 ```graphql
 query {
   core {
-    auth_settings {
-      allowed_anonymous
-      anonymous_role
-      require_api_key
-      session_timeout
+    cluster {
+      auth_settings {
+        allowed_anonymous
+        anonymous_role
+        require_api_key
+        session_timeout
+      }
     }
   }
 }
@@ -944,11 +958,13 @@ query {
 mutation {
   function {
     core {
-      reload_cluster_schemas {
-        success
-        reloaded_nodes
-        failed_nodes
-        message
+      cluster {
+        reload_schemas {
+          success
+          reloaded_nodes
+          failed_nodes
+          message
+        }
       }
     }
   }
@@ -961,10 +977,12 @@ mutation {
 mutation {
   function {
     core {
-      clear_cluster_cache {
-        success
-        cleared_nodes
-        message
+      cluster {
+        clear_cache {
+          success
+          cleared_nodes
+          message
+        }
       }
     }
   }
@@ -977,15 +995,35 @@ mutation {
 mutation {
   function {
     core {
-      check_cluster_health {
-        total_nodes
-        healthy_nodes
-        unhealthy_nodes
-        nodes {
-          name
-          status
-          last_response_time
+      cluster {
+        check_health {
+          total_nodes
+          healthy_nodes
+          unhealthy_nodes
+          nodes {
+            name
+            status
+            last_response_time
+          }
         }
+      }
+    }
+  }
+}
+```
+
+**Get list of work nodes:**
+
+```graphql
+query {
+  core {
+    cluster {
+      work_nodes {
+        name
+        url
+        status
+        registered_at
+        last_heartbeat
       }
     }
   }
@@ -994,7 +1032,7 @@ mutation {
 
 #### Catalog and Schema Management
 
-**Add a catalog to existing data source:**
+**Add a catalog to existing data source (core module):**
 
 ```graphql
 mutation addCatalog($dataSourceName: String!, $catalog: catalog_input!) {
@@ -1008,7 +1046,7 @@ mutation addCatalog($dataSourceName: String!, $catalog: catalog_input!) {
 }
 ```
 
-**Update catalog:**
+**Update catalog (core module):**
 
 ```graphql
 mutation updateCatalog($id: String!, $data: catalog_update_input!) {
@@ -1017,6 +1055,24 @@ mutation updateCatalog($id: String!, $data: catalog_update_input!) {
       name
       path
       description
+    }
+  }
+}
+```
+
+**Synchronize schemas across cluster:**
+
+```graphql
+mutation {
+  function {
+    core {
+      cluster {
+        sync_schemas {
+          success
+          synced_nodes
+          message
+        }
+      }
     }
   }
 }
