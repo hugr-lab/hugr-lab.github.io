@@ -81,7 +81,13 @@ const config: Config = {
       } satisfies Preset.Options,
     ],
   ],
-  
+
+  themes: ['@docusaurus/theme-mermaid'],
+
+  markdown: {
+    mermaid: true,
+  },
+
   themeConfig: {
     metadata: [
       {name: 'keywords', content: 'Data Mesh, GraphQL, Data Backend, Data Lake, Distributed Data, DuckDB, API, Data Governance, Data Access Layer, PostgreSQL, Spatial Data, Data Federation, Data Integration, Open Source'},
