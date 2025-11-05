@@ -11,28 +11,40 @@ Hugr is distributed as Docker containers hosted in the GitHub Container Registry
 
 Hugr provides three official Docker images:
 
-### 1. Server Image
-**Image**: `ghcr.io/hugr-lab/server`
-
-The main hugr server that provides the GraphQL API and admin interface.
-
-```bash
-docker pull ghcr.io/hugr-lab/server:latest
-```
-
-### 2. Automigrate Image
+### 1. Automigrate Image (Recommended for Single-Node Deployments)
 **Image**: `ghcr.io/hugr-lab/automigrate`
 
-Hugr server with automatic database schema migration for the core database. Use this image if you want the server to automatically apply schema updates on startup.
+Hugr server with automatic database schema migration for the core database. This image automatically applies schema updates on startup, making updates transparent and seamless.
+
+**Use this image for**:
+- Single-node (non-clustered) deployments
+- Development environments
+- Production deployments without clustering
 
 ```bash
 docker pull ghcr.io/hugr-lab/automigrate:latest
 ```
 
-### 3. Management Image
+### 2. Server Image (For Cluster Work Nodes)
+**Image**: `ghcr.io/hugr-lab/server`
+
+The main hugr server that provides the GraphQL API and admin interface. This is the base server image without automatic migrations.
+
+**Use this image for**:
+- Work nodes in clustered deployments
+- Custom migration workflows
+
+```bash
+docker pull ghcr.io/hugr-lab/server:latest
+```
+
+### 3. Management Image (For Cluster Management Node)
 **Image**: `ghcr.io/hugr-lab/management`
 
-Management node for cluster mode deployments. This node coordinates synchronization across multiple work nodes.
+Management node for cluster mode deployments. This node coordinates schema synchronization, data source configuration, object storage, and authentication settings across multiple work nodes via GraphQL API.
+
+**Use this image for**:
+- Management node in clustered deployments only
 
 ```bash
 docker pull ghcr.io/hugr-lab/management:latest
@@ -40,9 +52,9 @@ docker pull ghcr.io/hugr-lab/management:latest
 
 ## Quick Start with Docker
 
-### Basic Deployment
+### Basic Deployment (Recommended)
 
-Run a basic hugr server with local storage:
+Run a basic hugr server with local storage using the **automigrate** image:
 
 ```bash
 docker run -d \
@@ -51,8 +63,10 @@ docker run -d \
   -v $(pwd)/data:/data \
   -e CORE_DB_PATH=/data/core.db \
   -e ADMIN_UI=true \
-  ghcr.io/hugr-lab/server:latest
+  ghcr.io/hugr-lab/automigrate:latest
 ```
+
+The `automigrate` image ensures that database schema migrations are automatically applied on startup, making updates seamless.
 
 Access the admin interface at `http://localhost:15000/admin`
 
@@ -77,7 +91,7 @@ docker run -d \
   -p 15000:15000 \
   -v $(pwd)/data:/data \
   --env-file .env \
-  ghcr.io/hugr-lab/server:latest
+  ghcr.io/hugr-lab/automigrate:latest
 ```
 
 ## Docker Compose Deployment
@@ -86,14 +100,14 @@ Docker Compose provides a convenient way to manage multi-container deployments. 
 
 ### Basic Deployment
 
-Create a `docker-compose.yml` file:
+Create a `docker-compose.yml` file using the **automigrate** image for automatic schema migrations:
 
 ```yaml
 version: '3.8'
 
 services:
   hugr:
-    image: ghcr.io/hugr-lab/server:latest
+    image: ghcr.io/hugr-lab/automigrate:latest
     ports:
       - "15000:15000"
     environment:
@@ -116,14 +130,14 @@ docker-compose up -d
 
 ### Deployment with PostgreSQL
 
-Use PostgreSQL as the core database for production deployments:
+Use PostgreSQL as the core database for production deployments with the **automigrate** image:
 
 ```yaml
 version: '3.8'
 
 services:
   hugr:
-    image: ghcr.io/hugr-lab/server:latest
+    image: ghcr.io/hugr-lab/automigrate:latest
     ports:
       - "15000:15000"
     environment:
@@ -154,14 +168,14 @@ volumes:
 
 ### Deployment with Caching (Redis)
 
-Add Redis for distributed caching:
+Add Redis for distributed caching with the **automigrate** image:
 
 ```yaml
 version: '3.8'
 
 services:
   hugr:
-    image: ghcr.io/hugr-lab/server:latest
+    image: ghcr.io/hugr-lab/automigrate:latest
     ports:
       - "15000:15000"
     environment:
@@ -202,14 +216,14 @@ volumes:
 
 ### Deployment with S3 Storage (MinIO)
 
-Use S3-compatible storage for the core database:
+Use S3-compatible storage for the core database with the **automigrate** image:
 
 ```yaml
 version: '3.8'
 
 services:
   hugr:
-    image: ghcr.io/hugr-lab/server:latest
+    image: ghcr.io/hugr-lab/automigrate:latest
     ports:
       - "15000:15000"
     environment:
@@ -376,9 +390,20 @@ The repository includes a `docker-compose.yml` file for building:
 docker-compose -f example.build.docker-compose.yml build
 ```
 
+## Image Selection Guide
+
+Choose the right image based on your deployment scenario:
+
+| Deployment Scenario | Recommended Image | Notes |
+|---------------------|-------------------|-------|
+| Single-node production | `automigrate` | Automatic migrations on startup |
+| Development environment | `automigrate` | Simplifies schema updates |
+| Cluster work nodes | `server` | No automatic migrations needed |
+| Cluster management node | `management` | Manages cluster operations |
+
 ## Kubernetes Deployment
 
-For Kubernetes deployments, see the [Cluster Deployment](./6-cluster.md) guide which includes Kubernetes manifests and Helm chart information.
+For Kubernetes deployments, see the [Cluster Deployment](./6-cluster.md) guide which includes Kubernetes manifests and configuration details.
 
 The [hugr-lab/docker](https://github.com/hugr-lab/docker) repository contains Kubernetes templates in the `k8s/cluster` directory.
 

@@ -5,16 +5,23 @@ sidebar_position: 6
 
 # Clustered Deployment
 
-Hugr supports clustered deployment for high availability and scalability. In cluster mode, multiple work nodes are coordinated by a management node, providing distributed query processing and load balancing.
+Hugr supports clustered deployment for high availability and scalability. In cluster mode, multiple work nodes are coordinated by a management node, providing load balancing across work nodes.
 
 ## Cluster Architecture
 
 A hugr cluster consists of:
 
-1. **Management Node** - Coordinates schema synchronization and node health monitoring
-2. **Work Nodes** - Handle GraphQL queries and mutations
-3. **Shared Storage** - Core database accessible by all nodes
+1. **Management Node** - Manages cluster operations, schema synchronization, data sources, object storage, and authentication settings via GraphQL API
+2. **Work Nodes** - Handle GraphQL queries and mutations with load balancing
+3. **Shared Core Database** - PostgreSQL or DuckDB (read-only) accessible by all nodes
 4. **Distributed Cache** - Optional Redis/Memcached for shared L2 cache
+
+### How Cluster Mode Works
+
+- **Load Balancing**: GraphQL queries are distributed across work nodes by a load balancer (nginx/HAProxy)
+- **Management Operations**: Schema updates, data source configuration, object storage, and authentication settings are managed through the management node's GraphQL API
+- **Schema Synchronization**: The management node automatically synchronizes schemas, data sources, and object storage configurations across all work nodes
+- **No Distributed Query Execution**: Each work node processes queries independently; there is no distributed query processing across nodes
 
 ```
                     ┌─────────────────┐
@@ -92,8 +99,18 @@ CACHE_L2_PASSWORD=redis_password
 - **`CLUSTER_SECRET`** must be identical across all nodes for secure communication
 - **`CLUSTER_NODE_NAME`** must be unique for each work node
 - **`CLUSTER_NODE_URL`** should be accessible by the management node
-- **`CORE_DB_PATH`** must point to a shared database (PostgreSQL recommended)
-- **L2 cache** is strongly recommended for cluster deployments
+- **`CORE_DB_PATH`** must point to a shared database:
+  - **PostgreSQL** (recommended) - Full read/write support
+  - **DuckDB** - Only in read-only mode (`CORE_DB_READONLY=true`), as DuckDB cannot handle concurrent writes from multiple processes to the same file
+- **L2 cache** is strongly recommended for cluster deployments to cache role permissions
+
+### Roles and Permissions in Cluster Mode
+
+**Important**: Role and permission synchronization is **not** performed in cluster mode. However:
+
+- All nodes can share a common core database (PostgreSQL or DuckDB in read-only mode)
+- Role permissions are cached using the standard caching mechanism (L1/L2) with default TTL from cache configuration
+- Authentication settings can be managed centrally through the management node's GraphQL API
 
 ## Docker Compose Cluster Deployment
 
@@ -650,14 +667,26 @@ spec:
 
 ## Cluster Management
 
+### Management Node Operations
+
+The management node provides centralized cluster management through its GraphQL API:
+
+- **Schema Management**: Update and synchronize schemas across all work nodes
+- **Data Source Configuration**: Add, update, or remove data sources
+- **Object Storage**: Configure and manage connected object storage (S3, MinIO, etc.)
+- **Authentication Settings**: Manage common authentication rules and configurations
+- **Cluster Monitoring**: Monitor work node health and status
+
+All management operations are performed via GraphQL mutations on the management node.
+
 ### Schema Synchronization
 
-The management node automatically synchronizes schema changes across all work nodes:
+The management node automatically synchronizes changes across all work nodes:
 
-1. Schema changes are made via GraphQL mutation on any work node
-2. Management node detects the change
-3. All work nodes are notified to reload their schemas
-4. L2 cache is invalidated across the cluster
+1. Schema or data source changes are made via GraphQL mutation on the **management node**
+2. Management node updates the shared core database
+3. All work nodes are notified to reload their configurations
+4. L2 cache is invalidated across the cluster to ensure consistency
 
 ### Node Health Monitoring
 
@@ -716,9 +745,19 @@ minikube service hugr-worker --url
 
 ### Database High Availability
 
+For the shared core database:
+
+**PostgreSQL (Recommended for Production)**:
 - Use PostgreSQL with replication (streaming or logical)
 - Configure automatic failover with tools like Patroni or Stolon
 - Ensure proper backup and recovery procedures
+- Full read/write support for all cluster operations
+
+**DuckDB (Development/Read-Only)**:
+- Can only be used in read-only mode (`CORE_DB_READONLY=true`)
+- DuckDB does not support concurrent writes from multiple processes to the same file
+- Suitable for read-only cluster deployments or development environments
+- Prepare the database file before starting the cluster
 
 ### Cache High Availability
 
@@ -802,14 +841,16 @@ logging:
 
 ## Best Practices
 
-1. **Always use PostgreSQL** for the core database in production clusters
-2. **Enable L2 cache** for better schema synchronization and performance
-3. **Use separate management node** - don't combine with work nodes
+1. **Always use PostgreSQL** for the core database in production clusters (DuckDB only supports read-only mode)
+2. **Enable L2 cache** to cache role permissions and improve performance across nodes
+3. **Use separate management node** - don't combine management and work node roles
 4. **Configure proper resource limits** to prevent node starvation
 5. **Implement comprehensive monitoring** for all cluster components
-6. **Use secrets management** for sensitive configuration
+6. **Use secrets management** for sensitive configuration (cluster secrets, database credentials)
 7. **Regular backup** of core database and configuration
 8. **Test failover scenarios** before production deployment
+9. **Manage cluster operations through management node** - use its GraphQL API for schema updates, data source configuration, and authentication settings
+10. **Cache role permissions** - configure appropriate TTL for permission caching to balance security and performance
 
 ## Example Repositories
 
