@@ -25,30 +25,30 @@ A hugr cluster consists of:
 - **No Distributed Query Execution**: Each work node processes queries independently; there is no distributed query processing across nodes. This means horizontal scaling is achieved by adding more work nodes behind a load balancer
 
 ```
-                    ┌─────────────────┐
-                    │  Load Balancer  │
-                    │(nginx/HAProxy/  │
-                    │    Traefik)     │
-                    └────────┬────────┘
-                             │
-            ┌────────────────┼────────────────┐
-            │                │                │
-     ┌──────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐
-     │ Work Node 1 │  │ Work Node 2 │  │ Work Node 3 │
-     └──────┬──────┘  └─────┬──────┘  └─────┬──────┘
-            │                │                │
-            └────────────────┼────────────────┘
-                             │
-                    ┌────────▼────────┐
-                    │ Management Node │
-                    └────────┬────────┘
-                             │
-            ┌────────────────┼────────────────┐
-            │                │                │
-     ┌──────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐
-     │  PostgreSQL │  │    Redis    │  │   MinIO    │
-     │ (Core DB)   │  │   (Cache)   │  │ (Storage)  │
-     └─────────────┘  └────────────┘  └────────────┘
+                         ┌─────────────────┐
+                         │  Load Balancer  │
+                         │(nginx/HAProxy/  │
+                         │    Traefik)     │
+                         └────────┬────────┘
+                                  │
+                 ┌────────────────┼────────────────┐
+                 │                │                │
+          ┌──────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐
+          │ Work Node 1 │  │ Work Node 2 │  │ Work Node 3 │
+          │  (GraphQL)  │  │  (GraphQL)  │  │  (GraphQL)  │
+          └──┬────┬──┬──┘  └──┬────┬──┬──┘  └──┬────┬──┬──┘
+             │    │  │        │    │  │        │    │  │
+             │    │  └────────┼────┼──┼────────┘    │  │
+             │    └───────────┼────┼──┼─────────────┘  │
+             └────────────────┼────┼──┼────────────────┘
+                              │    │  │
+       ┌────────────┬─────────┘    │  └──────────┬───────────┐
+       │            │              │             │           │
+┌──────▼──────┐ ┌──▼──────────┐ ┌─▼────────┐ ┌──▼──────┐ ┌─▼────────┐
+│ Management  │ │ PostgreSQL  │ │  Redis   │ │  MinIO  │ │ OIDC IdP │
+│    Node     │ │  (Core DB)  │ │ (Cache)  │ │(Storage)│ │(optional)│
+│  (gRPC)     │ └─────────────┘ └──────────┘ └─────────┘ └──────────┘
+└─────────────┘
 ```
 
 **Architecture Notes:**
