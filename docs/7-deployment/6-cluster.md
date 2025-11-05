@@ -725,7 +725,7 @@ Path: `query { core { cluster { ... } } }`
 query {
   core {
     cluster {
-      nodes {
+      cluster_nodes {
         name
         version
         url
@@ -1083,7 +1083,7 @@ All cluster operations are accessed via work nodes through the `core.cluster` mo
 
 **Query Operations - Views** (via `core.cluster`):
 - Path: `query { core { cluster { ... } } }`
-- `nodes` - Get registered cluster nodes with status (view)
+- `cluster_nodes` - Get registered cluster nodes with status (view)
 - `storages` - Get registered object storages (view)
 
 **Query Operations - Functions** (via `function.core.cluster`):
@@ -1104,7 +1104,7 @@ All cluster operations are accessed via work nodes through the `core.cluster` mo
 - `core.delete_data_sources` - Delete data source
 
 **Access Paths Summary:**
-- **Views**: `query { core { cluster { nodes, storages } } }`
+- **Views**: `query { core { cluster { cluster_nodes, storages } } }`
 - **Query Functions**: `query { function { core { cluster { data_source_status } } } }`
 - **Mutation Functions**: `mutation { function { core { cluster { load_data_source, ... } } } }`
 
