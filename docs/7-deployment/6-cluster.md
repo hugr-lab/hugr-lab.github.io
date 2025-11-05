@@ -24,35 +24,60 @@ A hugr cluster consists of:
 - **Schema Synchronization**: The management node automatically synchronizes schemas, data sources, and object storage configurations across all work nodes
 - **No Distributed Query Execution**: Each work node processes queries independently; there is no distributed query processing across nodes. This means horizontal scaling is achieved by adding more work nodes behind a load balancer
 
-```
-                         ┌─────────────────┐
-                         │  Load Balancer  │
-                         │(nginx/HAProxy/  │
-                         │    Traefik)     │
-                         └────────┬────────┘
-                                  │
-                 ┌────────────────┼────────────────┐
-                 │                │                │
-          ┌──────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐
-          │ Work Node 1 │  │ Work Node 2 │  │ Work Node 3 │
-          │  (GraphQL)  │  │  (GraphQL)  │  │  (GraphQL)  │
-          └──┬───────┬──┘  └──┬───────┬──┘  └──┬───────┬──┘
-             │       │        │       │        │       │
-             │   ┌───┴────────┴───┬───┴────────┴───┐   │
-             │   │  HTTP (bidir)  │  HTTP (bidir)  │   │
-             │   ▼                ▼                ▼   │
-             │   ┌────────────────────────────────┐   │
-             │   │      Management Node (HTTP)    │   │
-             │   │  (coordinates work nodes via   │   │
-             │   │   bidirectional HTTP calls)    │   │
-             │   └────────────────────────────────┘   │
-             │                                         │
-         ┌───┴─────────┬──────────┬──────────┬────────┴────┐
-         │             │          │          │             │
-    ┌────▼────┐   ┌───▼─────┐ ┌──▼──────┐ ┌▼────────┐ ┌───▼──────┐
-    │PostgreSQL│   │  Redis  │ │  MinIO  │ │  Data   │ │ OIDC IdP │
-    │(Core DB) │   │ (Cache) │ │(Storage)│ │ Sources │ │(optional)│
-    └──────────┘   └─────────┘ └─────────┘ └─────────┘ └──────────┘
+```mermaid
+graph TB
+    LB[Load Balancer<br/>nginx/HAProxy/Traefik]
+
+    W1[Work Node 1<br/>GraphQL API]
+    W2[Work Node 2<br/>GraphQL API]
+    W3[Work Node 3<br/>GraphQL API]
+
+    MN[Management Node<br/>Coordinates work nodes via<br/>bidirectional HTTP]
+
+    PG[(PostgreSQL<br/>Core DB)]
+    RD[(Redis<br/>Cache)]
+    MO[(MinIO<br/>Object Storage)]
+    DS[(Data Sources)]
+    OIDC[OIDC IdP<br/>optional]
+
+    LB --> W1
+    LB --> W2
+    LB --> W3
+
+    W1 <-->|HTTP bidir| MN
+    W2 <-->|HTTP bidir| MN
+    W3 <-->|HTTP bidir| MN
+
+    W1 --> PG
+    W2 --> PG
+    W3 --> PG
+
+    W1 --> RD
+    W2 --> RD
+    W3 --> RD
+
+    W1 --> MO
+    W2 --> MO
+    W3 --> MO
+
+    W1 --> DS
+    W2 --> DS
+    W3 --> DS
+
+    W1 -.-> OIDC
+    W2 -.-> OIDC
+    W3 -.-> OIDC
+
+    style LB fill:#e1f5ff
+    style W1 fill:#c8e6c9
+    style W2 fill:#c8e6c9
+    style W3 fill:#c8e6c9
+    style MN fill:#fff9c4
+    style PG fill:#f8bbd0
+    style RD fill:#f8bbd0
+    style MO fill:#f8bbd0
+    style DS fill:#f8bbd0
+    style OIDC fill:#e0e0e0
 ```
 
 **Architecture Notes:**
