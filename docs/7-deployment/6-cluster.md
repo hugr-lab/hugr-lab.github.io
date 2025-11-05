@@ -67,7 +67,23 @@ TIMEOUT=30s
 
 # Node health check interval
 CHECK=1m
+
+# Authentication settings (distributed to work nodes)
+ALLOWED_ANONYMOUS=true
+ANONYMOUS_ROLE=anonymous
+SECRET_KEY=your-secret-key
+AUTH_CONFIG_FILE=/config/auth.yaml
+
+# OIDC Integration (optional)
+OIDC_ISSUER=https://accounts.google.com
+OIDC_CLIENT_ID=your-client-id
+OIDC_COOKIE_NAME=hugr_session
+OIDC_USERNAME_CLAIM=preferred_username
+OIDC_USERID_CLAIM=sub
+OIDC_ROLE_CLAIM=roles
 ```
+
+**Authentication Distribution**: The management node distributes these authentication settings to all work nodes when they connect. Work nodes automatically receive and apply the configuration, ensuring consistent authentication across the cluster.
 
 ### Work Node Configuration
 
@@ -674,10 +690,11 @@ The management node provides centralized cluster management through its GraphQL 
 - **Schema Management**: Update and synchronize schemas across all work nodes
 - **Data Source Configuration**: Add, update, or remove data sources
 - **Object Storage**: Configure and manage connected object storage (S3, MinIO, etc.)
-- **Authentication Settings**: Manage common authentication rules and configurations
 - **Cluster Monitoring**: Monitor work node health and status
 
-All management operations are performed via GraphQL mutations on the management node.
+**Note**: Authentication settings are configured via environment variables or configuration files on the management node, not through GraphQL API. The management node automatically distributes these settings to work nodes when they connect.
+
+All management operations (except authentication) are performed via GraphQL mutations on the management node.
 
 ### GraphQL API for Cluster Management
 
@@ -886,69 +903,45 @@ query {
 }
 ```
 
-#### Authentication and Access Control
+#### Authentication Configuration in Cluster Mode
 
-**Update authentication settings (via cluster module):**
+**Important**: Authentication settings in cluster mode are **not** managed via GraphQL API. Instead:
 
-```graphql
-mutation updateAuthSettings($settings: auth_settings_input!) {
-  core {
-    cluster {
-      update_auth_settings(settings: $settings) {
-        success
-        message
-      }
-    }
-  }
-}
+1. **Configuration on Management Node**: Authentication settings are configured on the management node via environment variables or configuration file (same as single-server deployment)
+2. **Automatic Distribution**: When a work node starts, it automatically receives authentication settings from the management node
+3. **Centralized Management**: All work nodes use the same authentication configuration distributed by the management node
+
+**Configure authentication on the management node** using environment variables:
+
+```bash
+# Management Node Environment Variables
+ALLOWED_ANONYMOUS=false
+ANONYMOUS_ROLE=guest
+SECRET_KEY=your-secret-key
+AUTH_CONFIG_FILE=/config/auth.yaml
+
+# OIDC Configuration (optional)
+OIDC_ISSUER=https://accounts.google.com
+OIDC_CLIENT_ID=your-client-id
+OIDC_COOKIE_NAME=hugr_session
 ```
 
-With variables:
+Or via configuration file (`/config/auth.yaml`):
 
-```json
-{
-  "settings": {
-    "allowed_anonymous": false,
-    "anonymous_role": "guest",
-    "require_api_key": true,
-    "session_timeout": "24h"
-  }
-}
+```yaml
+authentication:
+  allowed_anonymous: false
+  anonymous_role: guest
+  secret_key: your-secret-key
+
+  # OIDC settings
+  oidc:
+    issuer: https://accounts.google.com
+    client_id: your-client-id
+    cookie_name: hugr_session
 ```
 
-**Manage API keys:**
-
-```graphql
-mutation createApiKey($data: api_key_input!) {
-  core {
-    cluster {
-      create_api_key(data: $data) {
-        key
-        name
-        role
-        expires_at
-      }
-    }
-  }
-}
-```
-
-**Get current authentication configuration:**
-
-```graphql
-query {
-  core {
-    cluster {
-      auth_settings {
-        allowed_anonymous
-        anonymous_role
-        require_api_key
-        session_timeout
-      }
-    }
-  }
-}
-```
+Work nodes automatically receive and apply these settings when they connect to the management node. See [Configuration](./1-config.md) for complete authentication options.
 
 #### Cluster Control Operations
 
