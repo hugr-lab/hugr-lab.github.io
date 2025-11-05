@@ -19,7 +19,8 @@ A hugr cluster consists of:
 ### How Cluster Mode Works
 
 - **Load Balancing**: GraphQL queries are distributed across work nodes by a load balancer (nginx/HAProxy)
-- **Management Operations**: Schema updates, data source configuration, object storage, and authentication settings are managed through the management node's GraphQL API
+- **GraphQL API**: Work nodes provide the GraphQL API (including AdminUI). The management node does NOT expose GraphQL endpoints
+- **Cluster Operations**: When a work node receives a cluster operation request (via `core.cluster` module), it communicates with the management node to execute the operation
 - **Schema Synchronization**: The management node automatically synchronizes schemas, data sources, and object storage configurations across all work nodes
 - **No Distributed Query Execution**: Each work node processes queries independently; there is no distributed query processing across nodes
 
@@ -132,7 +133,9 @@ CACHE_L2_PASSWORD=redis_password
 
 ### Basic Cluster Setup
 
-Here's a basic cluster configuration with two work nodes:
+Here's a basic cluster configuration with two work nodes.
+
+**Note**: Access the cluster GraphQL API through work nodes (ports 15001, 15002), not the management node. The management node (port 14000) does not provide GraphQL endpoints.
 
 ```yaml
 version: '3.8'
@@ -683,24 +686,30 @@ spec:
 
 ## Cluster Management
 
-### Management Node Operations
+### Cluster Management Operations
 
-The management node provides centralized cluster management through its GraphQL API:
+In cluster mode, the hugr GraphQL schema is extended with the `core.cluster` module, which provides:
 
-- **Schema Management**: Update and synchronize schemas across all work nodes
-- **Data Source Configuration**: Add, update, or remove data sources
-- **Object Storage**: Configure and manage connected object storage (S3, MinIO, etc.)
+- **Schema Management**: Load/unload data source catalogs across all work nodes
+- **Data Source Configuration**: Add, update, or remove data sources (via core module)
+- **Object Storage**: Register and manage S3/MinIO storage across the cluster
 - **Cluster Monitoring**: Monitor work node health and status
 
 **Note**: Authentication settings are configured via environment variables or configuration files on the management node, not through GraphQL API. The management node automatically distributes these settings to work nodes when they connect.
 
-All management operations (except authentication) are performed via GraphQL mutations on the management node.
-
 ### GraphQL API for Cluster Management
 
-The management node exposes GraphQL API endpoints for cluster operations. Access the management node's GraphQL interface at `http://management-node:14000/admin`.
+**Important**: The management node does NOT provide a GraphQL API. All cluster management operations are performed through the **work nodes** GraphQL API.
 
-**Important**: All cluster-specific operations are available in the `function.core.cluster` module.
+When you execute a query or mutation in the `core.cluster` module:
+1. You send the GraphQL request to a **work node** (via standard endpoint `http://work-node:15000/graphql` or AdminUI at `http://work-node:15000/admin`)
+2. The work node receives the request
+3. The work node automatically communicates with the management node to perform the cluster operation
+4. The work node returns the result
+
+**Access cluster operations** through any work node's GraphQL interface or AdminUI.
+
+All cluster-specific operations are available in the `function.core.cluster` module.
 
 #### Query Operations
 
@@ -1066,7 +1075,7 @@ Work nodes automatically receive and apply these settings when they connect to t
 
 **Summary of Cluster Operations:**
 
-All cluster operations are accessed via `function.core.cluster`:
+All cluster operations are accessed via work nodes through the `function.core.cluster` module:
 
 **Query Operations:**
 - `nodes` - Get registered cluster nodes with status
@@ -1074,10 +1083,10 @@ All cluster operations are accessed via `function.core.cluster`:
 - `storages` - Get registered object storages
 
 **Mutation Operations:**
-- `load_data_source(name)` - Load/reload data source catalog
-- `unload_data_source(name)` - Unload data source catalog
-- `register_object_storage(...)` - Register new S3/object storage
-- `unregister_object_storage(name)` - Unregister object storage
+- `load_data_source(name)` - Load/reload data source catalog across cluster
+- `unload_data_source(name)` - Unload data source catalog from cluster
+- `register_object_storage(...)` - Register new S3/object storage across cluster
+- `unregister_object_storage(name)` - Unregister object storage from cluster
 
 **Core Module Operations** (data source CRUD):
 - `core.data_sources` - List data sources
@@ -1085,16 +1094,20 @@ All cluster operations are accessed via `function.core.cluster`:
 - `core.update_data_sources` - Update data source
 - `core.delete_data_sources` - Delete data source
 
-After modifying data sources via core module operations, use `load_data_source` or `unload_data_source` to apply changes across the cluster.
+**Workflow**:
+1. Execute GraphQL requests through any work node's endpoint or AdminUI
+2. For cluster operations (`core.cluster`), the work node automatically communicates with the management node
+3. After modifying data sources via core module operations, use `load_data_source` or `unload_data_source` to apply changes across the cluster
 
 ### Schema Synchronization
 
 The management node automatically synchronizes changes across all work nodes:
 
-1. Schema or data source changes are made via GraphQL mutation on the **management node**
-2. Management node updates the shared core database
-3. All work nodes are notified to reload their configurations
-4. L2 cache is invalidated across the cluster to ensure consistency
+1. Schema or data source changes are made via GraphQL mutation through a **work node** (using `core.cluster` operations)
+2. The work node communicates with the management node
+3. Management node updates the shared core database
+4. All work nodes are notified to reload their configurations
+5. L2 cache is invalidated across the cluster to ensure consistency
 
 ### Node Health Monitoring
 
