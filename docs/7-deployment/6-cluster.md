@@ -679,6 +679,349 @@ The management node provides centralized cluster management through its GraphQL 
 
 All management operations are performed via GraphQL mutations on the management node.
 
+### GraphQL API for Cluster Management
+
+The management node exposes GraphQL API endpoints for cluster operations. Access the management node's GraphQL interface at `http://management-node:14000/admin`.
+
+#### Information Queries
+
+**Get cluster information and registered nodes:**
+
+```graphql
+query {
+  core {
+    cluster_info {
+      nodes {
+        name
+        url
+        status
+        last_check
+      }
+      total_nodes
+      healthy_nodes
+    }
+  }
+}
+```
+
+**List data sources:**
+
+```graphql
+query {
+  core {
+    data_sources {
+      name
+      type
+      description
+      prefix
+      path
+      disabled
+      catalogs {
+        name
+        type
+        path
+      }
+    }
+  }
+}
+```
+
+**Get cluster statistics:**
+
+```graphql
+query {
+  core {
+    cluster_stats {
+      active_nodes
+      total_queries
+      cache_hit_ratio
+      sync_events
+    }
+  }
+}
+```
+
+#### Data Source Management
+
+**Add a new data source:**
+
+```graphql
+mutation addDataSource($data: data_sources_mut_input_data!) {
+  core {
+    insert_data_sources(data: $data) {
+      name
+      type
+      description
+      path
+      catalogs {
+        name
+        type
+        path
+      }
+    }
+  }
+}
+```
+
+With variables:
+
+```json
+{
+  "data": {
+    "name": "analytics",
+    "type": "postgres",
+    "prefix": "an",
+    "description": "Analytics database",
+    "read_only": false,
+    "as_module": true,
+    "path": "postgres://user:password@postgres:5432/analytics",
+    "catalogs": [
+      {
+        "name": "analytics_schema",
+        "type": "uri",
+        "description": "Analytics schema definitions",
+        "path": "/workspace/analytics/schema"
+      }
+    ]
+  }
+}
+```
+
+**Update a data source:**
+
+```graphql
+mutation updateDataSource($name: String!, $data: data_sources_mut_data!) {
+  core {
+    update_data_sources(filter: {name: {eq: $name}}, data: $data) {
+      name
+      description
+      path
+      disabled
+    }
+  }
+}
+```
+
+**Reload a data source:**
+
+```graphql
+mutation reloadDataSource($name: String!) {
+  function {
+    core {
+      load_data_source(name: $name) {
+        success
+        message
+      }
+    }
+  }
+}
+```
+
+**Delete a data source:**
+
+```graphql
+mutation deleteDataSource($name: String!) {
+  core {
+    delete_data_sources(filter: {name: {eq: $name}}) {
+      name
+    }
+  }
+}
+```
+
+#### Object Storage Management
+
+**Configure S3/MinIO storage:**
+
+```graphql
+mutation configureObjectStorage($config: storage_config_input!) {
+  core {
+    configure_storage(config: $config) {
+      success
+      message
+      storage_id
+    }
+  }
+}
+```
+
+With variables:
+
+```json
+{
+  "config": {
+    "name": "minio-storage",
+    "type": "s3",
+    "endpoint": "http://minio:9000",
+    "region": "us-east-1",
+    "access_key": "minioadmin",
+    "secret_key": "minioadmin",
+    "use_ssl": false,
+    "buckets": ["data", "backups"]
+  }
+}
+```
+
+**List configured storage:**
+
+```graphql
+query {
+  core {
+    storage_configs {
+      name
+      type
+      endpoint
+      buckets
+      enabled
+    }
+  }
+}
+```
+
+#### Authentication and Access Control
+
+**Update authentication settings:**
+
+```graphql
+mutation updateAuthSettings($settings: auth_settings_input!) {
+  core {
+    update_auth_settings(settings: $settings) {
+      success
+      message
+    }
+  }
+}
+```
+
+With variables:
+
+```json
+{
+  "settings": {
+    "allowed_anonymous": false,
+    "anonymous_role": "guest",
+    "require_api_key": true,
+    "session_timeout": "24h"
+  }
+}
+```
+
+**Manage API keys:**
+
+```graphql
+mutation createApiKey($data: api_key_input!) {
+  core {
+    create_api_key(data: $data) {
+      key
+      name
+      role
+      expires_at
+    }
+  }
+}
+```
+
+**Get current authentication configuration:**
+
+```graphql
+query {
+  core {
+    auth_settings {
+      allowed_anonymous
+      anonymous_role
+      require_api_key
+      session_timeout
+    }
+  }
+}
+```
+
+#### Cluster Control Operations
+
+**Force schema reload on all nodes:**
+
+```graphql
+mutation {
+  function {
+    core {
+      reload_cluster_schemas {
+        success
+        reloaded_nodes
+        failed_nodes
+        message
+      }
+    }
+  }
+}
+```
+
+**Clear cluster cache:**
+
+```graphql
+mutation {
+  function {
+    core {
+      clear_cluster_cache {
+        success
+        cleared_nodes
+        message
+      }
+    }
+  }
+}
+```
+
+**Trigger health check:**
+
+```graphql
+mutation {
+  function {
+    core {
+      check_cluster_health {
+        total_nodes
+        healthy_nodes
+        unhealthy_nodes
+        nodes {
+          name
+          status
+          last_response_time
+        }
+      }
+    }
+  }
+}
+```
+
+#### Catalog and Schema Management
+
+**Add a catalog to existing data source:**
+
+```graphql
+mutation addCatalog($dataSourceName: String!, $catalog: catalog_input!) {
+  core {
+    add_catalog(data_source: $dataSourceName, catalog: $catalog) {
+      name
+      type
+      path
+    }
+  }
+}
+```
+
+**Update catalog:**
+
+```graphql
+mutation updateCatalog($id: String!, $data: catalog_update_input!) {
+  core {
+    update_catalog(id: $id, data: $data) {
+      name
+      path
+      description
+    }
+  }
+}
+```
+
 ### Schema Synchronization
 
 The management node automatically synchronizes changes across all work nodes:
