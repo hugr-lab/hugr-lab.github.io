@@ -115,6 +115,102 @@ type role_permissions @module(name: "core")
 }
 ```
 
+## Creating Roles and Permissions
+
+There are two approaches to setting up roles and permissions:
+
+1. **Create role with nested permissions** - Create a role and all its permissions in a single mutation
+2. **Create separately** - Create a role first, then add permissions individually
+
+### Approach 1: Create Role with Nested Permissions (Recommended)
+
+The most efficient way is to create a role with all its permissions at once using nested relations:
+
+```graphql
+mutation {
+  core {
+    insert_roles(data: {
+      name: "editor"
+      description: "Content editor with limited permissions"
+      permissions: [
+        {
+          type_name: "articles"
+          field_name: "*"
+        }
+        {
+          type_name: "insert_articles"
+          field_name: "*"
+          data: {
+            author_id: "[$auth.user_id]"
+          }
+        }
+        {
+          type_name: "update_articles"
+          field_name: "*"
+          filter: {
+            author_id: { eq: "[$auth.user_id]" }
+          }
+        }
+      ]
+    }) {
+      name
+      description
+      permissions {
+        type_name
+        field_name
+      }
+    }
+  }
+}
+```
+
+This approach:
+- Creates the role and all permissions in a single transaction
+- Cleaner and more maintainable
+- Reduces the number of API calls
+
+### Approach 2: Create Role and Permissions Separately
+
+Alternatively, create a role first, then add permissions individually:
+
+```graphql
+mutation {
+  core {
+    # Step 1: Create the role
+    insert_roles(data: {
+      name: "editor"
+      description: "Content editor with limited permissions"
+    }) {
+      name
+    }
+
+    # Step 2: Add permissions for this role
+    perm1: insert_role_permissions(data: {
+      role: "editor"
+      type_name: "articles"
+      field_name: "*"
+    }) {
+      role
+      type_name
+    }
+
+    perm2: insert_role_permissions(data: {
+      role: "editor"
+      type_name: "insert_articles"
+      field_name: "*"
+    }) {
+      role
+      type_name
+    }
+  }
+}
+```
+
+This approach is useful when:
+- Adding permissions to an existing role
+- Managing permissions incrementally
+- Different team members manage roles vs. permissions
+
 ## Managing Roles
 
 ### Creating Roles
@@ -192,6 +288,10 @@ mutation {
 
 ## Managing Permissions
 
+**Note:** The `data` argument in insert mutations accepts a single object, not an array. To create multiple permissions at once, either:
+- Create a role with nested permissions (see "Creating Roles and Permissions" above)
+- Use multiple mutation calls with aliases in a single request
+
 ### Granting Basic Access
 
 Grant a role access to a specific type:
@@ -216,32 +316,78 @@ mutation {
 
 ### Field-Level Permissions
 
-Grant access to specific fields only:
+Grant access to specific fields only. You can create permissions individually:
 
 ```graphql
 mutation {
   core {
-    insert_role_permissions(data: [
-      {
-        role: "public"
-        type_name: "users"
-        field_name: "id"
-      }
-      {
-        role: "public"
-        type_name: "users"
-        field_name: "name"
-      }
-      {
-        role: "public"
-        type_name: "users"
-        field_name: "email"
-        hidden: true  # Hidden but accessible if explicitly requested
-      }
-    ]) {
+    # Create permission for id field
+    perm1: insert_role_permissions(data: {
+      role: "public"
+      type_name: "users"
+      field_name: "id"
+    }) {
       role
       type_name
       field_name
+    }
+
+    # Create permission for name field
+    perm2: insert_role_permissions(data: {
+      role: "public"
+      type_name: "users"
+      field_name: "name"
+    }) {
+      role
+      type_name
+      field_name
+    }
+
+    # Create permission for email field (hidden)
+    perm3: insert_role_permissions(data: {
+      role: "public"
+      type_name: "users"
+      field_name: "email"
+      hidden: true  # Hidden but accessible if explicitly requested
+    }) {
+      role
+      type_name
+      field_name
+    }
+  }
+}
+```
+
+Or create a role with all permissions at once:
+
+```graphql
+mutation {
+  core {
+    insert_roles(data: {
+      name: "public"
+      description: "Public access role"
+      permissions: [
+        {
+          type_name: "users"
+          field_name: "id"
+        }
+        {
+          type_name: "users"
+          field_name: "name"
+        }
+        {
+          type_name: "users"
+          field_name: "email"
+          hidden: true
+        }
+      ]
+    }) {
+      name
+      permissions {
+        type_name
+        field_name
+        hidden
+      }
     }
   }
 }
@@ -471,35 +617,47 @@ mutation {
 ```graphql
 mutation {
   core {
-    # Create role
+    # Create role with permissions for multi-tenant access
     insert_roles(data: {
       name: "tenant_user"
       description: "User within a tenant organization"
+      permissions: [
+        {
+          type_name: "customers"
+          field_name: "*"
+          filter: {
+            tenant_id: { eq: "[$auth.tenant_id]" }
+          }
+        }
+        {
+          type_name: "insert_customers"
+          field_name: "*"
+          data: {
+            tenant_id: "[$auth.tenant_id]"
+          }
+        }
+        {
+          type_name: "update_customers"
+          field_name: "*"
+          filter: {
+            tenant_id: { eq: "[$auth.tenant_id]" }
+          }
+        }
+        {
+          type_name: "delete_customers"
+          field_name: "*"
+          filter: {
+            tenant_id: { eq: "[$auth.tenant_id]" }
+          }
+        }
+      ]
     }) {
       name
-    }
-
-    # Grant filtered access
-    insert_role_permissions(data: [
-      {
-        role: "tenant_user"
-        type_name: "customers"
-        field_name: "*"
-        filter: {
-          tenant_id: { eq: "[$auth.tenant_id]" }
-        }
+      description
+      permissions {
+        type_name
+        field_name
       }
-      {
-        role: "tenant_user"
-        type_name: "insert_customers"
-        field_name: "*"
-        data: {
-          tenant_id: "[$auth.tenant_id]"
-        }
-      }
-    ]) {
-      role
-      type_name
     }
   }
 }
@@ -511,59 +669,73 @@ mutation {
 mutation {
   core {
     # Viewer role - read only
-    insert_role_permissions(data: [
-      {
-        role: "viewer"
-        type_name: "articles"
-        field_name: "*"
-      }
-      {
-        role: "viewer"
-        type_name: "insert_articles"
-        field_name: "*"
-        disabled: true
-      }
-      {
-        role: "viewer"
-        type_name: "update_articles"
-        field_name: "*"
-        disabled: true
-      }
-    ]) {
-      role
-      type_name
+    viewer: insert_roles(data: {
+      name: "viewer"
+      description: "Read-only access to articles"
+      permissions: [
+        {
+          type_name: "articles"
+          field_name: "*"
+        }
+        {
+          type_name: "insert_articles"
+          field_name: "*"
+          disabled: true
+        }
+        {
+          type_name: "update_articles"
+          field_name: "*"
+          disabled: true
+        }
+        {
+          type_name: "delete_articles"
+          field_name: "*"
+          disabled: true
+        }
+      ]
+    }) {
+      name
+      description
     }
 
     # Editor role - can create and edit own content
-    insert_role_permissions(data: [
-      {
-        role: "editor"
-        type_name: "articles"
-        field_name: "*"
-        filter: {
-          author_id: { eq: "[$auth.user_id]" }
+    editor: insert_roles(data: {
+      name: "editor"
+      description: "Can create and edit own articles"
+      permissions: [
+        {
+          type_name: "articles"
+          field_name: "*"
+          filter: {
+            author_id: { eq: "[$auth.user_id]" }
+          }
         }
-      }
-      {
-        role: "editor"
-        type_name: "insert_articles"
-        field_name: "*"
-        data: {
-          author_id: "[$auth.user_id]"
-          status: "draft"
+        {
+          type_name: "insert_articles"
+          field_name: "*"
+          data: {
+            author_id: "[$auth.user_id]"
+            status: "draft"
+          }
         }
-      }
-      {
-        role: "editor"
-        type_name: "update_articles"
-        field_name: "*"
-        filter: {
-          author_id: { eq: "[$auth.user_id]" }
+        {
+          type_name: "update_articles"
+          field_name: "*"
+          filter: {
+            author_id: { eq: "[$auth.user_id]" }
+          }
         }
-      }
-    ]) {
-      role
-      type_name
+        {
+          type_name: "delete_articles"
+          field_name: "*"
+          filter: {
+            author_id: { eq: "[$auth.user_id]" }
+          }
+        }
+      ]
+    }) {
+      name
+      description
     }
   }
 }
@@ -574,48 +746,50 @@ mutation {
 ```graphql
 mutation {
   core {
-    insert_role_permissions(data: [
-      # Public can see basic user info
-      {
-        role: "public"
-        type_name: "users"
-        field_name: "id"
+    insert_roles(data: {
+      name: "public"
+      description: "Public access with field-level restrictions"
+      permissions: [
+        # Public can see basic user info
+        {
+          type_name: "users"
+          field_name: "id"
+        }
+        {
+          type_name: "users"
+          field_name: "name"
+        }
+        {
+          type_name: "users"
+          field_name: "avatar"
+        }
+        # Email hidden but accessible if explicitly requested
+        {
+          type_name: "users"
+          field_name: "email"
+          hidden: true
+        }
+        # Phone completely blocked
+        {
+          type_name: "users"
+          field_name: "phone"
+          disabled: true
+        }
+        # SSN completely blocked
+        {
+          type_name: "users"
+          field_name: "ssn"
+          disabled: true
+        }
+      ]
+    }) {
+      name
+      permissions {
+        type_name
+        field_name
+        hidden
+        disabled
       }
-      {
-        role: "public"
-        type_name: "users"
-        field_name: "name"
-      }
-      {
-        role: "public"
-        type_name: "users"
-        field_name: "avatar"
-      }
-      # Email hidden but accessible
-      {
-        role: "public"
-        type_name: "users"
-        field_name: "email"
-        hidden: true
-      }
-      # Phone completely blocked
-      {
-        role: "public"
-        type_name: "users"
-        field_name: "phone"
-        disabled: true
-      }
-      # SSN completely blocked
-      {
-        role: "public"
-        type_name: "users"
-        field_name: "ssn"
-        disabled: true
-      }
-    ]) {
-      role
-      type_name
-      field_name
     }
   }
 }
