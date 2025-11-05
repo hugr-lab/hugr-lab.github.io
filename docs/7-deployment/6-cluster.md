@@ -97,7 +97,7 @@ OIDC_USERID_CLAIM=sub
 OIDC_ROLE_CLAIM=roles
 ```
 
-For detailed authentication setup instructions, see the [Configuration Guide - Authentication Settings](./1-config.md#authentication-settings).
+For detailed authentication setup instructions, see the [Authentication Setup](./4-auth.md).
 
 **Authentication Distribution**: The management node distributes these authentication settings to all work nodes when they connect. Work nodes automatically receive and apply the configuration, ensuring consistent authentication across the cluster.
 

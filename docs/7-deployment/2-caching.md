@@ -277,7 +277,7 @@ Cache entries are invalidated when:
 - TTL expires
 - Data source schema is reloaded
 - Manual cache clear is triggered (via GraphQL mutation)
-- The `@invalidate_cache` directive is used (see [Directive Reference](/docs/graphql/directives) for cache directive explanations)
+- The `@invalidate_cache` directive is used (see [Directive Reference](/docs/8-references/1-directives.md) for cache directive explanations)
 
 ### Cache Warming
 
