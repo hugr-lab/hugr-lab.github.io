@@ -700,24 +700,66 @@ All management operations (except authentication) are performed via GraphQL muta
 
 The management node exposes GraphQL API endpoints for cluster operations. Access the management node's GraphQL interface at `http://management-node:14000/admin`.
 
-**Important**: All cluster-specific operations are available in the `core.cluster` module.
+**Important**: All cluster-specific operations are available in the `function.core.cluster` module.
 
-#### Information Queries
+#### Query Operations
 
-**Get cluster information and registered nodes:**
+All query operations use the path: `query { function { core { cluster { ... } } } }`
+
+**Get registered cluster nodes:**
 
 ```graphql
 query {
-  core {
-    cluster {
-      nodes {
-        name
-        url
-        status
-        last_check
+  function {
+    core {
+      cluster {
+        nodes {
+          name
+          version
+          url
+          ready
+          last_seen
+          error
+        }
       }
-      total_nodes
-      healthy_nodes
+    }
+  }
+}
+```
+
+**Get data source status across cluster nodes:**
+
+```graphql
+query {
+  function {
+    core {
+      cluster {
+        data_source_status(name: "your-datasource-name") {
+          node
+          status
+          error
+        }
+      }
+    }
+  }
+}
+```
+
+**Get registered object storages across cluster:**
+
+```graphql
+query {
+  function {
+    core {
+      cluster {
+        storages {
+          node
+          name
+          type
+          scope
+          Parameters
+        }
+      }
     }
   }
 }
@@ -745,26 +787,51 @@ query {
 }
 ```
 
-**Get cluster statistics:**
+#### Mutation Operations
+
+All mutation operations use the path: `mutation { function { core { cluster { ... } } } }`
+
+#### Data Source Management
+
+**Load or reload a data source catalog:**
 
 ```graphql
-query {
-  core {
-    cluster {
-      stats {
-        active_nodes
-        total_queries
-        cache_hit_ratio
-        sync_events
+mutation {
+  function {
+    core {
+      cluster {
+        load_data_source(name: "your-datasource-name") {
+          success
+          message
+        }
       }
     }
   }
 }
 ```
 
-#### Data Source Management
+This operation loads or reloads the data source catalog across all cluster nodes.
 
-**Add a new data source:**
+**Unload a data source catalog:**
+
+```graphql
+mutation {
+  function {
+    core {
+      cluster {
+        unload_data_source(name: "your-datasource-name") {
+          success
+          message
+        }
+      }
+    }
+  }
+}
+```
+
+This operation unloads the data source catalog from all cluster nodes without deleting the data source configuration.
+
+**Add a new data source (core module):**
 
 ```graphql
 mutation addDataSource($data: data_sources_mut_input_data!) {
@@ -808,7 +875,9 @@ With variables:
 }
 ```
 
-**Update a data source:**
+After adding a data source, use `load_data_source` to load it across the cluster.
+
+**Update a data source (core module):**
 
 ```graphql
 mutation updateDataSource($name: String!, $data: data_sources_mut_data!) {
@@ -823,22 +892,7 @@ mutation updateDataSource($name: String!, $data: data_sources_mut_data!) {
 }
 ```
 
-**Reload a data source:**
-
-```graphql
-mutation reloadDataSource($name: String!) {
-  function {
-    core {
-      load_data_source(name: $name) {
-        success
-        message
-      }
-    }
-  }
-}
-```
-
-**Delete a data source:**
+**Delete a data source (core module):**
 
 ```graphql
 mutation deleteDataSource($name: String!) {
@@ -852,16 +906,65 @@ mutation deleteDataSource($name: String!) {
 
 #### Object Storage Management
 
-**Configure S3/MinIO storage (via cluster module):**
+**Register a new S3/MinIO object storage:**
 
 ```graphql
-mutation configureObjectStorage($config: storage_config_input!) {
-  core {
-    cluster {
-      configure_storage(config: $config) {
-        success
-        message
-        storage_id
+mutation {
+  function {
+    core {
+      cluster {
+        register_object_storage(
+          type: "s3"
+          name: "minio-storage"
+          scope: "my-bucket"
+          key: "minioadmin"
+          secret: "minioadmin"
+          region: "us-east-1"
+          endpoint: "http://minio:9000"
+          use_ssl: false
+          url_style: "path"
+          url_compatibility: false
+        ) {
+          success
+          message
+        }
+      }
+    }
+  }
+}
+```
+
+**Register object storage with variables:**
+
+```graphql
+mutation RegisterStorage(
+  $type: String!
+  $name: String!
+  $scope: String!
+  $key: String!
+  $secret: String!
+  $endpoint: String!
+  $region: String
+  $use_ssl: Boolean
+  $url_style: String!
+) {
+  function {
+    core {
+      cluster {
+        register_object_storage(
+          type: $type
+          name: $name
+          scope: $scope
+          key: $key
+          secret: $secret
+          endpoint: $endpoint
+          region: $region
+          use_ssl: $use_ssl
+          url_style: $url_style
+        ) {
+          success
+          message
+        }
       }
     }
   }
@@ -872,36 +975,52 @@ With variables:
 
 ```json
 {
-  "config": {
-    "name": "minio-storage",
-    "type": "s3",
-    "endpoint": "http://minio:9000",
-    "region": "us-east-1",
-    "access_key": "minioadmin",
-    "secret_key": "minioadmin",
-    "use_ssl": false,
-    "buckets": ["data", "backups"]
-  }
+  "type": "s3",
+  "name": "minio-storage",
+  "scope": "my-bucket",
+  "key": "minioadmin",
+  "secret": "minioadmin",
+  "endpoint": "http://minio:9000",
+  "region": "us-east-1",
+  "use_ssl": false,
+  "url_style": "path"
 }
 ```
 
-**List configured storage:**
+**Parameters:**
+- `type`: Type of object storage (e.g., "s3")
+- `name`: Unique name for the storage
+- `scope`: Bucket name or bucket sub-path
+- `key`: Access key ID (AWS or S3-compatible)
+- `secret`: Secret access key
+- `region`: AWS region (optional)
+- `endpoint`: Storage endpoint URL
+- `use_ssl`: Whether to use HTTPS (default: true)
+- `url_style`: S3 URL style ("path" or "vhost")
+- `url_compatibility`: URL compatibility mode (optional)
+- `kms_key_id`: AWS KMS key for server-side encryption (optional)
+- `account_id`: Cloudflare R2 account ID (optional)
+
+**Unregister object storage:**
 
 ```graphql
-query {
-  core {
-    cluster {
-      storage_configs {
-        name
-        type
-        endpoint
-        buckets
-        enabled
+mutation {
+  function {
+    core {
+      cluster {
+        unregister_object_storage(name: "minio-storage") {
+          success
+          message
+        }
       }
     }
   }
 }
 ```
+
+**List registered storages (query):**
+
+See the query operation `storages` above for listing registered object storages across the cluster.
 
 #### Authentication Configuration in Cluster Mode
 
@@ -943,133 +1062,30 @@ authentication:
 
 Work nodes automatically receive and apply these settings when they connect to the management node. See [Configuration](./1-config.md) for complete authentication options.
 
-#### Cluster Control Operations
+#### Complete GraphQL API Reference
 
-**Force schema reload on all nodes:**
+**Summary of Cluster Operations:**
 
-```graphql
-mutation {
-  function {
-    core {
-      cluster {
-        reload_schemas {
-          success
-          reloaded_nodes
-          failed_nodes
-          message
-        }
-      }
-    }
-  }
-}
-```
+All cluster operations are accessed via `function.core.cluster`:
 
-**Clear cluster cache:**
+**Query Operations:**
+- `nodes` - Get registered cluster nodes with status
+- `data_source_status(name)` - Get data source status across nodes
+- `storages` - Get registered object storages
 
-```graphql
-mutation {
-  function {
-    core {
-      cluster {
-        clear_cache {
-          success
-          cleared_nodes
-          message
-        }
-      }
-    }
-  }
-}
-```
+**Mutation Operations:**
+- `load_data_source(name)` - Load/reload data source catalog
+- `unload_data_source(name)` - Unload data source catalog
+- `register_object_storage(...)` - Register new S3/object storage
+- `unregister_object_storage(name)` - Unregister object storage
 
-**Trigger health check:**
+**Core Module Operations** (data source CRUD):
+- `core.data_sources` - List data sources
+- `core.insert_data_sources` - Add new data source
+- `core.update_data_sources` - Update data source
+- `core.delete_data_sources` - Delete data source
 
-```graphql
-mutation {
-  function {
-    core {
-      cluster {
-        check_health {
-          total_nodes
-          healthy_nodes
-          unhealthy_nodes
-          nodes {
-            name
-            status
-            last_response_time
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-**Get list of work nodes:**
-
-```graphql
-query {
-  core {
-    cluster {
-      work_nodes {
-        name
-        url
-        status
-        registered_at
-        last_heartbeat
-      }
-    }
-  }
-}
-```
-
-#### Catalog and Schema Management
-
-**Add a catalog to existing data source (core module):**
-
-```graphql
-mutation addCatalog($dataSourceName: String!, $catalog: catalog_input!) {
-  core {
-    add_catalog(data_source: $dataSourceName, catalog: $catalog) {
-      name
-      type
-      path
-    }
-  }
-}
-```
-
-**Update catalog (core module):**
-
-```graphql
-mutation updateCatalog($id: String!, $data: catalog_update_input!) {
-  core {
-    update_catalog(id: $id, data: $data) {
-      name
-      path
-      description
-    }
-  }
-}
-```
-
-**Synchronize schemas across cluster:**
-
-```graphql
-mutation {
-  function {
-    core {
-      cluster {
-        sync_schemas {
-          success
-          synced_nodes
-          message
-        }
-      }
-    }
-  }
-}
-```
+After modifying data sources via core module operations, use `load_data_source` or `unload_data_source` to apply changes across the cluster.
 
 ### Schema Synchronization
 
