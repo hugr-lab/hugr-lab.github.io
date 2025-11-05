@@ -709,34 +709,58 @@ When you execute a query or mutation in the `core.cluster` module:
 
 **Access cluster operations** through any work node's GraphQL interface or AdminUI.
 
-All cluster-specific operations are available in the `function.core.cluster` module.
+All cluster-specific operations are available in the `core.cluster` module with different access paths depending on the operation type.
 
 #### Query Operations
 
-All query operations use the path: `query { function { core { cluster { ... } } } }`
+The `core.cluster` module provides two types of query operations:
 
-**Get registered cluster nodes:**
+**1. Views (direct access via `core.cluster`):**
+
+Path: `query { core { cluster { ... } } }`
+
+**Get registered cluster nodes (view):**
 
 ```graphql
 query {
-  function {
-    core {
-      cluster {
-        nodes {
-          name
-          version
-          url
-          ready
-          last_seen
-          error
-        }
+  core {
+    cluster {
+      nodes {
+        name
+        version
+        url
+        ready
+        last_seen
+        error
       }
     }
   }
 }
 ```
 
-**Get data source status across cluster nodes:**
+**Get registered object storages across cluster (view):**
+
+```graphql
+query {
+  core {
+    cluster {
+      storages {
+        node
+        name
+        type
+        scope
+        Parameters
+      }
+    }
+  }
+}
+```
+
+**2. Functions (via `function.core.cluster`):**
+
+Path: `query { function { core { cluster { ... } } } }`
+
+**Get data source status across cluster nodes (function):**
 
 ```graphql
 query {
@@ -747,26 +771,6 @@ query {
           node
           status
           error
-        }
-      }
-    }
-  }
-}
-```
-
-**Get registered object storages across cluster:**
-
-```graphql
-query {
-  function {
-    core {
-      cluster {
-        storages {
-          node
-          name
-          type
-          scope
-          Parameters
         }
       }
     }
@@ -798,7 +802,7 @@ query {
 
 #### Mutation Operations
 
-All mutation operations use the path: `mutation { function { core { cluster { ... } } } }`
+All mutation operations are functions and use the path: `mutation { function { core { cluster { ... } } } }`
 
 #### Data Source Management
 
@@ -1075,14 +1079,19 @@ Work nodes automatically receive and apply these settings when they connect to t
 
 **Summary of Cluster Operations:**
 
-All cluster operations are accessed via work nodes through the `function.core.cluster` module:
+All cluster operations are accessed via work nodes through the `core.cluster` module:
 
-**Query Operations:**
-- `nodes` - Get registered cluster nodes with status
-- `data_source_status(name)` - Get data source status across nodes
-- `storages` - Get registered object storages
+**Query Operations - Views** (via `core.cluster`):
+- Path: `query { core { cluster { ... } } }`
+- `nodes` - Get registered cluster nodes with status (view)
+- `storages` - Get registered object storages (view)
 
-**Mutation Operations:**
+**Query Operations - Functions** (via `function.core.cluster`):
+- Path: `query { function { core { cluster { ... } } } }`
+- `data_source_status(name)` - Get data source status across nodes (function)
+
+**Mutation Operations - Functions** (via `function.core.cluster`):
+- Path: `mutation { function { core { cluster { ... } } } }`
 - `load_data_source(name)` - Load/reload data source catalog across cluster
 - `unload_data_source(name)` - Unload data source catalog from cluster
 - `register_object_storage(...)` - Register new S3/object storage across cluster
@@ -1093,6 +1102,11 @@ All cluster operations are accessed via work nodes through the `function.core.cl
 - `core.insert_data_sources` - Add new data source
 - `core.update_data_sources` - Update data source
 - `core.delete_data_sources` - Delete data source
+
+**Access Paths Summary:**
+- **Views**: `query { core { cluster { nodes, storages } } }`
+- **Query Functions**: `query { function { core { cluster { data_source_status } } } }`
+- **Mutation Functions**: `mutation { function { core { cluster { load_data_source, ... } } } }`
 
 **Workflow**:
 1. Execute GraphQL requests through any work node's endpoint or AdminUI
