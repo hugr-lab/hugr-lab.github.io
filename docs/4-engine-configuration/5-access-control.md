@@ -21,11 +21,22 @@ All permissions are managed through the standard GraphQL API in the `core` modul
 
 When Hugr is deployed, three default roles are automatically created:
 
-- **admin** - Full access to all types and fields
-- **public** - Limited access for anonymous users
-- **readonly** - Read-only access to allowed types
+- **admin** - Full access to all types and fields (no restrictions)
+- **public** - Limited access for anonymous users (no default permissions; configure as needed)
+- **readonly** - Can query all data but all mutations are disabled
 
-Mutation permissions are visible but disabled by default for security.
+The `readonly` role is created with a single permission entry:
+
+```sql
+INSERT INTO permissions (role, type_name, field_name, hidden, disabled)
+VALUES ('readonly', 'Mutation', '*', false, true);
+```
+
+This configuration:
+- Allows all queries (no restrictions needed due to "open by default" behavior)
+- Blocks all mutations by targeting the `Mutation` root type with a wildcard field
+
+You can customize these roles or create new ones based on your security requirements.
 
 ## Role Assignment
 
@@ -112,6 +123,226 @@ type role_permissions @module(name: "core")
   filter: JSON
   "Required field values for the data mutation"
   data: JSON
+}
+```
+
+## Permission Behavior and Wildcards
+
+### Default Access Behavior
+
+**Important:** If a type or field is **not found** in the permissions table for a role, it is **accessible by default**. This "open by default" approach allows you to create targeted restrictions without explicitly listing every allowed field.
+
+```graphql
+# If no permissions exist for role "viewer", all types and fields are accessible
+# To restrict access, you must explicitly add permission entries
+```
+
+This design enables two permission strategies:
+
+1. **Deny-by-default** - Block everything with wildcards, then allow specific items
+2. **Allow-by-default** - Start with full access, then block specific items
+
+### Wildcard Matching
+
+You can use `*` (asterisk) in place of type names or field names to apply rules broadly:
+
+- `type_name: "*"` - Applies to all GraphQL types
+- `field_name: "*"` - Applies to all fields of a type
+- Both wildcards - Applies globally to everything
+
+#### Default readonly Role Example
+
+When Hugr creates the core database, the `readonly` role is configured to disable all mutations:
+
+```sql
+INSERT INTO permissions (role, type_name, field_name, hidden, disabled)
+VALUES ('readonly', 'Mutation', '*', false, true);
+```
+
+This single entry:
+- Targets the `Mutation` type (the root mutation type in GraphQL)
+- Uses `*` for field_name to match all mutation fields
+- Sets `disabled: true` to block all mutations
+
+Result: `readonly` role can query data but cannot make any mutations.
+
+### Permission Priority
+
+When checking access, Hugr applies the **most specific** permission that matches:
+
+**Priority order (highest to lowest):**
+1. Exact match: `(type_name: "users", field_name: "email")`
+2. Type with wildcard field: `(type_name: "users", field_name: "*")`
+3. Wildcard type with exact field: `(type_name: "*", field_name: "email")`
+4. Both wildcards: `(type_name: "*", field_name: "*")`
+5. No match: **Allowed by default**
+
+#### Example: Layered Permissions
+
+```graphql
+mutation {
+  core {
+    insert_roles(data: {
+      name: "limited_editor"
+      description: "Can edit most things except sensitive data"
+      permissions: [
+        # 1. Allow all types and fields by default (least specific)
+        {
+          type_name: "*"
+          field_name: "*"
+          disabled: false
+        }
+        # 2. Hide all email fields across all types (more specific)
+        {
+          type_name: "*"
+          field_name: "email"
+          hidden: true
+        }
+        # 3. Completely block ssn field in users type (most specific)
+        {
+          type_name: "users"
+          field_name: "ssn"
+          disabled: true
+        }
+        # 4. Block all mutations (specific type, all fields)
+        {
+          type_name: "Mutation"
+          field_name: "*"
+          disabled: true
+        }
+        # 5. But allow specific update mutation (most specific wins)
+        {
+          type_name: "Mutation"
+          field_name: "update_users"
+          disabled: false
+        }
+      ]
+    }) {
+      name
+    }
+  }
+}
+```
+
+Result:
+- Most fields are accessible
+- All `email` fields are hidden but can be explicitly requested
+- `users.ssn` is completely blocked
+- All mutations are blocked except `update_users`
+
+### Targeted Restrictions Strategy
+
+The most efficient approach is to use wildcards for broad rules and specific entries for exceptions:
+
+**Example: Read-only with specific write permissions**
+
+```graphql
+mutation {
+  core {
+    insert_roles(data: {
+      name: "content_contributor"
+      description: "Can only create articles, not edit or delete"
+      permissions: [
+        # Block all mutations
+        {
+          type_name: "Mutation"
+          field_name: "*"
+          disabled: true
+        }
+        # Except insert_articles
+        {
+          type_name: "Mutation"
+          field_name: "insert_articles"
+          disabled: false
+          data: {
+            author_id: "[$auth.user_id]"
+            status: "pending"
+          }
+        }
+      ]
+    }) {
+      name
+    }
+  }
+}
+```
+
+**Example: Hide sensitive fields by default**
+
+```graphql
+mutation {
+  core {
+    insert_roles(data: {
+      name: "public"
+      description: "Public access with hidden PII"
+      permissions: [
+        # Hide email across all types
+        {
+          type_name: "*"
+          field_name: "email"
+          hidden: true
+        }
+        # Hide phone across all types
+        {
+          type_name: "*"
+          field_name: "phone"
+          hidden: true
+        }
+        # Completely block SSN across all types
+        {
+          type_name: "*"
+          field_name: "ssn"
+          disabled: true
+        }
+      ]
+    }) {
+      name
+    }
+  }
+}
+```
+
+**Example: Type-level restrictions**
+
+```graphql
+mutation {
+  core {
+    insert_roles(data: {
+      name: "external_api"
+      description: "External API with limited access"
+      permissions: [
+        # Block entire admin types
+        {
+          type_name: "admin_settings"
+          field_name: "*"
+          disabled: true
+        }
+        {
+          type_name: "internal_logs"
+          field_name: "*"
+          disabled: true
+        }
+        # Block all mutations on sensitive table
+        {
+          type_name: "Mutation"
+          field_name: "insert_user_credentials"
+          disabled: true
+        }
+        {
+          type_name: "Mutation"
+          field_name: "update_user_credentials"
+          disabled: true
+        }
+        {
+          type_name: "Mutation"
+          field_name: "delete_user_credentials"
+          disabled: true
+        }
+      ]
+    }) {
+      name
+    }
+  }
 }
 ```
 
@@ -857,14 +1088,54 @@ query {
 
 ## Best Practices
 
-1. **Principle of Least Privilege**: Grant only the minimum permissions required for each role
-2. **Use Wildcards Sparingly**: Explicit permissions are more secure and easier to audit
-3. **Test Permissions**: Always test with different roles to ensure permissions work as expected
-4. **Audit Regularly**: Periodically review role assignments and permissions
-5. **Use Authentication Variables**: Leverage `[$auth.*]` variables for dynamic, user-specific permissions
-6. **Combine Filters**: Use both row-level filters and field-level permissions for defense in depth
-7. **Document Roles**: Maintain clear descriptions for each role's purpose and permissions
-8. **Version Control**: Track permission changes in version control alongside schema changes
+### Permission Strategy
+
+1. **Understand Default Behavior**: Remember that types/fields are **accessible by default** if not found in permissions table
+2. **Choose Your Strategy**:
+   - **Deny-by-default**: Use wildcards to block everything, then explicitly allow specific items (more secure for sensitive data)
+   - **Allow-by-default**: Only add permission entries to block or hide specific items (simpler for most cases)
+3. **Use Wildcards Effectively**: Wildcards are powerful for broad rules with specific exceptions
+   - Block all mutations: `(type_name: "Mutation", field_name: "*", disabled: true)`
+   - Hide PII fields: `(type_name: "*", field_name: "email", hidden: true)`
+   - Then add specific exceptions with higher priority rules
+
+### Security and Maintenance
+
+4. **Principle of Least Privilege**: Grant only the minimum permissions required for each role
+5. **Leverage Priority System**: Use layered permissions - broad wildcard rules with specific overrides
+6. **Test Permissions**: Always test with different roles to ensure permissions work as expected
+7. **Audit Regularly**: Periodically review role assignments and permissions
+8. **Use Authentication Variables**: Leverage `[$auth.*]` variables for dynamic, user-specific permissions
+9. **Combine Filters**: Use both row-level filters and field-level permissions for defense in depth
+10. **Document Roles**: Maintain clear descriptions for each role's purpose and permissions
+11. **Version Control**: Track permission changes in version control alongside schema changes
+
+### Common Patterns
+
+**Read-only access:**
+```graphql
+permissions: [
+  { type_name: "Mutation", field_name: "*", disabled: true }
+]
+```
+
+**Hide sensitive fields globally:**
+```graphql
+permissions: [
+  { type_name: "*", field_name: "ssn", disabled: true }
+  { type_name: "*", field_name: "password", disabled: true }
+  { type_name: "*", field_name: "email", hidden: true }
+]
+```
+
+**Allow specific mutations only:**
+```graphql
+permissions: [
+  { type_name: "Mutation", field_name: "*", disabled: true }
+  { type_name: "Mutation", field_name: "insert_articles", disabled: false }
+  { type_name: "Mutation", field_name: "update_articles", disabled: false }
+]
+```
 
 ## Troubleshooting
 
