@@ -713,54 +713,54 @@ All cluster-specific operations are available in the `core.cluster` module with 
 
 #### Query Operations
 
-The `core.cluster` module provides two types of query operations:
+All query operations are **functions** and use the path: `query { function { core { cluster { ... } } } }`
 
-**1. Views (direct access via `core.cluster`):**
-
-Path: `query { core { cluster { ... } } }`
-
-**Get registered cluster nodes (view):**
+**Get registered cluster nodes:**
 
 ```graphql
 query {
-  core {
-    cluster {
-      cluster_nodes {
-        name
-        version
-        url
-        ready
-        last_seen
-        error
+  function {
+    core {
+      cluster {
+        nodes {
+          name
+          version
+          url
+          ready
+          last_seen
+          error
+        }
       }
     }
   }
 }
 ```
 
-**Get registered object storages across cluster (view):**
+Returns: `[cluster_nodes]` - list of registered cluster nodes
+
+**Get registered object storages across cluster:**
 
 ```graphql
 query {
-  core {
-    cluster {
-      storages {
-        node
-        name
-        type
-        scope
-        Parameters
+  function {
+    core {
+      cluster {
+        storages {
+          node
+          name
+          type
+          scope
+          Parameters
+        }
       }
     }
   }
 }
 ```
 
-**2. Functions (via `function.core.cluster`):**
+Returns: `[registered_storages]` - list of registered object storages
 
-Path: `query { function { core { cluster { ... } } } }`
-
-**Get data source status across cluster nodes (function):**
+**Get data source status across cluster nodes:**
 
 ```graphql
 query {
@@ -777,6 +777,8 @@ query {
   }
 }
 ```
+
+Returns: `[cluster_data_source_status]` - data source status on each node
 
 **List data sources (core module):**
 
@@ -1079,18 +1081,15 @@ Work nodes automatically receive and apply these settings when they connect to t
 
 **Summary of Cluster Operations:**
 
-All cluster operations are accessed via work nodes through the `core.cluster` module:
+All cluster operations are accessed via work nodes through the `function.core.cluster` module.
 
-**Query Operations - Views** (via `core.cluster`):
-- Path: `query { core { cluster { ... } } }`
-- `cluster_nodes` - Get registered cluster nodes with status (view)
-- `storages` - Get registered object storages (view)
-
-**Query Operations - Functions** (via `function.core.cluster`):
+**Query Operations** (via `function.core.cluster`):
 - Path: `query { function { core { cluster { ... } } } }`
-- `data_source_status(name)` - Get data source status across nodes (function)
+- `nodes` - Get registered cluster nodes (returns `[cluster_nodes]`)
+- `storages` - Get registered object storages (returns `[registered_storages]`)
+- `data_source_status(name)` - Get data source status across nodes (returns `[cluster_data_source_status]`)
 
-**Mutation Operations - Functions** (via `function.core.cluster`):
+**Mutation Operations** (via `function.core.cluster`):
 - Path: `mutation { function { core { cluster { ... } } } }`
 - `load_data_source(name)` - Load/reload data source catalog across cluster
 - `unload_data_source(name)` - Unload data source catalog from cluster
@@ -1103,9 +1102,8 @@ All cluster operations are accessed via work nodes through the `core.cluster` mo
 - `core.update_data_sources` - Update data source
 - `core.delete_data_sources` - Delete data source
 
-**Access Paths Summary:**
-- **Views**: `query { core { cluster { cluster_nodes, storages } } }`
-- **Query Functions**: `query { function { core { cluster { data_source_status } } } }`
+**All cluster operations use the same path pattern:**
+- **Query Functions**: `query { function { core { cluster { nodes, storages, data_source_status } } } }`
 - **Mutation Functions**: `mutation { function { core { cluster { load_data_source, ... } } } }`
 
 **Workflow**:
