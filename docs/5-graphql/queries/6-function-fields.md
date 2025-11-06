@@ -294,10 +294,10 @@ query {
 
 ## Table Function with Join
 
-Use `@table_function_call_join` for functions that need join conditions:
+Use `@table_function_call_join` to combine function results with join conditions. The `args` parameter maps function arguments to object fields—unmapped arguments become field parameters in queries.
 
 ```graphql
-# Schema definition
+# Function definition
 extend type Function {
   get_sensor_readings(
     sensor_id: Int!
@@ -309,11 +309,13 @@ extend type Function {
   )
 }
 
+# Field definition
 extend type sensors {
   readings: [SensorReading] @table_function_call_join(
     references_name: "get_sensor_readings"
     args: {
-      sensor_id: "id"
+      sensor_id: "id"  # Maps sensor_id to sensors.id field
+      # from_time and to_time not mapped - become query parameters
     }
     source_fields: ["id"]
     references_fields: ["sensor_id"]
@@ -321,13 +323,14 @@ extend type sensors {
 }
 ```
 
-Query:
+**Result:** The `readings` field requires `from_time` and `to_time` parameters:
+
 ```graphql
 query {
   sensors {
     id
     name
-    # Readings with time range
+    # from_time and to_time are required query parameters
     readings(
       from_time: "2024-01-01T00:00:00Z"
       to_time: "2024-01-31T23:59:59Z"

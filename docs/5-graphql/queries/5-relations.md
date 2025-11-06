@@ -601,29 +601,52 @@ query {
 
 ### Using @table_function_call_join
 
-For functions returning sets of related data:
+For functions returning sets of related data, use `@table_function_call_join` to join function results with object fields.
+
+**How Argument Mapping Works:**
+- The `args` parameter maps function arguments to object fields (not hardcoded values)
+- Function arguments not in the mapping become field parameters in queries
+- Parameter requirements match the function's argument requirements
 
 ```graphql
-# Schema definition
+# Function definition
+extend type Function {
+  get_sensor_readings(
+    sensor_id: Int!
+    from_time: Timestamp!
+    to_time: Timestamp!
+  ): [SensorReading] @function(
+    name: "fetch_readings"
+    is_table: true
+  )
+}
+
+# Field definition
 extend type sensors {
-  readings: [sensor_reading] @table_function_call_join(
+  readings: [SensorReading] @table_function_call_join(
     references_name: "get_sensor_readings"
-    args: { time_range: "24h" }
+    args: {
+      sensor_id: "id"  # Maps sensor_id argument to sensors.id field
+    }
     source_fields: ["id"]
     references_fields: ["sensor_id"]
   )
 }
 ```
 
-Query function joins:
+**Result:** The `readings` field requires `from_time` and `to_time` parameters (unmapped function arguments):
 
 ```graphql
 query {
   sensors {
     id
     name
-    # Last 24h readings
-    readings(limit: 100) {
+    # from_time and to_time are required because they weren't mapped
+    readings(
+      from_time: "2024-01-01T00:00:00Z"
+      to_time: "2024-01-31T23:59:59Z"
+      limit: 100
+    ) {
       timestamp
       value
       unit
@@ -643,6 +666,8 @@ query {
     name
     # High readings only (filters function results)
     high_readings: readings(
+      from_time: "2024-01-01T00:00:00Z"
+      to_time: "2024-01-31T23:59:59Z"
       filter: { value: { gte: 100 } }
       order_by: [{ field: "timestamp", direction: DESC }]
     ) {
@@ -664,6 +689,8 @@ query {
     name
     # Only sensors with high readings
     high_readings: readings(
+      from_time: "2024-01-01T00:00:00Z"
+      to_time: "2024-01-31T23:59:59Z"
       filter: { value: { gte: 100 } }
       inner: true
     ) {
@@ -683,8 +710,11 @@ query {
   sensors {
     id
     name
-    # Aggregate readings
-    readings_aggregation {
+    # Aggregate readings for time period
+    readings_aggregation(
+      from_time: "2024-01-01T00:00:00Z"
+      to_time: "2024-01-31T23:59:59Z"
+    ) {
       _rows_count
       value {
         avg
