@@ -306,7 +306,13 @@ query {
 
 ### Cube Aggregations
 
-Use standard aggregation queries with cubes:
+Use standard aggregation queries with cubes. Measurement fields in aggregations can use `measurement_func` for double aggregation.
+
+**Important:**
+- With `measurement_func`: Applies double aggregation (cube aggregation → aggregation query)
+- Without `measurement_func`: Measurement field becomes a dimension and is added to GROUP BY
+
+#### Standard Aggregations
 
 ```graphql
 query {
@@ -325,6 +331,93 @@ query {
     quantity {
       sum
       avg
+    }
+  }
+}
+```
+
+#### Double Aggregation with measurement_func
+
+When using `measurement_func` in cube aggregations, you perform double aggregation:
+
+```graphql
+query {
+  sales_aggregation {
+    _rows_count
+
+    # Double aggregation:
+    # 1. Cube pre-aggregates with SUM per group
+    # 2. Aggregation query sums those sums
+    total_amount(measurement_func: SUM) {
+      sum    # Sum of sums
+      avg    # Average of sums
+      min    # Minimum sum
+      max    # Maximum sum
+    }
+
+    # Average of averages
+    unit_price(measurement_func: AVG) {
+      avg
+      min
+      max
+    }
+  }
+}
+```
+
+#### Measurement as Dimension (Without measurement_func)
+
+When you query a measurement field without `measurement_func`, it becomes a dimension:
+
+```graphql
+query {
+  sales_aggregation {
+    # unit_price used as dimension - added to GROUP BY
+    unit_price {
+      list    # List of distinct unit prices
+      count   # Count of distinct unit prices
+    }
+
+    # Other measurements aggregated within each unit_price group
+    total_amount {
+      sum
+    }
+    quantity {
+      sum
+    }
+  }
+}
+```
+
+**Result:** Groups by distinct `unit_price` values, then aggregates `total_amount` and `quantity` within each group.
+
+#### Mixed: Dimensions and Double Aggregation
+
+Combine both approaches:
+
+```graphql
+query {
+  sales_aggregation(
+    filter: {
+      sale_date: { gte: "2024-01-01" }
+    }
+  ) {
+    # Dimension field (regular aggregation)
+    sale_date {
+      min
+      max
+    }
+
+    # Measurement as dimension (no measurement_func)
+    unit_price {
+      list
+      count
+    }
+
+    # Measurement with double aggregation
+    total_amount(measurement_func: SUM) {
+      sum    # Sum of sums
+      avg    # Average of sums
     }
   }
 }
