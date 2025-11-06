@@ -119,6 +119,16 @@ Perform semantic search using vector embeddings with support for multiple distan
 
 [Learn about Vector Search →](./11-vector-search.md)
 
+### 12. Generated Fields & Transformations
+Use automatically generated fields and transformation arguments for Timestamp, JSON, and Geometry data types.
+
+[Learn about Generated Fields →](./12-generated-fields.md)
+
+### 13. Cube & Hypertable Queries
+Query OLAP cubes and time-series hypertables with measurement aggregation and time-based bucketing.
+
+[Learn about Cube & Hypertable Queries →](./13-cube-hypertable.md)
+
 ## Query Arguments Reference
 
 Most query types support these standard arguments:
