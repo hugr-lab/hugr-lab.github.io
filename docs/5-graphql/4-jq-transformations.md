@@ -100,16 +100,20 @@ query {
 ```json
 {
   "data": {
-    "users": [
-      {"id": 1, "name": "Alice", "email": "alice@example.com", "created_at": "2024-01-01"},
-      {"id": 2, "name": "Bob", "email": "bob@example.com", "created_at": "2024-01-02"}
-    ]
+    "jq": {
+      "users": [
+        {"id": 1, "name": "Alice", "email": "alice@example.com", "created_at": "2024-01-01"},
+        {"id": 2, "name": "Bob", "email": "bob@example.com", "created_at": "2024-01-02"}
+      ]
+    }
   },
   "extensions": {
-    "jq": [
-      {"id": 1, "name": "Alice"},
-      {"id": 2, "name": "Bob"}
-    ]
+    "jq": {
+      "jq": [
+        {"id": 1, "name": "Alice"},
+        {"id": 2, "name": "Bob"}
+      ]
+    }
   }
 }
 ```
@@ -151,7 +155,12 @@ query {
 
 ### Working with include_origin
 
-When you set `include_origin: true`, the original GraphQL result is included alongside the transformation:
+The `include_origin` parameter controls whether the original query results are included in the `data` section within the `jq` query response:
+
+- **include_origin: true** (default): Original query results are included in `data.jq.<field>`
+- **include_origin: false**: The `data.jq` section is cleared/empty
+
+#### Example with include_origin: true (default)
 
 ```graphql
 query {
@@ -168,18 +177,113 @@ query {
 ```json
 {
   "data": {
-    "users": [
-      {"id": 1, "name": "Alice"},
-      {"id": 2, "name": "Bob"}
-    ]
-  },
-  "extensions": {
-    "jq": 2,
-    "jq_origin": {
+    "jq": {
       "users": [
         {"id": 1, "name": "Alice"},
         {"id": 2, "name": "Bob"}
       ]
+    }
+  },
+  "extensions": {
+    "jq": {
+      "jq": 2
+    }
+  }
+}
+```
+
+#### Example with include_origin: false
+
+```graphql
+query {
+  jq(query: ".users | length", include_origin: false) {
+    users {
+      id
+      name
+    }
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "data": {
+    "jq": {}
+  },
+  "extensions": {
+    "jq": {
+      "jq": 2
+    }
+  }
+}
+```
+
+### Using Aliases
+
+You can use GraphQL aliases to name your jq transformations. The transformation result will be available at `extensions.jq.<alias>`:
+
+```graphql
+query {
+  userCount: jq(query: ".users | length") {
+    users {
+      id
+      name
+    }
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "data": {
+    "userCount": {
+      "users": [
+        {"id": 1, "name": "Alice"},
+        {"id": 2, "name": "Bob"}
+      ]
+    }
+  },
+  "extensions": {
+    "jq": {
+      "userCount": 2
+    }
+  }
+}
+```
+
+For transformations returning a single object (not an array), the result will be an object:
+
+```graphql
+query {
+  stats: jq(query: "{total: .users | length, active: .users | map(select(.active)) | length}") {
+    users {
+      id
+      name
+      active
+    }
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "data": {
+    "stats": {
+      "users": [
+        {"id": 1, "name": "Alice", "active": true},
+        {"id": 2, "name": "Bob", "active": false}
+      ]
+    }
+  },
+  "extensions": {
+    "jq": {
+      "stats": {
+        "total": 2,
+        "active": 1
+      }
     }
   }
 }
@@ -187,9 +291,10 @@ query {
 
 ### Where Results are Located
 
-- **Transformation result**: Always in `extensions.jq` field
-- **Original result**: Always in `data` field
-- **Original result (when include_origin: true)**: Also in `extensions.jq_origin` field
+- **Original query results**: In `data.jq.<field>` (or `data.<alias>.<field>` when using aliases) when `include_origin: true`
+- **Original query results**: Empty `data.jq` (or `data.<alias>`) when `include_origin: false`
+- **Transformation result**: Always in `extensions.jq.jq` (or `extensions.jq.<alias>` when using aliases)
+- **Result format**: Array or object depending on the JQ expression output
 
 ### Hierarchical Transformations
 
