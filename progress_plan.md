@@ -7,7 +7,7 @@
 ## 📋 Completion Status
 
 - [ ] New Sections
-  - [ ] JQ Transformations
+  - [x] JQ Transformations ✅ **COMPLETED** (2025-11-06)
   - [ ] Python Client (hugr-client)
   - [ ] Hugr IPC Protocol
   - [ ] REST API endpoint /jq-query
@@ -26,7 +26,7 @@
 
 **File:** `docs/5-graphql/4-jq-transformations.md`
 
-**Status:** ❌ Not created
+**Status:** ✅ **COMPLETED** (2025-11-06)
 
 **Description:** Documentation on using JQ transformations to transform GraphQL query results on the server side.
 
