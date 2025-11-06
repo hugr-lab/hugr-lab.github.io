@@ -571,13 +571,29 @@ query {
 }
 ```
 
-### Array Overlaps
+### Array Intersects
 
 ```graphql
 query {
   products(filter: {
     tags: {
-      overlaps: ["featured", "new"]  # Has any of specified values
+      intersects: ["featured", "new"]  # Has any of specified values
+    }
+  }) {
+    id
+    name
+    tags
+  }
+}
+```
+
+### Array Equality
+
+```graphql
+query {
+  products(filter: {
+    tags: {
+      eq: ["sale", "clearance"]  # Exact match of array
     }
   }) {
     id
