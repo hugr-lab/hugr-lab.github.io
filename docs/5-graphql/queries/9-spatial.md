@@ -1065,25 +1065,109 @@ query EnrichAddresses {
 }
 ```
 
-### Spatial Clustering
+### H3 Spatial Clustering
+
+Hugr supports spatial clustering using the **H3 hexagonal grid system**. H3 is a geospatial indexing system that represents geographic locations as hexagonal grids, useful for spatial aggregation and clustering.
+
+Use the `h3()` query to aggregate spatial data into H3 hexagons at different resolutions:
 
 ```graphql
-query SpatialClusters {
-  incidents_bucket_aggregation {
-    key {
-      location(cluster_distance: 1000)  # Cluster within 1km
-      incident_type
-    }
-    aggregations {
-      _rows_count
-      severity {
-        avg
-        max
+query H3SpatialAggregation {
+  h3(resolution: 6) {
+    cell              # H3 cell ID
+    resolution        # Resolution level (0-15)
+    data {
+      # Aggregate incidents by H3 hexagon
+      incidents: incidents_aggregation(
+        field: "location"  # Geometry field
+        inner: true
+      ) {
+        _rows_count
+        severity {
+          avg
+          max
+        }
       }
     }
   }
 }
 ```
+
+**H3 Resolution levels:**
+- `0-2`: Large areas (countries, regions)
+- `3-5`: Cities, districts
+- `6-8`: Neighborhoods, blocks
+- `9-11`: Buildings, streets
+- `12-15`: Very fine-grained (meters)
+
+**Practical example** - Incident clustering by type:
+
+```graphql
+query IncidentClustering {
+  h3(resolution: 7) {
+    cell
+    resolution
+    data {
+      # Group incidents by type within each hexagon
+      incidents: incidents_bucket_aggregation(
+        field: "location"
+        inner: true
+      ) {
+        key {
+          incident_type
+        }
+        aggregations {
+          _rows_count
+          severity { avg max }
+        }
+      }
+    }
+  }
+}
+```
+
+**Distribution by denominator:**
+
+You can distribute values across H3 cells proportionally using `distribution_by`:
+
+```graphql
+query PopulationDistribution {
+  h3(resolution: 8) {
+    cell
+    resolution
+    data {
+      # Population from admin boundaries
+      population: admin_boundaries_aggregation(
+        field: "boundary"
+        filter: { admin_level: { eq: 6 } }
+        divide_values: false
+        inner: true
+      ) {
+        population { sum }
+      }
+      # Residential building area
+      buildings: buildings_aggregation(
+        field: "geometry"
+        filter: { building_class: { eq: "residential" } }
+      ) {
+        area { sum }
+      }
+    }
+    # Distribute population by building area
+    pop_distributed: distribution_by(
+      numerator: "data.population.population.sum"
+      denominator: "data.buildings.area.sum"
+    ) {
+      value          # Distributed population
+      ratio          # Proportion
+      numerator      # Original population
+      denominator    # Building area
+    }
+  }
+}
+```
+
+For more details on H3 spatial clustering, see [H3 Spatial Example](../../9-examples/6-h3-spatial.md).
 
 ## Error Handling
 
