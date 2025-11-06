@@ -655,65 +655,75 @@ query {
 }
 ```
 
-### Filtering Function Joins
+### Limitations
 
-Apply filters to function results:
+**Important:** Fields created with `@table_function_call_join` do not support standard query arguments like `filter`, `order_by`, `limit`, `offset`, `inner`, or aggregations (`_aggregation`, `_bucket_aggregation`).
+
+For advanced filtering, sorting, and aggregation, use **parameterized views** instead.
+
+### Alternative: Parameterized Views
+
+Parameterized views behave like regular data objects but require arguments, providing full query capabilities:
+
+```graphql
+# Define parameterized view
+type sensor_readings_view @view(
+  name: "sensor_readings_by_period"
+  sql: """
+    SELECT * FROM get_sensor_readings([sensor_id], [from_time], [to_time])
+  """
+) @args(name: "sensor_readings_args", required: true) {
+  sensor_id: Int! @pk
+  timestamp: Timestamp! @pk
+  value: Float!
+  unit: String!
+}
+
+input sensor_readings_args {
+  sensor_id: Int!
+  from_time: Timestamp!
+  to_time: Timestamp!
+}
+
+# Create relation to parameterized view
+extend type sensors {
+  readings: [sensor_readings_view] @join(
+    references_name: "sensor_readings_view"
+    source_fields: ["id"]
+    references_fields: ["sensor_id"]
+  )
+}
+```
+
+Now you can use all standard query features:
 
 ```graphql
 query {
   sensors {
     id
     name
-    # High readings only (filters function results)
+    # Full filtering, sorting, pagination support
     high_readings: readings(
-      from_time: "2024-01-01T00:00:00Z"
-      to_time: "2024-01-31T23:59:59Z"
+      args: {
+        sensor_id: 123
+        from_time: "2024-01-01T00:00:00Z"
+        to_time: "2024-01-31T23:59:59Z"
+      }
       filter: { value: { gte: 100 } }
       order_by: [{ field: "timestamp", direction: DESC }]
+      limit: 50
     ) {
       timestamp
       value
     }
-  }
-}
-```
 
-**Note:** The `filter` argument filters the function's results, not parent records. All sensors are returned, with filtered readings.
-
-Use `inner: true` to include only sensors that have matching results:
-
-```graphql
-query {
-  sensors {
-    id
-    name
-    # Only sensors with high readings
-    high_readings: readings(
-      from_time: "2024-01-01T00:00:00Z"
-      to_time: "2024-01-31T23:59:59Z"
-      filter: { value: { gte: 100 } }
-      inner: true
-    ) {
-      timestamp
-      value
-    }
-  }
-}
-```
-
-This returns only sensors that have at least one reading with value >= 100.
-
-### Aggregating Function Joins
-
-```graphql
-query {
-  sensors {
-    id
-    name
-    # Aggregate readings for time period
+    # Aggregations work too
     readings_aggregation(
-      from_time: "2024-01-01T00:00:00Z"
-      to_time: "2024-01-31T23:59:59Z"
+      args: {
+        sensor_id: 123
+        from_time: "2024-01-01T00:00:00Z"
+        to_time: "2024-01-31T23:59:59Z"
+      }
     ) {
       _rows_count
       value {
@@ -725,6 +735,13 @@ query {
   }
 }
 ```
+
+**Benefits of parameterized views:**
+- Full support for `filter`, `order_by`, `limit`, `offset`, `distinct_on`
+- Aggregation queries (`_aggregation`, `_bucket_aggregation`)
+- Nested queries with `inner` parameter
+- Can be used in relation filters
+- Better performance through query optimization
 
 ## Inner Joins
 

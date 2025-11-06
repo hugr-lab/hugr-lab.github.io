@@ -343,22 +343,69 @@ query {
 }
 ```
 
-### Filtering Join Results
+### Limitations
+
+**Important:** Fields created with `@table_function_call_join` do not support:
+- `filter`, `order_by`, `limit`, `offset`, `distinct_on`
+- `inner` parameter
+- Aggregations (`_aggregation`, `_bucket_aggregation`)
+
+The directive provides basic data retrieval with argument mapping and join conditions only.
+
+### Alternative: Use Parameterized Views
+
+For advanced filtering, sorting, and aggregation, define a parameterized view instead:
+
+```graphql
+# Define parameterized view calling the function
+type sensor_readings_view @view(
+  name: "sensor_readings_by_period"
+  sql: "SELECT * FROM get_sensor_readings([sensor_id], [from_time], [to_time])"
+) @args(name: "sensor_readings_args", required: true) {
+  sensor_id: Int! @pk
+  timestamp: Timestamp! @pk
+  value: Float!
+  unit: String!
+}
+
+input sensor_readings_args {
+  sensor_id: Int!
+  from_time: Timestamp!
+  to_time: Timestamp!
+}
+
+# Create relation to parameterized view
+extend type sensors {
+  readings: [sensor_readings_view] @join(
+    references_name: "sensor_readings_view"
+    source_fields: ["id"]
+    references_fields: ["sensor_id"]
+  )
+}
+```
+
+Now you get full query capabilities:
 
 ```graphql
 query {
   sensors {
     id
+    name
     # Filter anomalous readings
     anomalies: readings(
-      from_time: "2024-01-01T00:00:00Z"
-      to_time: "2024-01-31T23:59:59Z"
+      args: {
+        sensor_id: 123
+        from_time: "2024-01-01T00:00:00Z"
+        to_time: "2024-01-31T23:59:59Z"
+      }
       filter: {
         _or: [
           { value: { gt: 100 } }
           { value: { lt: 0 } }
         ]
       }
+      order_by: [{ field: "timestamp", direction: DESC }]
+      limit: 50
     ) {
       timestamp
       value
