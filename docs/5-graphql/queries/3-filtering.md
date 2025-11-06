@@ -153,6 +153,156 @@ query {
 }
 ```
 
+### Geometry Filters
+
+Filter by spatial relationships between geometries:
+
+```graphql
+query {
+  parcels(filter: {
+    boundary: {
+      eq: "POLYGON((0 0, 0 10, 10 10, 10 0, 0 0))"  # Exact geometry match (WKT)
+      intersects: {
+        type: "Polygon"
+        coordinates: [[[0, 0], [0, 10], [10, 10], [10, 0], [0, 0]]]
+      }  # Intersects with geometry (GeoJSON)
+      contains: "POINT(5 5)"                        # Contains geometry (WKT)
+      is_null: false                                # Is NULL / NOT NULL
+    }
+  }) {
+    id
+    parcel_number
+    boundary
+  }
+}
+```
+
+**Geometry input formats:**
+- **WKT (Well-Known Text)**: `"POINT(1 2)"`, `"POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"`
+- **GeoJSON**: `{ "type": "Point", "coordinates": [1, 2] }`
+
+**Spatial operators:**
+- `eq`: Exact geometry match
+- `intersects`: Geometries share any portion of space
+- `contains`: First geometry completely contains second geometry
+- `is_null`: Check for NULL geometry
+
+#### Intersects Examples
+
+Find parcels that intersect with a polygon:
+
+```graphql
+query {
+  parcels(filter: {
+    boundary: {
+      intersects: "POLYGON((0 0, 0 100, 100 100, 100 0, 0 0))"
+    }
+  }) {
+    id
+    parcel_number
+    area
+  }
+}
+```
+
+Find roads crossing a specific area (using GeoJSON):
+
+```graphql
+query {
+  roads(filter: {
+    geometry: {
+      intersects: {
+        type: "Polygon"
+        coordinates: [
+          [
+            [-74.01, 40.70],
+            [-74.01, 40.72],
+            [-73.99, 40.72],
+            [-73.99, 40.70],
+            [-74.01, 40.70]
+          ]
+        ]
+      }
+    }
+  }) {
+    id
+    name
+    road_type
+  }
+}
+```
+
+#### Contains Examples
+
+Find regions containing a specific point:
+
+```graphql
+query {
+  regions(filter: {
+    boundary: {
+      contains: "POINT(-73.98 40.75)"
+    }
+  }) {
+    id
+    region_name
+    area
+  }
+}
+```
+
+Find areas that contain a building footprint:
+
+```graphql
+query {
+  zones(filter: {
+    boundary: {
+      contains: {
+        type: "Polygon"
+        coordinates: [
+          [
+            [-74.00, 40.71],
+            [-74.00, 40.712],
+            [-73.998, 40.712],
+            [-73.998, 40.71],
+            [-74.00, 40.71]
+          ]
+        ]
+      }
+    }
+  }) {
+    id
+    zone_name
+  }
+}
+```
+
+#### Combining Geometry Filters
+
+Combine spatial and attribute filters:
+
+```graphql
+query {
+  buildings(filter: {
+    _and: [
+      {
+        footprint: {
+          intersects: "POLYGON((0 0, 0 100, 100 100, 100 0, 0 0))"
+        }
+      }
+      { building_type: { eq: "residential" } }
+      { height: { gte: 20 } }
+    ]
+  }) {
+    id
+    name
+    building_type
+    height
+  }
+}
+```
+
+**Note:** For more advanced spatial queries including distance-based filtering and spatial aggregations, see [Spatial Queries](./9-spatial.md).
+
 ## Boolean Logic
 
 ### AND Conditions
