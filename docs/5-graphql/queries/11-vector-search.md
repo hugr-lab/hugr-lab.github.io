@@ -270,7 +270,7 @@ type articles @table(name: "articles") @embeddings(
 }
 ```
 
-Use the generated `_distance_query_to` field:
+Use the generated `_distance_to_query` field:
 
 ```graphql
 query {
@@ -285,12 +285,12 @@ query {
     id
     title
     # Distance from text query
-    relevance: _distance_query_to(query: "machine learning tutorials")
+    relevance: _distance_to_query(query: "machine learning tutorials")
   }
 }
 ```
 
-The `_distance_query_to` field:
+The `_distance_to_query` field:
 - Accepts a text `query` parameter
 - Automatically generates embedding using configured provider
 - Returns distance from the text query
