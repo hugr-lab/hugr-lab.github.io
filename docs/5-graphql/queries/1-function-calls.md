@@ -417,17 +417,24 @@ query {
 
 ## Handling NULL Arguments
 
-Skip function execution for null arguments:
+Control how NULL arguments are handled:
 
 ```graphql
 extend type Function {
   geocode_address(address: String): Geometry
     @function(
       name: "geocode"
-      skip_null_arg: true  # Don't call if address is null
+      skip_null_arg: true  # Don't pass NULL to SQL function
     )
 }
 ```
+
+When `skip_null_arg: true`:
+- The function **will be called** even if the argument is NULL
+- But the NULL value **won't be passed** to the SQL function
+- Useful for functions that can handle missing optional parameters
+
+Without `skip_null_arg`, NULL arguments are passed as NULL to the function.
 
 ## JSON Casting
 
