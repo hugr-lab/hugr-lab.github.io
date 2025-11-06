@@ -1079,12 +1079,71 @@ See [H3 Hexagonal Clustering](./10-h3-clustering.md) for detailed documentation 
 
 ## Error Handling
 
-Spatial query errors occur during SQL execution in the database. Since GraphQL queries are converted to SQL, errors are reported at the query level.
+Spatial query errors are categorized into two types:
 
-### Invalid Geometry
+### Planning Errors (SQL Generation)
 
-Invalid geometries cause SQL execution errors:
+Validation errors caught during query planning, with specific error paths:
 
+**Invalid field names:**
+```graphql
+query {
+  parcels {
+    id
+    _spatial(field: "non_existent_field", type: INTERSECTS) {
+      roads(field: "geometry") {
+        id
+      }
+    }
+  }
+}
+```
+
+Response:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Field 'non_existent_field' does not exist in type 'parcels'",
+      "path": ["parcels", "_spatial"]
+    }
+  ]
+}
+```
+
+**Invalid field types:**
+```graphql
+query {
+  parcels {
+    id
+    _spatial(field: "name", type: INTERSECTS) {  # 'name' is String, not Geometry
+      roads(field: "geometry") {
+        id
+      }
+    }
+  }
+}
+```
+
+Response:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Field 'name' is not a Geometry type",
+      "path": ["parcels", "_spatial"]
+    }
+  ]
+}
+```
+
+### SQL Execution Errors
+
+Runtime errors during SQL execution, reported at query level:
+
+**Invalid geometry:**
 ```graphql
 query {
   parcels {
@@ -1111,17 +1170,15 @@ Response:
 }
 ```
 
-**Solution:** Validate geometries in the database or application layer before querying.
-
-### SRID Mismatch
-
-Mismatched spatial reference systems cause execution errors:
-
+**SRID mismatch:**
 ```graphql
-# Error: Different SRIDs
-_spatial(field: "location_4326", type: INTERSECTS) {
-  zones(field: "boundary_3857") {  # Different SRID!
-    id
+query {
+  parcels {
+    _spatial(field: "location_4326", type: INTERSECTS) {
+      zones(field: "boundary_3857") {  # Different SRID!
+        id
+      }
+    }
   }
 }
 ```
@@ -1138,7 +1195,9 @@ Response:
 }
 ```
 
-**Solution:** Transform geometries to matching SRIDs in your schema using the `transforms` argument or ensure consistent SRIDs in your data.
+**Solutions:**
+- **Planning errors** - Fix field names and ensure fields are Geometry type
+- **Execution errors** - Validate geometries and ensure matching SRIDs using `transforms` argument
 
 ## Next Steps
 

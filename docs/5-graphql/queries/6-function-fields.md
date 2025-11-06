@@ -831,22 +831,77 @@ query {
 
 ## Error Handling
 
-Function field errors occur during SQL execution. Since GraphQL queries are converted to SQL and executed in the database, errors are typically reported at the query level rather than individual field level.
+Function field errors are categorized into two types:
+
+### Planning Errors (SQL Generation)
+
+Validation errors caught during query planning, with specific error paths:
+
+**Invalid argument types:**
+```graphql
+query {
+  products {
+    id
+    price_converted(to_currency: 123)  # Wrong type, expects String
+  }
+}
+```
+
+Response:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Argument 'to_currency' expects type String, got Int",
+      "path": ["products", "price_converted"],
+      "extensions": {
+        "code": "INVALID_ARGUMENT_TYPE"
+      }
+    }
+  ]
+}
+```
+
+**Invalid field names in sorting/aggregations:**
+```graphql
+query {
+  products(
+    order_by: [{ field: "non_existent_field", direction: ASC }]
+  ) {
+    id
+    name
+  }
+}
+```
+
+Response:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Field 'non_existent_field' does not exist in type 'products'",
+      "path": ["products"]
+    }
+  ]
+}
+```
+
+### SQL Execution Errors
+
+Runtime errors during SQL execution, reported at query level:
 
 ```graphql
 query {
   products {
     id
-    price_converted(to_currency: "INVALID")
+    price_converted(to_currency: "INVALID")  # Invalid at runtime
   }
 }
 ```
 
-**Error reporting:**
-- **Most errors** - Reported for the entire query (from SQL execution)
-- **Planning errors** - In rare cases during SQL generation, may include query paths
-
-Response (typical):
+Response:
 ```json
 {
   "data": null,
@@ -857,8 +912,6 @@ Response (typical):
   ]
 }
 ```
-
-**Note:** Hugr converts your GraphQL query to SQL and executes it in the underlying database. Errors reflect SQL execution failures.
 
 ## Next Steps
 

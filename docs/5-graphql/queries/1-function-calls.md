@@ -452,16 +452,67 @@ extend type Function {
 
 ## Error Handling
 
-Function errors occur during SQL execution in the underlying data source. Since GraphQL queries are converted to SQL and executed in the database, errors are reported at the query level.
+Function errors are categorized into two types:
 
-**Error reporting:**
-- **Most errors** - Reported for the entire query (from the SQL execution)
-- **Planning errors** - In rare cases, errors during SQL generation may include specific query paths
+### Planning Errors (SQL Generation)
+
+Validation errors caught during query planning, before SQL execution. Include specific error paths and detailed messages:
+
+**Invalid function arguments:**
+```graphql
+query {
+  function {
+    calculate_discount(price: "invalid")  # Wrong type
+  }
+}
+```
+
+Response:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Argument 'price' expects type Float, got String",
+      "path": ["function", "calculate_discount"],
+      "extensions": {
+        "code": "INVALID_ARGUMENT_TYPE"
+      }
+    }
+  ]
+}
+```
+
+**Missing required arguments:**
+```graphql
+query {
+  function {
+    divide(a: 10)  # Missing required argument 'b'
+  }
+}
+```
+
+Response:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Required argument 'b' not provided",
+      "path": ["function", "divide"]
+    }
+  ]
+}
+```
+
+### SQL Execution Errors
+
+Runtime errors during SQL execution in the database, reported at query level:
 
 ```graphql
 query {
   function {
-    divide(a: 10, b: 0)  # Division by zero in database
+    divide(a: 10, b: 0)  # Division by zero during execution
   }
 }
 ```
@@ -478,7 +529,9 @@ Response:
 }
 ```
 
-**Note:** Unlike traditional GraphQL resolvers that execute per-field, Hugr converts your entire query to SQL and executes it in the database (DuckDB). Errors reflect SQL execution failures rather than field-level resolver errors.
+**Error categories:**
+- **Planning errors** - Caught during SQL generation (validation, type checking, field names). Include error paths.
+- **Execution errors** - Caught during SQL execution (database runtime errors). Reported at query level.
 
 ## Performance Considerations
 

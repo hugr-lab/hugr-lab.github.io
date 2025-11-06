@@ -984,9 +984,13 @@ query {
 
 ## Error Handling
 
-Dynamic join errors occur during query planning or SQL execution:
+Dynamic join errors are categorized into two types:
 
-**Type mismatch errors** (detected during SQL generation):
+### Planning Errors (SQL Generation)
+
+These errors are detected during query planning when generating SQL. They include specific paths to the problematic query part and detailed error messages.
+
+**Type mismatch:**
 ```graphql
 query {
   customers {
@@ -1007,13 +1011,61 @@ Response:
   "data": null,
   "errors": [
     {
-      "message": "Type mismatch in join: Int cannot be joined with String"
+      "message": "Type mismatch in join fields: Int cannot be joined with String (field 'id' vs 'customer_email')",
+      "path": ["customers", "_join", "orders"],
+      "extensions": {
+        "code": "TYPE_MISMATCH"
+      }
     }
   ]
 }
 ```
 
-**SQL execution errors** are reported at query level since queries are converted to SQL and executed in the database.
+**Invalid field names:**
+```graphql
+query {
+  customers {
+    _join(fields: ["id"]) {
+      orders(fields: ["non_existent_field"]) {
+        id
+      }
+    }
+  }
+}
+```
+
+Response:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Field 'non_existent_field' does not exist in type 'orders'",
+      "path": ["customers", "_join", "orders"]
+    }
+  ]
+}
+```
+
+Planning errors are caught before SQL execution and provide:
+- Specific error paths pointing to the problematic query part
+- Clear error messages explaining what went wrong
+- Validation of field names, types, and join conditions
+
+### SQL Execution Errors
+
+Errors during SQL execution (runtime errors in the database) are reported at the query level:
+
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "SQL execution error: <database error message>"
+    }
+  ]
+}
+```
 
 ## Next Steps
 
