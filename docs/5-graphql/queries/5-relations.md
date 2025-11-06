@@ -502,6 +502,24 @@ query {
 }
 ```
 
+**Important:** Predefined joins created with `@join` directive cannot be used in filter conditions. To restrict parent records based on join results, use `inner: true`:
+
+```graphql
+query {
+  customers {
+    id
+    name
+    # Only customers with nearby stores
+    nearby_stores(inner: true) {
+      id
+      name
+    }
+  }
+}
+```
+
+This returns only customers who have at least one store within 5km.
+
 ### Complex Join Conditions
 
 ```graphql
@@ -529,6 +547,25 @@ query {
     customer_id
     # Similar orders from same customer
     similar_orders(limit: 5) {
+      id
+      total
+    }
+  }
+}
+```
+
+Use `inner: true` to include only orders that have similar orders:
+
+```graphql
+query {
+  orders {
+    id
+    total
+    # Only orders with similar orders
+    similar_orders(
+      limit: 5
+      inner: true
+    ) {
       id
       total
     }
@@ -597,12 +634,14 @@ query {
 
 ### Filtering Function Joins
 
+Apply filters to function results:
+
 ```graphql
 query {
   sensors {
     id
     name
-    # High readings only
+    # High readings only (filters function results)
     high_readings: readings(
       filter: { value: { gte: 100 } }
       order_by: [{ field: "timestamp", direction: DESC }]
@@ -613,6 +652,29 @@ query {
   }
 }
 ```
+
+**Note:** The `filter` argument filters the function's results, not parent records. All sensors are returned, with filtered readings.
+
+Use `inner: true` to include only sensors that have matching results:
+
+```graphql
+query {
+  sensors {
+    id
+    name
+    # Only sensors with high readings
+    high_readings: readings(
+      filter: { value: { gte: 100 } }
+      inner: true
+    ) {
+      timestamp
+      value
+    }
+  }
+}
+```
+
+This returns only sensors that have at least one reading with value >= 100.
 
 ### Aggregating Function Joins
 

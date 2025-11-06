@@ -259,6 +259,8 @@ WHERE (status = 'pending' OR status = 'processing')
 
 ## Filtering by Related Objects
 
+**Important:** Filtering by related objects only works for relations defined with `@field_references` or `@references` directives (foreign key relationships). Predefined joins created with `@join` or `@table_function_call_join` directives cannot be used in filter conditions. To restrict records based on these joins, use the `inner: true` parameter instead.
+
 ### One-to-One Relations
 
 Filter by fields in related objects:
