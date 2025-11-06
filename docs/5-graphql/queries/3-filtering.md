@@ -134,22 +134,6 @@ query {
 }
 ```
 
-### Enum Filters
-
-```graphql
-query {
-  orders(filter: {
-    status: {
-      eq: COMPLETED
-      # Or: in: [PENDING, PROCESSING]
-    }
-  }) {
-    id
-    status
-  }
-}
-```
-
 ### JSON/JSONB Filters
 
 Filter by JSON field values:
