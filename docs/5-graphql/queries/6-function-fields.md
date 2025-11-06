@@ -497,14 +497,14 @@ query {
 
 ## Conditional Function Execution
 
-### Skip on NULL Arguments
+### Skip NULL Arguments
 
 ```graphql
 extend type Function {
   geocode(address: String): Geometry
     @function(
       name: "geocode_address"
-      skip_null_arg: true  # Don't call if address is NULL
+      skip_null_arg: true  # Don't pass NULL to SQL function
     )
 }
 
@@ -518,7 +518,10 @@ extend type customers {
 }
 ```
 
-If `full_address` is NULL, the function won't be called and `location` will be NULL.
+When `skip_null_arg: true`:
+- The function will be called even if `full_address` is NULL
+- But NULL won't be passed as an argument to the SQL function
+- Useful for optional parameters that the function can handle internally
 
 ## Chained Function Calls
 
