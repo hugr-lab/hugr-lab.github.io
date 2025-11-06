@@ -649,6 +649,238 @@ Build hierarchical structures:
 )
 ```
 
+### Complex Example: E-commerce Order Dashboard
+
+This comprehensive example demonstrates how to use `queryHugr()` to build a rich order dashboard by combining data from multiple tables.
+
+**Scenario**: You have orders data and need to enrich each order with:
+- Customer details (name, email, tier)
+- Product information for each order item
+- Delivery status from a logistics service
+- Payment information
+- Calculate totals and statistics
+
+**Query**:
+```graphql
+query {
+  enrichedOrders: jq(query: "
+    .orders | map(
+      . as $order |
+      {
+        # Original order data
+        order_id: .id,
+        order_date: .created_at,
+        status: .status,
+
+        # Enrich with customer details
+        customer: queryHugr(
+          \"query($cid: Int!) { customers_by_pk(id: $cid) { id name email tier phone } }\",
+          {cid: .customer_id}
+        ).data.customers_by_pk,
+
+        # Get order items with product details
+        items: queryHugr(
+          \"query($oid: Int!) { order_items(filter: {order_id: {eq: $oid}}) { id product_id quantity unit_price } }\",
+          {oid: .id}
+        ).data.order_items | map(
+          . as $item |
+          . + {
+            product: queryHugr(
+              \"query($pid: Int!) { products_by_pk(id: $pid) { id name category image_url } }\",
+              {pid: $item.product_id}
+            ).data.products_by_pk,
+            subtotal: (.quantity * .unit_price)
+          }
+        ),
+
+        # Get payment information
+        payment: queryHugr(
+          \"query($oid: Int!) { payments(filter: {order_id: {eq: $oid}}, limit: 1) { method status transaction_id } }\",
+          {oid: .id}
+        ).data.payments[0],
+
+        # Get delivery status
+        delivery: queryHugr(
+          \"query($oid: Int!) { deliveries(filter: {order_id: {eq: $oid}}, limit: 1) { status estimated_delivery tracking_number } }\",
+          {oid: .id}
+        ).data.deliveries[0],
+
+        # Get customer's order statistics
+        customer_stats: queryHugr(
+          \"query($cid: Int!) { orders_aggregation(filter: {customer_id: {eq: $cid}, status: {eq: \\\"completed\\\"}}) { _rows_count total { sum } } }\",
+          {cid: .customer_id}
+        ).data.orders_aggregation,
+
+        # Calculate totals
+        items_count: (
+          queryHugr(
+            \"query($oid: Int!) { order_items(filter: {order_id: {eq: $oid}}) { quantity } }\",
+            {oid: .id}
+          ).data.order_items | map(.quantity) | add
+        ),
+
+        order_total: (
+          queryHugr(
+            \"query($oid: Int!) { order_items(filter: {order_id: {eq: $oid}}) { quantity unit_price } }\",
+            {oid: .id}
+          ).data.order_items | map(.quantity * .unit_price) | add
+        )
+      }
+    )
+  ", include_origin: false) {
+    orders(
+      filter: { created_at: { gte: "2024-01-01" } }
+      order_by: [{ field: "created_at", direction: DESC }]
+      limit: 10
+    ) {
+      id
+      customer_id
+      status
+      created_at
+    }
+  }
+}
+```
+
+**Response Structure**:
+```json
+{
+  "data": {
+    "enrichedOrders": {}
+  },
+  "extensions": {
+    "jq": {
+      "enrichedOrders": [
+        {
+          "order_id": 1001,
+          "order_date": "2024-01-15T10:30:00Z",
+          "status": "shipped",
+          "customer": {
+            "id": 42,
+            "name": "Alice Johnson",
+            "email": "alice@example.com",
+            "tier": "gold",
+            "phone": "+1-555-0123"
+          },
+          "items": [
+            {
+              "id": 5001,
+              "product_id": 200,
+              "quantity": 2,
+              "unit_price": 29.99,
+              "subtotal": 59.98,
+              "product": {
+                "id": 200,
+                "name": "Wireless Mouse",
+                "category": "electronics",
+                "image_url": "https://example.com/images/mouse.jpg"
+              }
+            },
+            {
+              "id": 5002,
+              "product_id": 201,
+              "quantity": 1,
+              "unit_price": 79.99,
+              "subtotal": 79.99,
+              "product": {
+                "id": 201,
+                "name": "Mechanical Keyboard",
+                "category": "electronics",
+                "image_url": "https://example.com/images/keyboard.jpg"
+              }
+            }
+          ],
+          "payment": {
+            "method": "credit_card",
+            "status": "completed",
+            "transaction_id": "txn_abc123"
+          },
+          "delivery": {
+            "status": "in_transit",
+            "estimated_delivery": "2024-01-18",
+            "tracking_number": "TRACK123456"
+          },
+          "customer_stats": {
+            "_rows_count": 15,
+            "total": {
+              "sum": 1250.50
+            }
+          },
+          "items_count": 3,
+          "order_total": 139.97
+        }
+      ]
+    }
+  }
+}
+```
+
+**What This Example Demonstrates**:
+
+1. **Multiple Nested Queries**: Each order triggers 6-7 separate queries to enrich data
+2. **Variable Passing**: Uses order and customer IDs to fetch related data
+3. **Nested queryHugr() Calls**: Inside `.items`, each item fetches its product details
+4. **Aggregations**: Calculates customer lifetime value and order statistics
+5. **Data Combination**: Merges data from orders, customers, products, payments, and deliveries tables
+6. **Computed Fields**: Calculates subtotals, item counts, and order totals
+7. **Real-world Structure**: Creates a complete dashboard-ready data structure
+
+**Performance Note**: This example executes many queries (approximately 10 + 10×6 = 70 queries for 10 orders). For production use, consider:
+- Limiting the number of orders processed
+- Caching frequently accessed data
+- Using GraphQL relations in the main query where possible
+- Implementing pagination
+
+### Optimized Alternative: Using GraphQL Relations
+
+For comparison, here's a more efficient approach using GraphQL relations instead of `queryHugr()`:
+
+```graphql
+query {
+  orders(
+    filter: { created_at: { gte: "2024-01-01" } }
+    order_by: [{ field: "created_at", direction: DESC }]
+    limit: 10
+  ) {
+    id
+    status
+    created_at
+    customer {
+      id
+      name
+      email
+      tier
+      phone
+    }
+    items {
+      id
+      quantity
+      unit_price
+      product {
+        id
+        name
+        category
+        image_url
+      }
+    }
+    payment {
+      method
+      status
+      transaction_id
+    }
+    delivery {
+      status
+      estimated_delivery
+      tracking_number
+    }
+  }
+}
+```
+
+**When to Use queryHugr() vs Relations**:
+- **Use Relations**: When relationships are predefined in schema and data sources support joins
+- **Use queryHugr()**: When you need dynamic queries, cross-source data, or complex conditional logic not supported by standard GraphQL
+
 ### How It Differs from Regular GraphQL Queries
 
 | Aspect | Regular GraphQL | queryHugr() in JQ |
