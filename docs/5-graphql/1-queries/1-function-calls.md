@@ -442,7 +442,7 @@ For functions returning JSON that should be cast to structured types:
 
 ```graphql
 extend type Function {
-  get_config(): Configuration
+  get_config: Configuration
     @function(
       name: "get_system_config"
       json_cast: true  # Cast JSON to Configuration type

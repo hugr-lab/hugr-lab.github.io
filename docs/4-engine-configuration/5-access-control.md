@@ -668,7 +668,7 @@ mutation {
 }
 ```
 
-The filter uses the same format as GraphQL query filters. See [Queries](../5-graphql/1-queries.md) for filter syntax.
+The filter uses the same format as GraphQL query filters. See [Queries](../5-graphql/1-queries/index.md) for filter syntax.
 
 **Example: Region-based access**
 
@@ -1163,6 +1163,6 @@ permissions: [
 ## See Also
 
 - [Authentication Setup](../7-deployment/4-auth.md) - Configure user authentication
-- [Queries](../5-graphql/1-queries.md) - Query syntax including filters
+- [Queries](../5-graphql/1-queries/index.md) - Query syntax including filters
 - [Mutations](../4-engine-configuration/3-schema-definition/3-data-objects/5-mutations.md) - Mutation operations and input types
 - [Schema Definition](../4-engine-configuration/3-schema-definition/index.md) - Define types and fields
