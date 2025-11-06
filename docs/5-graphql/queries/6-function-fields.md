@@ -831,7 +831,7 @@ query {
 
 ## Error Handling
 
-Function field errors are returned in the errors array:
+Function field errors occur during SQL execution. Since GraphQL queries are converted to SQL and executed in the database, errors are typically reported at the query level rather than individual field level.
 
 ```graphql
 query {
@@ -842,25 +842,23 @@ query {
 }
 ```
 
-Response:
+**Error reporting:**
+- **Most errors** - Reported for the entire query (from SQL execution)
+- **Planning errors** - In rare cases during SQL generation, may include query paths
+
+Response (typical):
 ```json
 {
-  "data": {
-    "products": [
-      {
-        "id": 1,
-        "price_converted": null
-      }
-    ]
-  },
+  "data": null,
   "errors": [
     {
-      "message": "Invalid currency code: INVALID",
-      "path": ["products", 0, "price_converted"]
+      "message": "Invalid currency code: INVALID"
     }
   ]
 }
 ```
+
+**Note:** Hugr converts your GraphQL query to SQL and executes it in the underlying database. Errors reflect SQL execution failures.
 
 ## Next Steps
 

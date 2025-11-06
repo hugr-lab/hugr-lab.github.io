@@ -1079,9 +1079,11 @@ See [H3 Hexagonal Clustering](./10-h3-clustering.md) for detailed documentation 
 
 ## Error Handling
 
+Spatial query errors occur during SQL execution in the database. Since GraphQL queries are converted to SQL, errors are reported at the query level.
+
 ### Invalid Geometry
 
-Invalid geometries will cause errors:
+Invalid geometries cause SQL execution errors:
 
 ```graphql
 query {
@@ -1097,11 +1099,23 @@ query {
 }
 ```
 
-Validate geometries in the database or application layer.
+Response:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Invalid geometry: self-intersection"
+    }
+  ]
+}
+```
+
+**Solution:** Validate geometries in the database or application layer before querying.
 
 ### SRID Mismatch
 
-Ensure matching spatial reference systems:
+Mismatched spatial reference systems cause execution errors:
 
 ```graphql
 # Error: Different SRIDs
@@ -1112,7 +1126,19 @@ _spatial(field: "location_4326", type: INTERSECTS) {
 }
 ```
 
-Transform geometries to matching SRIDs in schema or queries.
+Response:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "SRID mismatch: 4326 vs 3857"
+    }
+  ]
+}
+```
+
+**Solution:** Transform geometries to matching SRIDs in your schema using the `transforms` argument or ensure consistent SRIDs in your data.
 
 ## Next Steps
 

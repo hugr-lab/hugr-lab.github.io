@@ -452,12 +452,16 @@ extend type Function {
 
 ## Error Handling
 
-Function errors are returned in the GraphQL errors array:
+Function errors occur during SQL execution in the underlying data source. Since GraphQL queries are converted to SQL and executed in the database, errors are reported at the query level.
+
+**Error reporting:**
+- **Most errors** - Reported for the entire query (from the SQL execution)
+- **Planning errors** - In rare cases, errors during SQL generation may include specific query paths
 
 ```graphql
 query {
   function {
-    divide(a: 10, b: 0)  # Division by zero
+    divide(a: 10, b: 0)  # Division by zero in database
   }
 }
 ```
@@ -465,19 +469,16 @@ query {
 Response:
 ```json
 {
-  "data": {
-    "function": {
-      "divide": null
-    }
-  },
+  "data": null,
   "errors": [
     {
-      "message": "division by zero",
-      "path": ["function", "divide"]
+      "message": "division by zero"
     }
   ]
 }
 ```
+
+**Note:** Unlike traditional GraphQL resolvers that execute per-field, Hugr converts your entire query to SQL and executes it in the database (DuckDB). Errors reflect SQL execution failures rather than field-level resolver errors.
 
 ## Performance Considerations
 

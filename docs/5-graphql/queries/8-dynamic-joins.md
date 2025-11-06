@@ -984,14 +984,15 @@ query {
 
 ## Error Handling
 
-If join fields don't match types, you'll get an error:
+Dynamic join errors occur during query planning or SQL execution:
 
+**Type mismatch errors** (detected during SQL generation):
 ```graphql
 query {
   customers {
     id  # Int
     _join(fields: ["id"]) {
-      # Error: id is Int, but email is String
+      # Error: Type mismatch - id is Int, customer_email is String
       orders(fields: ["customer_email"]) {
         id
       }
@@ -999,6 +1000,20 @@ query {
   }
 }
 ```
+
+Response:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Type mismatch in join: Int cannot be joined with String"
+    }
+  ]
+}
+```
+
+**SQL execution errors** are reported at query level since queries are converted to SQL and executed in the database.
 
 ## Next Steps
 
