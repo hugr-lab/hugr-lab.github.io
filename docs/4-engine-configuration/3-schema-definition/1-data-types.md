@@ -365,7 +365,7 @@ For each `Vector` table or view field, a new field will be generated with the na
 - `vector: Vector` - The vector to calculate the distance to.
 - `distance: VectorDistanceType` - The type of distance to calculate.
 
-If the data object has the `@embeddings` directive defined, the field `_distance_query_to` will be generated, which calculates the distance from the vector field to the query text. The field returns `Float` and has the one parameter: `query: String!`.
+If the data object has the `@embeddings` directive defined, the field `_distance_to_query` will be generated, which calculates the distance from the vector field to the query text. The field returns `Float` and has the one parameter: `query: String!`.
 
 ### Filter operations
 
