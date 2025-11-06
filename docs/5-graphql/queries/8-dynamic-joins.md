@@ -414,6 +414,66 @@ query {
 }
 ```
 
+### Using _join in Grouping Keys
+
+You can use `_join` in bucket aggregation keys to group by fields from joined data:
+
+```graphql
+query {
+  orders_bucket_aggregation {
+    key {
+      # Group by joined customer's country
+      _join(fields: ["customer_id"]) {
+        customers(fields: ["id"]) {
+          country
+          segment
+        }
+      }
+      status
+    }
+    aggregations {
+      _rows_count
+      total { sum avg }
+    }
+  }
+}
+```
+
+This groups orders by customer country, customer segment, and order status.
+
+**Practical example** - Sales by region and product category:
+
+```graphql
+query {
+  sales_bucket_aggregation {
+    key {
+      # Join to get customer region
+      customer_info: _join(fields: ["customer_id"]) {
+        customers(fields: ["id"]) {
+          region
+          city
+        }
+      }
+      # Join to get product category
+      product_info: _join(fields: ["product_id"]) {
+        products(fields: ["id"]) {
+          category {
+            name
+          }
+        }
+      }
+    }
+    aggregations {
+      _rows_count
+      amount { sum avg }
+      quantity { sum }
+    }
+  }
+}
+```
+
+This creates a multi-dimensional analysis grouping sales by customer region, customer city, and product category.
+
 ## Complex Join Patterns
 
 ### Chain Multiple Joins

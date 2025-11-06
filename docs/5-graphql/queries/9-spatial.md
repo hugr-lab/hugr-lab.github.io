@@ -691,6 +691,91 @@ query {
 }
 ```
 
+### Using _spatial in Grouping Keys
+
+You can use `_spatial` in bucket aggregation keys to group by fields from spatially related data:
+
+```graphql
+query {
+  stores_bucket_aggregation {
+    key {
+      # Group by region from spatially related cities
+      _spatial(field: "location", type: WITHIN) {
+        cities(field: "boundary") {
+          region
+          name
+        }
+      }
+    }
+    aggregations {
+      _rows_count
+      revenue { sum avg }
+    }
+  }
+}
+```
+
+This groups stores by the city region they are located in, using spatial containment.
+
+**Practical example** - Orders by delivery zone:
+
+```graphql
+query {
+  orders_bucket_aggregation {
+    key {
+      status
+      # Group by delivery zone using spatial relationship
+      delivery_zone: _spatial(field: "delivery_location", type: WITHIN) {
+        zones(field: "boundary") {
+          zone_id
+          zone_name
+          priority_level
+        }
+      }
+    }
+    aggregations {
+      _rows_count
+      total { sum avg }
+      delivery_time { avg }
+    }
+  }
+}
+```
+
+This creates grouping by order status and delivery zone, enabling analysis like "average delivery time by zone and status".
+
+**Multi-dimensional spatial grouping**:
+
+```graphql
+query {
+  events_bucket_aggregation {
+    key {
+      event_type
+      # Spatial grouping by neighborhood
+      neighborhood: _spatial(field: "location", type: WITHIN) {
+        neighborhoods(field: "boundary") {
+          name
+          district
+        }
+      }
+      # Spatial grouping by service area
+      service_area: _spatial(field: "location", type: WITHIN) {
+        service_areas(field: "coverage") {
+          area_code
+          service_level
+        }
+      }
+    }
+    aggregations {
+      _rows_count
+      participants { sum avg }
+    }
+  }
+}
+```
+
+This enables complex spatial analysis grouping events by type, neighborhood district, and service area.
+
 ## Combining Spatial with Dynamic Joins
 
 Use both `_spatial` and `_join`:
