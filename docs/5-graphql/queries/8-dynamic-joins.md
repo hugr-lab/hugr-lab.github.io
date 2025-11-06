@@ -445,13 +445,16 @@ query {
 
 ### Multiple Joins on Same Level
 
+**Important:** When using multiple `_join` fields on the same level, you must use aliases to avoid name conflicts.
+
 ```graphql
 query {
   customers {
     id
     name
     email
-    _join(fields: ["id"]) {
+    # MUST use aliases for multiple joins
+    orders_join: _join(fields: ["id"]) {
       # Join with orders
       orders(fields: ["customer_id"]) {
         id
@@ -459,7 +462,7 @@ query {
       }
     }
     # Second join with different source
-    _join(fields: ["email"]) {
+    crm_join: _join(fields: ["email"]) {
       # Join with external system
       crm_contacts(fields: ["email"]) {
         last_contact
@@ -614,13 +617,15 @@ query {
 
 ### Join with Array Fields
 
+When joining with array fields, joins use **strict equality** with logical AND across all specified fields.
+
 ```graphql
 query {
   products {
     id
-    tag_ids  # Array field
-    # Join by array contains
-    _join(fields: ["tag_ids"]) {
+    primary_tag_id  # Single value field
+    # Join uses strict equality: products.primary_tag_id = tags.id
+    _join(fields: ["primary_tag_id"]) {
       tags(fields: ["id"]) {
         name
         description
@@ -629,6 +634,8 @@ query {
   }
 }
 ```
+
+**Note:** Array field joins use exact value matching, not array containment. Multiple fields are joined with AND condition (field1 = field1 AND field2 = field2).
 
 ### Self-Join
 
@@ -678,7 +685,71 @@ query {
 
 ## Performance Considerations
 
-### 1. Always Use Limit
+### 1. Filter Joined Data
+
+**Important:** Always apply filters to joined data to reduce the dataset and improve performance.
+
+```graphql
+# Good - Filter joined data
+query {
+  customers {
+    id
+    _join(fields: ["id"]) {
+      orders(
+        fields: ["customer_id"]
+        filter: {
+          created_at: { gte: "2024-01-01" }
+          status: { eq: "completed" }
+        }
+      ) {
+        id
+        total
+      }
+    }
+  }
+}
+
+# Avoid - Fetching all orders without filters
+query {
+  customers {
+    id
+    _join(fields: ["id"]) {
+      orders(fields: ["customer_id"]) {
+        id
+        total
+      }
+    }
+  }
+}
+```
+
+### 2. Use distinct for Performance
+
+Use `distinct` parameter when joining to eliminate duplicate rows and speed up queries:
+
+```graphql
+query {
+  customers {
+    id
+    _join(fields: ["id"]) {
+      orders(
+        fields: ["customer_id"]
+        distinct: true  # Eliminates duplicate rows
+      ) {
+        status
+        payment_method
+      }
+    }
+  }
+}
+```
+
+`distinct` is particularly useful:
+- When joining produces duplicate rows
+- In aggregations to count unique values
+- When fetching lookup/reference data
+
+### 3. Always Use Limit
 
 ```graphql
 # Good - Limit joined data
@@ -709,7 +780,7 @@ query {
 }
 ```
 
-### 2. Filter Early
+### 4. Filter Parent Data Early
 
 ```graphql
 # Good - Filter before join
@@ -725,7 +796,7 @@ query {
 }
 ```
 
-### 3. Use Aggregations When Possible
+### 5. Use Aggregations When Possible
 
 ```graphql
 # Better - Use aggregation
@@ -754,7 +825,7 @@ query {
 }
 ```
 
-### 4. Index Join Fields
+### 6. Index Join Fields
 
 Ensure indexes on:
 - Source fields (left side of join)
@@ -762,7 +833,7 @@ Ensure indexes on:
 - Fields used in filters
 - Fields used in sorting
 
-### 5. Limit Parent Query
+### 7. Limit Parent Query
 
 ```graphql
 # Good - Limit parent records
@@ -807,14 +878,14 @@ query {
     sale_id
     amount
     sale_date
-    # Join multiple dimensions
-    _join(fields: ["customer_id"]) {
+    # Join multiple dimensions - use aliases for multiple joins
+    customer_dimension: _join(fields: ["customer_id"]) {
       dim_customers(fields: ["id"]) {
         name
         segment
       }
     }
-    _join(fields: ["product_id"]) {
+    product_dimension: _join(fields: ["product_id"]) {
       dim_products(fields: ["id"]) {
         name
         category
