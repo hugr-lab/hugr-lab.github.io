@@ -100,6 +100,11 @@ Aggregate and cluster spatial data using the H3 hexagonal grid system for advanc
 
 [Learn about H3 Clustering →](./10-h3-clustering.md)
 
+### 11. Vector Similarity Search
+Perform semantic search using vector embeddings with support for multiple distance metrics and hybrid search.
+
+[Learn about Vector Search →](./11-vector-search.md)
+
 ## Query Arguments Reference
 
 Most query types support these standard arguments:

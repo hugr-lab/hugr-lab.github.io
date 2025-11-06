@@ -757,130 +757,24 @@ query {
 
 ### Vector Similarity Search
 
-Vector fields support similarity search using vector embeddings. Similarity search is **not a filter** but a separate query argument that ranks results by vector distance.
+Vector fields support similarity search using embeddings for semantic search. Vector similarity search is **not a filter** but a separate query argument that ranks results by distance.
 
-**Note:** Vector fields can only be filtered with `is_null`. Use the `similarity` argument for semantic search.
+**Note:** Vector fields can only be filtered with `is_null`. For semantic search, similarity ranking, and distance-based queries, see [Vector Similarity Search](./11-vector-search.md).
 
 ```graphql
 query {
   documents(
-    similarity: {
-      name: "embedding"              # Vector field name
-      vector: [0.1, 0.2, 0.3, ...]  # Query vector
-      distance: Cosine               # Distance metric
-      limit: 10                      # Number of results
-    }
-  ) {
-    id
-    title
-    content
-    embedding
-  }
-}
-```
-
-#### Distance Metrics
-
-- **`Cosine`** - Cosine similarity (most common for text embeddings)
-- **`L2`** - Euclidean (L2) distance
-- **`Inner`** - Inner product (dot product)
-
-#### Basic Similarity Search
-
-Find the 10 most similar documents:
-
-```graphql
-query SimilarDocuments {
-  documents(
+    # Vector similarity search
     similarity: {
       name: "embedding"
-      vector: [0.15, 0.22, 0.18, 0.09, ...]  # 768-dimensional vector
-      distance: Cosine
-      limit: 10
-    }
-  ) {
-    id
-    title
-    _embedding_distance(
-      vector: [0.15, 0.22, 0.18, 0.09, ...]
-      distance: Cosine
-    )  # Distance from query vector
-  }
-}
-```
-
-#### Combining with Filters
-
-Combine similarity search with attribute filters:
-
-```graphql
-query FilteredSimilarity {
-  products(
-    similarity: {
-      name: "description_embedding"
       vector: [0.1, 0.2, 0.3, ...]
       distance: Cosine
-      limit: 5
-    }
-    filter: {
-      _and: [
-        { category: { eq: "books" } }
-        { in_stock: { eq: true } }
-        { price: { lte: 50.0 } }
-      ]
-    }
-  ) {
-    id
-    name
-    description
-    price
-    category
-    _description_embedding_distance(
-      vector: [0.1, 0.2, 0.3, ...]
-      distance: Cosine
-    )
-  }
-}
-```
-
-**Execution order:**
-1. Filter is applied first to reduce dataset
-2. Similarity search ranks filtered results
-3. Top N results (by `limit`) are returned
-
-#### Text-to-Vector Search with @embeddings
-
-If the data object has the `@embeddings` directive, you can search using text queries:
-
-```graphql
-query SearchByText {
-  articles(
-    similarity: {
-      name: "content_embedding"
-      vector: [...]  # Generated from text
-      distance: Cosine
       limit: 10
     }
-  ) {
-    id
-    title
-    # Distance from query text
-    _distance_query_to(query: "machine learning tutorial")
-  }
-}
-```
-
-#### Use Cases
-
-**Semantic document search:**
-```graphql
-query {
-  documents(
-    similarity: {
-      name: "embedding"
-      vector: [...]  # Embedding of "artificial intelligence"
-      distance: Cosine
-      limit: 20
+    # Combined with filters
+    filter: {
+      published: { eq: true }
+      language: { eq: "en" }
     }
   ) {
     id
@@ -889,52 +783,13 @@ query {
 }
 ```
 
-**Image similarity:**
-```graphql
-query {
-  images(
-    similarity: {
-      name: "image_embedding"
-      vector: [...]  # Visual embedding
-      distance: L2
-      limit: 10
-    }
-  ) {
-    id
-    url
-    description
-  }
-}
-```
-
-**Product recommendations:**
-```graphql
-query {
-  products(
-    similarity: {
-      name: "feature_embedding"
-      vector: [...]  # Product feature vector
-      distance: Inner
-      limit: 5
-    }
-    filter: {
-      category: { eq: "electronics" }
-    }
-  ) {
-    id
-    name
-    price
-  }
-}
-```
-
-**Performance tips:**
-- Create vector indexes (HNSW for PostgreSQL, ANN for DuckDB)
-- Use appropriate distance metric for your use case
-- Apply filters to reduce search space
-- Set reasonable `limit` values (10-100 typically)
-
-For more on Vector type configuration, see [Data Types - Vector](../../4-engine-configuration/3-schema-definition/1-data-types.md#vector).
+See [Vector Similarity Search](./11-vector-search.md) for comprehensive documentation on:
+- Distance metrics (Cosine, L2, Inner product)
+- Calculated distance fields
+- Combining vector search with filters
+- Text-to-vector search with @embeddings
+- Performance optimization
+- Use cases (semantic search, recommendations, duplicate detection)
 
 ## Filter Reuse with Variables
 
