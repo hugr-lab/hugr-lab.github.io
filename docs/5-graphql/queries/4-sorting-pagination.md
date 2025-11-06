@@ -297,11 +297,11 @@ Returns records 21-30.
 ### Page-by-Page Navigation
 
 ```graphql
-query GetPage($page: Int!, $pageSize: Int!) {
+query GetPage($limit: Int!, $offset: Int!) {
   customers(
     order_by: [{ field: "id", direction: ASC }]
-    limit: $pageSize
-    offset: $page * $pageSize
+    limit: $limit
+    offset: $offset
   ) {
     id
     name
@@ -310,12 +310,19 @@ query GetPage($page: Int!, $pageSize: Int!) {
 }
 ```
 
-Variables for page 3 with 20 items per page:
+Variables for page 3 with 20 items per page (offset calculated client-side):
 ```json
 {
-  "page": 2,
-  "pageSize": 20
+  "limit": 20,
+  "offset": 40
 }
+```
+
+Calculate offset in your application code:
+```typescript
+const page = 2;  // Zero-indexed: page 0, 1, 2, ...
+const pageSize = 20;
+const offset = page * pageSize;  // 2 * 20 = 40
 ```
 
 ### Calculating Total Pages
@@ -323,11 +330,11 @@ Variables for page 3 with 20 items per page:
 Use aggregation to get total count:
 
 ```graphql
-query GetPageWithTotal($page: Int!, $pageSize: Int!) {
+query GetPageWithTotal($limit: Int!, $offset: Int!) {
   customers(
     order_by: [{ field: "id", direction: ASC }]
-    limit: $pageSize
-    offset: $page * $pageSize
+    limit: $limit
+    offset: $offset
   ) {
     id
     name
@@ -339,8 +346,19 @@ query GetPageWithTotal($page: Int!, $pageSize: Int!) {
 }
 ```
 
-Calculate pages:
+Calculate pages and offset in your application:
 ```typescript
+const page = 2;
+const pageSize = 20;
+const offset = page * pageSize;
+
+// Execute query with calculated offset
+const result = await query({
+  limit: pageSize,
+  offset: offset
+});
+
+// Calculate total pages
 const totalPages = Math.ceil(
   result.customers_aggregation._rows_count / pageSize
 );
