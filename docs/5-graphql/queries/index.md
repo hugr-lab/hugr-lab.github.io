@@ -21,21 +21,29 @@ For each data object (table or view) defined in your schema, Hugr automatically 
 
 ## Query Organization
 
-All queries are organized in a hierarchical module structure based on the `@module` directive:
+All queries are organized in a hierarchical module structure based on the `@module` directive. **Data objects, aggregations, and functions can be nested within modules** at any level.
 
 ```graphql
 query {
   # Root level objects
   customers { id name }
+  customers_aggregation { _rows_count }
+  customers_by_pk(id: 1) { id name }
 
-  # Nested modules
+  # Nested modules - data objects inside modules
   crm {
     analytics {
+      # All query types available within modules
       top_customers { id total_spent }
+      top_customers_aggregation { _rows_count }
+      top_customers_bucket_aggregation {
+        key { segment }
+        aggregations { _rows_count }
+      }
     }
   }
 
-  # Functions
+  # Functions organized in modules
   function {
     services {
       weather {
@@ -47,6 +55,12 @@ query {
   }
 }
 ```
+
+**Module structure:**
+- Defined using `@module(name: "module.submodule")` directive
+- Can nest data objects at any depth
+- All query types (`<object>`, `<object>_by_pk`, `<object>_aggregation`, `<object>_bucket_aggregation`) available within modules
+- Functions organized under `function` field can also be modularized
 
 ## Core Query Capabilities
 
