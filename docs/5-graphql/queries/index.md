@@ -95,6 +95,11 @@ Query geographically related data using spatial relationships and operations.
 
 [Learn about Spatial Queries →](./9-spatial.md)
 
+### 10. H3 Hexagonal Clustering
+Aggregate and cluster spatial data using the H3 hexagonal grid system for advanced geospatial analysis.
+
+[Learn about H3 Clustering →](./10-h3-clustering.md)
+
 ## Query Arguments Reference
 
 Most query types support these standard arguments:
