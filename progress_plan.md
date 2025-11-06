@@ -52,9 +52,11 @@ Hugr supports JQ transformations of GraphQL query results on the server in two w
 
 JQ FEATURES in hugr:
 1. Access to GraphQL query variables inside JQ: use $var_name where var_name is the variable name from the GraphQL query
-2. queryHugr() function to execute GraphQL queries inside JQ:
+2. Special queryHugr() function available ONLY inside JQ expressions to execute GraphQL queries:
+   - IMPORTANT: queryHugr() is NOT a standalone GraphQL function, it's a special JQ function
    - queryHugr(graphql_query_text) - one argument with query text
    - queryHugr(graphql_query_text, variables_object) - two arguments: query and variables
+   - Allows data enrichment and cross-source aggregation within JQ transformations
 
 DOCUMENT STRUCTURE:
 1. Overview
@@ -80,11 +82,13 @@ DOCUMENT STRUCTURE:
    - How to use them in JQ ($var_name)
    - Examples
 
-5. queryHugr() Function
+5. queryHugr() Function (JQ-only)
+   - IMPORTANT: This is a special function available ONLY inside JQ expressions
    - Description and syntax
-   - Examples of nested query execution
+   - Examples of nested query execution within JQ
    - Using with variables
    - Use cases (data enrichment, aggregation from different sources)
+   - How it differs from regular GraphQL queries
 
 6. Practical Examples
    - Filtering and transforming arrays
@@ -386,11 +390,13 @@ DOCUMENT STRUCTURE:
    - Headers
 
 6. Variable Access
-   - Using $var_name from GraphQL variables
+   - Using $var_name from GraphQL variables in JQ expressions
 
-7. Using queryHugr()
-   - Executing nested queries
-   - Examples
+7. Using queryHugr() inside JQ
+   - IMPORTANT: queryHugr() is available only inside JQ expressions
+   - Executing nested GraphQL queries from within JQ transformation
+   - Examples with single and multiple queries
+   - Data enrichment use cases
 
 8. Best Practices
    - When to use /jq-query vs built-in jq()
@@ -545,7 +551,7 @@ EXPAND TO:
   - Built-in jq() GraphQL query for inline transformations
   - REST endpoint /jq-query for complex processing pipelines
 - Access GraphQL variables in JQ expressions
-- Execute nested queries with queryHugr() function
+- Execute nested GraphQL queries from within JQ using special queryHugr() function
 - Customize JSON output formats per client requirements
 - Aggregate, flatten, or nest results as needed
 - Transform HTTP API responses in data source functions
@@ -585,8 +591,8 @@ STRUCTURE:
    - Result
 
 3. Example 2: Aggregating Data from Different Sources
-   - Using queryHugr()
-   - Combining results
+   - Using queryHugr() function inside JQ
+   - Combining results from multiple queries within a single JQ transformation
 
 4. Example 3: Changing Response Structure for Client
    - Nested to flat structure
@@ -739,14 +745,16 @@ STRUCTURE:
 
 3. Function Queries
    - http_data_source_request_scalar()
-   - queryHugr()
    - Other built-in functions
 
-4. Mutations
+4. Special JQ Functions
+   - queryHugr() - available ONLY inside JQ expressions (not a GraphQL function)
+
+5. Mutations
    - CRUD operations
    - System mutations
 
-5. Types
+6. Types
    - System types
    - Data types
 
@@ -972,6 +980,8 @@ After creating/updating each document, check:
    - Are there limitations on JQ expression complexity?
    - Is there a timeout for JQ transformations?
    - Which JQ functions are supported (all standard or subset)?
+   - queryHugr() - confirmed as JQ-only function (not a GraphQL query)
+   - Are there other special functions available inside JQ?
 
 3. **Hugr IPC**:
    - Is the specification in query-engine/hugr-ipc.md up to date?
