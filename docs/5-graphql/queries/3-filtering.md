@@ -55,12 +55,11 @@ WHERE price >= 10.0 AND category = 'electronics' AND in_stock = true
 query {
   products(filter: {
     price: {
+      eq: 50.0      # Equal to
       gt: 10.0      # Greater than
       gte: 10.0     # Greater than or equal
       lt: 100.0     # Less than
       lte: 100.0    # Less than or equal
-      eq: 50.0      # Equal to
-      ne: 75.0      # Not equal to
       in: [10.0, 20.0, 30.0]  # In list
       is_null: false  # Is NULL / NOT NULL
     }
@@ -79,10 +78,9 @@ query {
   customers(filter: {
     name: {
       eq: "John Doe"           # Exact match
-      ne: "Admin"              # Not equal
+      in: ["John", "Jane"]     # In list
       like: "John%"            # Pattern match (% wildcard)
       ilike: "john%"           # Case-insensitive pattern match
-      in: ["John", "Jane"]     # In list
       regex: "^[A-Z][a-z]+"    # Regular expression
       is_null: false           # Is NULL / NOT NULL
     }
@@ -142,9 +140,11 @@ Filter by JSON field values:
 query {
   events(filter: {
     metadata: {
-      contains: { "user_id": 123 }           # Contains key-value
-      has_key: "transaction_id"              # Has key
-      path_exists: "$.user.preferences"      # JSON path exists
+      eq: { "user_id": 123, "status": "active" }  # Exact match
+      contains: { "user_id": 123 }                 # Contains key-value (like PostgreSQL @>)
+      has: "transaction_id"                        # Has key
+      has_all: ["user_id", "transaction_id"]       # Has all specified keys
+      is_null: false                               # Is NULL / NOT NULL
     }
   }) {
     id

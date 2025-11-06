@@ -63,8 +63,9 @@ query {
       avg        # Average value
       min        # Minimum value
       max        # Maximum value
-      stddev     # Standard deviation
-      variance   # Variance
+      list(distinct: true)  # Array of values
+      any        # Any non-null value
+      last       # Last non-null value
     }
   }
 }
@@ -77,10 +78,10 @@ query {
   customers_aggregation {
     name {
       count                           # Count non-null values
-      min                            # Alphabetically first
-      max                            # Alphabetically last
-      string_agg(separator: ", ")    # Concatenate with separator
-      list(distinct: true)           # Array of values
+      string_agg(separator: ", ")     # Concatenate with separator
+      list(distinct: true)            # Array of values
+      any                             # Any non-null value
+      last                            # Last non-null value
     }
   }
 }
@@ -120,10 +121,17 @@ query {
 query {
   events_aggregation {
     metadata {
-      count(path: "$.user_id")           # Count specific path
-      sum(path: "$.amount")              # Sum numeric values
-      avg(path: "$.score")               # Average
-      list(path: "$.tags", distinct: true)  # Array of values
+      count(path: "user_id")           # Count specific path
+      sum(path: "amount")              # Sum numeric values
+      avg(path: "score")               # Average
+      min(path: "price")               # Minimum value
+      max(path: "price")               # Maximum value
+      list(path: "tags", distinct: true)  # Array of values
+      string_agg(path: "name", separator: ", ")  # Concatenate strings
+      bool_and(path: "active")         # Logical AND
+      bool_or(path: "enabled")         # Logical OR
+      any(path: "status")              # Any non-null value
+      last(path: "status")             # Last non-null value
     }
   }
 }
