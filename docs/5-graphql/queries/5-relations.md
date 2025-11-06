@@ -636,14 +636,16 @@ query {
 
 ## Inner Joins
 
-By default, Hugr uses LEFT JOINs. Use `inner: true` for INNER JOINs:
+By default, Hugr uses LEFT JOINs for subqueries, which means parent records are included even if they have no related records. Use `inner: true` to switch to INNER JOIN behavior.
+
+### Basic INNER JOIN
 
 ```graphql
 query {
   customers {
     id
     name
-    # Only customers with orders
+    # Only customers with orders - customers without orders are excluded
     orders(inner: true) {
       id
       total
@@ -652,7 +654,95 @@ query {
 }
 ```
 
-This excludes customers without orders from results.
+**With LEFT JOIN (default):**
+- Returns all customers
+- `orders` field is empty array for customers without orders
+
+**With INNER JOIN (`inner: true`):**
+- Returns only customers who have orders
+- Customers without orders are completely excluded from results
+
+### Combining with Filters
+
+```graphql
+query {
+  customers {
+    id
+    name
+    # Only customers with pending orders
+    pending_orders: orders(
+      filter: { status: { eq: "pending" } }
+      inner: true
+    ) {
+      id
+      status
+      total
+    }
+  }
+}
+```
+
+This returns only customers who have at least one pending order.
+
+### Multiple INNER JOINs
+
+```graphql
+query {
+  customers {
+    id
+    name
+    # Must have orders
+    orders(inner: true) {
+      id
+      # Must have order details
+      order_details(inner: true) {
+        product {
+          name
+        }
+        quantity
+      }
+    }
+  }
+}
+```
+
+Returns only customers who have orders that have order details.
+
+### Use Cases
+
+**Find active relationships:**
+```graphql
+query {
+  products {
+    id
+    name
+    # Only products with active orders
+    orders(
+      filter: { status: { in: ["pending", "processing"] } }
+      inner: true
+    ) {
+      id
+      status
+    }
+  }
+}
+```
+
+**Data validation:**
+```graphql
+query {
+  orders {
+    id
+    # Ensure order has customer (data integrity check)
+    customer(inner: true) {
+      id
+      name
+    }
+  }
+}
+```
+
+**Note:** For one-to-one relations, `inner: true` excludes records where the relation is NULL.
 
 ## Self-Referential Relations
 

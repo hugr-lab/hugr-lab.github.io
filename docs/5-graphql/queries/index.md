@@ -107,7 +107,7 @@ Most query types support these standard arguments:
 | `offset` | `Int` | Number of records to skip |
 | `distinct_on` | `[String]` | Fields to use for DISTINCT |
 | `args` | `<input_type>` | Arguments for parameterized views |
-| `inner` | `Boolean` | Use INNER join instead of LEFT join |
+| `inner` | `Boolean` | Use INNER join (excludes parent records without matches, default: false) |
 
 ### Nested Query Arguments
 

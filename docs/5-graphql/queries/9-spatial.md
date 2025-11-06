@@ -408,6 +408,106 @@ query {
 }
 ```
 
+## Using inner with Spatial Queries
+
+By default, spatial queries use LEFT JOIN, returning all parent records even if no spatially related records are found. Use `inner: true` to include only records that have spatial matches.
+
+### LEFT JOIN (default)
+
+```graphql
+query {
+  stores {
+    id
+    name
+    location
+    # All stores, even those without nearby customers
+    _spatial(field: "location", type: DWITHIN, buffer: 5000) {
+      customers(field: "address_location") {
+        id
+        name
+      }
+    }
+  }
+}
+```
+
+**Result:**
+- All stores are returned
+- Stores without nearby customers have empty spatial results
+
+### INNER JOIN
+
+```graphql
+query {
+  stores {
+    id
+    name
+    location
+    # Only stores with nearby customers
+    _spatial(field: "location", type: DWITHIN, buffer: 5000) {
+      customers(
+        field: "address_location"
+        inner: true
+      ) {
+        id
+        name
+      }
+    }
+  }
+}
+```
+
+**Result:**
+- Only stores that have customers within 5km are returned
+- Stores without nearby customers are excluded from results
+
+### With Filters
+
+```graphql
+query {
+  delivery_zones {
+    id
+    name
+    boundary
+    # Only zones with active orders inside
+    _spatial(field: "boundary", type: CONTAINS) {
+      orders(
+        field: "delivery_location"
+        filter: { status: { in: ["pending", "processing"] } }
+        inner: true
+      ) {
+        id
+        status
+      }
+    }
+  }
+}
+```
+
+Returns only delivery zones that contain active orders.
+
+### Finding Coverage Gaps
+
+Use `inner: false` (default) to find records without spatial matches:
+
+```graphql
+query {
+  # Find areas without service coverage
+  residential_areas {
+    id
+    name
+    boundary
+    _spatial(field: "boundary", type: INTERSECTS) {
+      service_zones(field: "coverage_area") {
+        id
+      }
+    }
+  }
+}
+```
+
+Filter client-side for areas where `service_zones` is empty.
+
 ## Aggregating Spatial Results
 
 ### Count Spatial Matches

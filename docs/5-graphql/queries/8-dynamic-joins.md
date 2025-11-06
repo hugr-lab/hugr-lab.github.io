@@ -498,14 +498,16 @@ query {
 
 ## Using inner Argument
 
-Control join type (LEFT vs INNER):
+Control join type (LEFT vs INNER). By default, dynamic joins use LEFT JOIN, which includes all parent records even if no matching child records exist. Use `inner: true` to switch to INNER JOIN behavior.
+
+### LEFT JOIN (default)
 
 ```graphql
 query {
   customers {
     id
     name
-    # LEFT JOIN (default) - includes customers without orders
+    # LEFT JOIN - includes all customers
     _join(fields: ["id"]) {
       orders(fields: ["customer_id"]) {
         id
@@ -513,7 +515,16 @@ query {
     }
   }
 }
+```
 
+**Result:**
+- All customers are returned
+- Customers without orders have empty joined data
+- Use when you want to see all parent records
+
+### INNER JOIN
+
+```graphql
 query {
   customers {
     id
@@ -530,6 +541,57 @@ query {
   }
 }
 ```
+
+**Result:**
+- Only customers with orders are returned
+- Customers without orders are completely excluded
+- Use when you only need records with matching joins
+
+### With Filters
+
+```graphql
+query {
+  customers {
+    id
+    name
+    _join(fields: ["id"]) {
+      # Only customers with high-value orders
+      orders(
+        fields: ["customer_id"]
+        filter: { total: { gte: 1000 } }
+        inner: true
+      ) {
+        id
+        total
+      }
+    }
+  }
+}
+```
+
+Returns only customers who have orders with total >= 1000.
+
+### Cross-Source INNER JOIN
+
+```graphql
+query {
+  postgres_customers {
+    id
+    email
+    # Only customers who exist in MySQL
+    _join(fields: ["email"]) {
+      mysql_users(
+        fields: ["email"]
+        inner: true
+      ) {
+        last_login
+      }
+    }
+  }
+}
+```
+
+Returns only customers that exist in both databases.
 
 ## Advanced Join Scenarios
 
