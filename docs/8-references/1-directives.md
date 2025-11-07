@@ -1582,6 +1582,8 @@ query {
 }
 ```
 
+You can use the `@cache`, `@no_cache`, and `@invalidate_cache` directives in queries independently of whether the data object is marked with the `@cache` directive in the schema definition.
+
 ## Query time directives
 
 
