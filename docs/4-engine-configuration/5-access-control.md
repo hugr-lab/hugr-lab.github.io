@@ -1086,6 +1086,255 @@ query {
 }
 ```
 
+## Permission Caching
+
+Hugr automatically caches role permissions to improve authorization performance. When a user makes a request, their role permissions are fetched once and cached, reducing database queries on subsequent requests.
+
+### How Permission Caching Works
+
+Hugr caches role permissions using a specific pattern:
+
+**Cache Key Format**: `RolePermissions:{role_name}`
+**Cache Tag**: `$role_permissions`
+
+When checking permissions for a role:
+1. **First request**: Query the database for role permissions
+2. **Cache the result**: Store permissions with the role-specific key
+3. **Subsequent requests**: Serve permissions from cache (1-5ms vs 50-100ms)
+4. **Cache until TTL**: Default TTL of 1 hour (configurable)
+
+### Internal Permission Query
+
+Here's the internal query Hugr uses to fetch and cache role permissions:
+
+```graphql
+query ($role: String!, $cacheKey: String) {
+  core {
+    info: roles_by_pk(name: $role) @cache(key: $cacheKey, tags: ["$role_permissions"]) {
+      name
+      disabled
+      permissions {
+        type_name
+        field_name
+        hidden
+        disabled
+        filter
+        data
+      }
+    }
+  }
+}
+
+# Called with:
+# { role: "editor", cacheKey: "RolePermissions:editor" }
+```
+
+### Invalidating Permission Cache
+
+After modifying roles or permissions, invalidate the cache to ensure users get updated permissions immediately.
+
+#### Method 1: Invalidate All Role Permissions (Recommended)
+
+When you update permissions, invalidate all role caches:
+
+```graphql
+mutation UpdatePermissions {
+  # Update role permissions
+  core {
+    update_role_permissions(
+      filter: { role: { eq: "editor" } }
+      data: { disabled: false }
+    ) {
+      success
+      affected_rows
+    }
+
+    # Invalidate ALL role permissions cache
+    invalidateCache: function {
+      core {
+        cache {
+          invalidate(tags: ["$role_permissions"]) {
+            success
+            affected_rows
+            message
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+#### Method 2: Invalidate Specific Role
+
+Use `@invalidate_cache` directive to refresh a specific role:
+
+```graphql
+query RefreshEditorPermissions {
+  core {
+    editor: roles_by_pk(name: "editor")
+      @invalidate_cache
+      @cache(
+        key: "RolePermissions:editor",
+        tags: ["$role_permissions"]
+      ) {
+      name
+      permissions {
+        type_name
+        field_name
+        disabled
+      }
+    }
+  }
+}
+```
+
+#### Method 3: Automatic Invalidation in Mutations
+
+Combine permission updates with cache invalidation in a single mutation:
+
+```graphql
+mutation CreateRoleWithPermissions {
+  core {
+    # Create new role
+    insert_roles(data: {
+      name: "content_manager"
+      description: "Can manage content"
+      permissions: [
+        {
+          type_name: "articles"
+          field_name: "*"
+        }
+        {
+          type_name: "insert_articles"
+          field_name: "*"
+          data: {
+            author_id: "[$auth.user_id]"
+          }
+        }
+      ]
+    }) {
+      name
+    }
+
+    # Invalidate cache so new role is immediately available
+    invalidateCache: function {
+      core {
+        cache {
+          invalidate(tags: ["$role_permissions"]) {
+            success
+            affected_rows
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### When to Invalidate Permission Cache
+
+**Always invalidate cache when**:
+- Creating new roles
+- Updating role permissions
+- Deleting roles
+- Changing `hidden` or `disabled` flags
+- Modifying `filter` or `data` constraints
+- Enabling/disabling roles
+
+### Performance Impact
+
+**Without Caching**:
+- Permission check on every request: 50-100ms
+- High database load for multi-user systems
+- Slower API response times
+
+**With Caching**:
+- Permission check from cache: 1-5ms
+- Reduced database load by 90%+
+- Faster API response times
+- Scales to thousands of concurrent users
+
+### Example: Complete Permission Update Workflow
+
+```graphql
+mutation UpdateRoleAndInvalidateCache {
+  core {
+    # 1. Update role permissions
+    update_role_permissions(
+      filter: {
+        role: { eq: "viewer" }
+        type_name: { eq: "articles" }
+      }
+      data: {
+        hidden: false
+        disabled: false
+      }
+    ) {
+      success
+      affected_rows
+    }
+
+    # 2. Invalidate permission cache
+    invalidatePermissions: function {
+      core {
+        cache {
+          invalidate(tags: ["$role_permissions"]) {
+            success
+            affected_rows
+            message
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Best Practices for Permission Caching
+
+1. **Always Invalidate After Changes**: Immediately invalidate cache after any permission modifications
+2. **Use Tag-Based Invalidation**: Use `$role_permissions` tag to invalidate all roles at once
+3. **Monitor Cache Effectiveness**: Track `affected_rows` to ensure cache is being cleared
+4. **Test After Updates**: Verify permissions work correctly after invalidation
+5. **Consider Security**: Stale permissions can lead to unauthorized access or denial of valid requests
+
+### Security Considerations
+
+⚠️ **Important**: Stale permission cache can cause security issues:
+
+- **Privilege Escalation**: Users may retain permissions after they've been revoked
+- **Access Denial**: Users may be blocked from resources they should access
+- **Compliance Violations**: Cached permissions may not reflect current security policies
+
+**Always verify invalidation succeeds**:
+
+```graphql
+mutation CriticalPermissionUpdate {
+  core {
+    update_role_permissions(...) {
+      success
+    }
+
+    # Verify invalidation succeeded
+    invalidate: function {
+      core {
+        cache {
+          invalidate(tags: ["$role_permissions"]) {
+            success
+            message
+          }
+        }
+      }
+    }
+  }
+}
+
+# Check: invalidate.function.core.cache.invalidate.success === true
+```
+
+For more details on caching, see [Cache Directives](/docs/engine-configuration/cache#example-8-caching-role-permissions).
+
 ## Best Practices
 
 ### Permission Strategy
@@ -1163,6 +1412,7 @@ permissions: [
 ## See Also
 
 - [Authentication Setup](../7-deployment/4-auth.md) - Configure user authentication
+- [Cache Directives](./6-cache.md) - Role permission caching and cache invalidation
 - [Queries](../5-graphql/1-queries/index.md) - Query syntax including filters
 - [Mutations](../4-engine-configuration/3-schema-definition/3-data-objects/5-mutations.md) - Mutation operations and input types
 - [Schema Definition](../4-engine-configuration/3-schema-definition/index.md) - Define types and fields

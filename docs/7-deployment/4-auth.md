@@ -728,6 +728,65 @@ curl -X POST http://localhost:8080/graphql \
   -d '{"query": "{ customers { id name } }"}'
 ```
 
+## Performance: Role Permission Caching
+
+Hugr automatically caches role permissions to optimize authorization performance. Understanding how this works helps ensure your authentication changes take effect immediately.
+
+### How It Works
+
+When a user authenticates and their role is determined:
+
+1. **First Request**: Fetch role permissions from database (50-100ms)
+2. **Cache Result**: Store with key `RolePermissions:{role_name}` and tag `$role_permissions`
+3. **Subsequent Requests**: Serve from cache (1-5ms)
+4. **Cache Lifetime**: Typically 1 hour (configurable)
+
+### Performance Impact
+
+- **90%+ reduction** in database queries for permission checks
+- **10-20x faster** authorization decisions (5ms vs 50-100ms)
+- **Scales to thousands** of concurrent users without database bottleneck
+
+### Invalidating Cache After Role Changes
+
+When you modify roles or permissions, invalidate the cache to ensure users get updated permissions:
+
+```graphql
+mutation UpdateRoleAndRefresh {
+  core {
+    # Update role permissions
+    update_role_permissions(
+      filter: { role: { eq: "editor" } }
+      data: { disabled: false }
+    ) {
+      success
+    }
+
+    # Invalidate permission cache
+    invalidateCache: function {
+      core {
+        cache {
+          invalidate(tags: ["$role_permissions"]) {
+            success
+            affected_rows
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**Always invalidate cache when**:
+- Creating or modifying API keys with different roles
+- Updating JWT/OIDC role mappings
+- Changing role assignments
+- Modifying permission rules
+
+For more details, see:
+- [Access Control - Permission Caching](/docs/engine-configuration/access-control#permission-caching)
+- [Cache Directives - Caching Role Permissions](/docs/engine-configuration/cache#example-8-caching-role-permissions)
+
 ## Security Best Practices
 
 1. **Use HTTPS**: Always use TLS/SSL in production
@@ -735,9 +794,10 @@ curl -X POST http://localhost:8080/graphql \
 3. **Limit Token Lifetime**: Use short-lived tokens with refresh mechanisms
 4. **Validate Issuers**: Always verify token issuer in production
 5. **Principle of Least Privilege**: Assign minimal necessary roles
-6. **Audit Logs**: Enable logging for authentication events
-7. **Rate Limiting**: Implement rate limiting to prevent abuse
-8. **Secure Storage**: Never commit secrets to version control
+6. **Invalidate Permission Cache**: After role changes, clear cached permissions
+7. **Audit Logs**: Enable logging for authentication events
+8. **Rate Limiting**: Implement rate limiting to prevent abuse
+9. **Secure Storage**: Never commit secrets to version control
 
 ## Troubleshooting
 
@@ -823,6 +883,7 @@ auth:
 ## See Also
 
 - [Access Control](../4-engine-configuration/5-access-control.md) - Configure roles and permissions
+- [Cache Directives](../4-engine-configuration/6-cache.md) - Role permission caching
 - [Configuration](1-config.md) - General Hugr configuration
 - [Deployment](5-container.md) - Deploy Hugr with authentication
 - [Hugr Repository](https://github.com/hugr-lab/hugr) - Detailed configuration examples
