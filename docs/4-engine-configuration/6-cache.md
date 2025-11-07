@@ -2,7 +2,7 @@
 title: "Cache Directives and Functions"
 sidebar_position: 7
 description: Control caching behavior with @cache, @no_cache, @invalidate_cache directives and core.cache.invalidate() function
-keywords: [cache, caching, @cache, @no_cache, @invalidate_cache, core.cache, invalidate, performance, ttl, tags]
+keywords: [cache, caching, "@cache", "@no_cache", "@invalidate_cache", core.cache, invalidate, performance, ttl, tags]
 ---
 
 # Cache Directives and Functions
@@ -1882,11 +1882,11 @@ Pre-populate cache to improve initial performance:
 Track these metrics:
 
 1. **Cache Hit Ratio**: `(cache_hits / total_requests) * 100`
-   - Target: >70% for frequently-accessed data
+   - Target: &gt;70% for frequently-accessed data
 
 2. **Average Response Time**:
-   - Cached: <10ms
-   - Uncached: >50ms
+   - Cached: &lt;10ms
+   - Uncached: &gt;50ms
 
 3. **Cache Memory Usage**:
    - Monitor L1 cache size
@@ -2188,9 +2188,8 @@ query B { products(filter: { category: "books" }) @cache(ttl: 300) { id } }
 - **[Deployment - Caching Configuration](/docs/deployment/caching)**: L1/L2 cache setup, Redis/Memcached configuration
 - **[Directives Reference](/docs/references/directives)**: Complete directive reference including `@cache`, `@no_cache`, `@invalidate_cache`
 - **[JQ Transformations - Caching queryHugr()](/docs/graphql/jq-transformations#caching-queryhugr-results)**: Using `@cache` in nested queries within JQ expressions
-- **[Function Modules](/docs/graphql/functions)**: Information about `core.cache.invalidate()` and other built-in functions
+- **[Function Calls](/docs/graphql/queries/function-calls)**: Information about `core.cache.invalidate()` and other built-in functions
 - **[GraphQL Queries](/docs/graphql/queries)**: General information about querying in hugr
-- **[Performance Optimization](/docs/deployment/performance)**: General performance tuning guide
 
 ---
 
