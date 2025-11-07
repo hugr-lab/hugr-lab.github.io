@@ -7,11 +7,12 @@
 ## 📋 Completion Status
 
 - [ ] New Sections
-  - [x] JQ Transformations ✅ **COMPLETED** (2025-11-06)
+  - [x] JQ Transformations ✅ **COMPLETED** (2025-11-07)
   - [ ] Python Client (hugr-client)
   - [ ] Hugr IPC Protocol
-  - [ ] REST API endpoint /jq-query
+  - [x] REST API endpoint /jq-query ✅ **COMPLETED** (2025-11-07)
 - [ ] Enhancement of Existing Sections
+  - [x] Update Overview ✅ **COMPLETED** (2025-11-07)
   - [ ] Update examples
   - [ ] Expand reference sections
 - [ ] New Examples
@@ -327,9 +328,9 @@ FORMAT:
 
 ### 4. REST API Endpoint /jq-query
 
-**File:** `docs/6-querying/5-jq-endpoint.md` or include in `docs/6-querying/2-graphql.md`
+**File:** `docs/6-querying/5-jq-endpoint.md`
 
-**Status:** ❌ Not created
+**Status:** ✅ **COMPLETED** (2025-11-07)
 
 **Description:** Documentation for the REST endpoint /jq-query for executing GraphQL queries with JQ transformation.
 
@@ -526,7 +527,7 @@ FORMAT:
 
 **File:** `docs/1-overview.md`
 
-**Status:** ⚠️ Needs enhancement
+**Status:** ✅ **COMPLETED** (2025-11-07)
 
 **Description:** Add JQ transformations to the "Advanced Features" section.
 

@@ -92,9 +92,18 @@ hugr is optimized for analytical workloads:
 
 **Result Transformation**:
 
-- Server-side jq transformations
-- Customize JSON output formats per client requirements
-- Aggregate, flatten, or nest results as needed
+Hugr provides powerful server-side JQ transformations for flexible data processing:
+
+- **Built-in jq() GraphQL query**: Transform results inline within GraphQL queries
+- **REST /jq-query endpoint**: Standalone transformations with HTTP caching headers
+- **Access GraphQL variables**: Use query variables in JQ expressions with `$var_name` syntax
+- **queryHugr() function**: Execute nested GraphQL queries from within JQ for data enrichment
+- **Caching support**: Cache transformation results with `@cache` directive or HTTP headers
+- **Flexible output formats**: Customize JSON structure per client requirements
+- **Data aggregation**: Group, filter, and aggregate results on the server
+- **HTTP function transformations**: Apply JQ to REST API responses in data source functions
+
+Learn more in [JQ Transformations](./5-graphql/4-jq-transformations.md) and [JQ Query Endpoint](./6-querying/5-jq-endpoint.md) documentation.
 
 **Security & Access Control**:
 
