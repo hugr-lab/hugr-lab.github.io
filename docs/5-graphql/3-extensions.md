@@ -7,7 +7,7 @@ keywords: [graphql, extensions, jq, stats, performance, metrics]
 
 # GraphQL Extensions
 
-GraphQL Extensions in Hugr provide a standardized way to return additional metadata, transformation results, and performance metrics alongside query responses. Extensions appear in the `extensions` field of the GraphQL response and complement the main `data` field.
+GraphQL Extensions in Hugr provide a standardized way to return transformation results and performance metrics alongside query responses. Extensions appear in the `extensions` field of the GraphQL response and complement the main `data` field.
 
 ## Overview
 
@@ -16,7 +16,6 @@ GraphQL Extensions in Hugr provide a standardized way to return additional metad
 GraphQL Extensions are additional data returned in the response that don't fit into the standard `data` field. In Hugr, extensions are used to return:
 - **JQ transformation results**: Results of server-side data transformations
 - **Performance statistics**: Query execution metrics and timings
-- **Metadata**: Additional information about query execution
 
 ### Extension Format
 
