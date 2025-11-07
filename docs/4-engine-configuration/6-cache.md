@@ -827,8 +827,11 @@ extend type Function {
   ): OperationResult @function(name: "invalidate_cache", skip_null_arg: true) @module(name: "core.cache")
 }
 
-type OperationResult {
-  success: Boolean!
+type OperationResult @system {
+  success: Boolean
+  affected_rows: BigInt
+  last_id: BigInt
+  message: String
 }
 ```
 
@@ -856,8 +859,14 @@ query {
 
 #### Return Value
 
-Returns `OperationResult` with:
-- `success`: `true` if invalidation succeeded, `false` otherwise
+Returns `OperationResult` with the following fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | Boolean | `true` if invalidation succeeded, `false` otherwise |
+| `affected_rows` | BigInt | Number of cache entries invalidated (may be null) |
+| `last_id` | BigInt | Not applicable for cache operations (typically null) |
+| `message` | String | Optional message with additional information about the operation |
 
 #### Examples
 
@@ -876,6 +885,8 @@ mutation UpdateProducts($input: ProductInput!) {
       cache {
         invalidate(tags: ["products"]) {
           success
+          affected_rows
+          message
         }
       }
     }
@@ -1000,7 +1011,7 @@ mutation OnDataImport($status: String!) {
    }
    ```
 
-3. **Check Success Status**: Verify invalidation succeeded
+3. **Check Success Status**: Verify invalidation succeeded and review affected entries
    ```graphql
    mutation {
      result: function {
@@ -1008,12 +1019,15 @@ mutation OnDataImport($status: String!) {
          cache {
            invalidate(tags: ["orders"]) {
              success
+             affected_rows
+             message
            }
          }
        }
      }
    }
    # Check result.function.core.cache.invalidate.success
+   # Optionally log result.function.core.cache.invalidate.affected_rows
    ```
 
 4. **Use Hierarchical Tags**: Invalidate at different levels
