@@ -9,6 +9,10 @@ keywords: [jq, transformations, server-side, graphql, data processing]
 
 Hugr supports powerful server-side JQ transformations to transform GraphQL query results before they are returned to the client. This enables flexible data processing, restructuring, filtering, and enrichment without requiring client-side logic.
 
+:::tip
+JQ transformation results are returned in the `extensions` field of the GraphQL response. See [GraphQL Extensions](/docs/graphql/extensions) for more information about the extension format and how to combine JQ with performance stats.
+:::
+
 ## Overview
 
 ### What are JQ Transformations in Hugr?
@@ -100,12 +104,7 @@ query {
 ```json
 {
   "data": {
-    "jq": {
-      "users": [
-        {"id": 1, "name": "Alice", "email": "alice@example.com", "created_at": "2024-01-01"},
-        {"id": 2, "name": "Bob", "email": "bob@example.com", "created_at": "2024-01-02"}
-      ]
-    }
+    "jq": null
   },
   "extensions": {
     "jq": {
@@ -157,10 +156,10 @@ query {
 
 The `include_origin` parameter controls whether the original query results are included in the `data` section within the `jq` query response:
 
-- **include_origin: true** (default): Original query results are included in `data.jq.<field>`
-- **include_origin: false**: The `data.jq` section is cleared/empty
+- **include_origin: false** (default): The `data.jq` section is null/empty
+- **include_origin: true**: Original query results are included in `data.jq.<field>`
 
-#### Example with include_origin: true (default)
+#### Example with include_origin: true
 
 ```graphql
 query {
@@ -238,12 +237,7 @@ query {
 ```json
 {
   "data": {
-    "userCount": {
-      "users": [
-        {"id": 1, "name": "Alice"},
-        {"id": 2, "name": "Bob"}
-      ]
-    }
+    "userCount": null
   },
   "extensions": {
     "jq": {
@@ -271,12 +265,7 @@ query {
 ```json
 {
   "data": {
-    "stats": {
-      "users": [
-        {"id": 1, "name": "Alice", "active": true},
-        {"id": 2, "name": "Bob", "active": false}
-      ]
-    }
+    "stats": null
   },
   "extensions": {
     "jq": {
@@ -291,8 +280,8 @@ query {
 
 ### Where Results are Located
 
-- **Original query results**: In `data.jq.<field>` (or `data.<alias>.<field>` when using aliases) when `include_origin: true`
-- **Original query results**: Empty `data.jq` (or `data.<alias>`) when `include_origin: false`
+- **Original query results**: `data.jq` (or `data.<alias>`) is `null` when `include_origin: false` (default)
+- **Original query results**: In `data.jq.<field>` (or `data.<alias>.<field>`) when `include_origin: true`
 - **Transformation result**: Always in `extensions.jq.jq` (or `extensions.jq.<alias>` when using aliases)
 - **Result format**: Array or object depending on the JQ expression output
 

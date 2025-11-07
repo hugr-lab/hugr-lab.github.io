@@ -132,39 +132,6 @@ mutation {
 }
 ```
 
-### Batch Insert
-
-Insert multiple records at once:
-
-```graphql
-mutation {
-  insert_products_batch(data: [
-    {
-      name: "Product A"
-      sku: "PROD-A-001"
-      price: 29.99
-      category_id: 5
-    }
-    {
-      name: "Product B"
-      sku: "PROD-B-001"
-      price: 39.99
-      category_id: 5
-    }
-    {
-      name: "Product C"
-      sku: "PROD-C-001"
-      price: 49.99
-      category_id: 6
-    }
-  ]) {
-    affected_rows
-    success
-    message
-  }
-}
-```
-
 ## Update Mutations
 
 ### Basic Update
@@ -522,9 +489,11 @@ Relations cannot be updated through update mutations. To modify relations, use s
 
 ## Auto-Generated Values
 
+Hugr supports automatic value generation for fields using the [`@default` directive](/docs/references/directives#default). This includes sequences, default values, and SQL expressions.
+
 ### Sequences and Auto-Increment
 
-Fields with sequences or auto-increment are automatically populated:
+Fields with sequences or auto-increment are automatically populated using the `@default` directive with `sequence` parameter:
 
 ```graphql
 type orders @table(name: "orders") {
@@ -552,7 +521,11 @@ mutation {
 
 ### Default Values
 
-Fields with default values are optional in mutations:
+Fields with default values are optional in mutations. The `@default` directive supports several types of defaults:
+
+- **Static values**: `@default(value: "pending")` - A constant value
+- **Insert expressions**: `@default(insert_exp: "NOW()")` - SQL expression evaluated on insert
+- **Update expressions**: `@default(update_exp: "NOW()")` - SQL expression evaluated on update
 
 ```graphql
 type customers @table(name: "customers") {
@@ -564,6 +537,10 @@ type customers @table(name: "customers") {
   )
 }
 ```
+
+:::tip
+Default expressions (`insert_exp` and `update_exp`) are executed as SQL expressions on the database side. See [Tables - Default Values](/docs/engine-configuration/schema-definition/data-objects/tables#default-values-and-sequences) for more details on supported expressions and [@default directive reference](/docs/references/directives#default) for all parameters.
+:::
 
 ```graphql
 mutation {
@@ -694,72 +671,350 @@ mutation {
 
 See [Vector Search](./1-queries/11-vector-search.md) for more details on semantic search.
 
-## Error Handling
+## Access Control and Permissions
 
-### Constraint Violations
+Hugr provides role-based access control (RBAC) for mutations through the `role_permissions` table in the `core` module. You can restrict who can perform insert, update, and delete operations, apply mandatory filters, and enforce default values.
 
-If a mutation violates database constraints (unique, foreign key, not null), Hugr returns an error:
+:::tip
+Access control is managed through the GraphQL API by inserting/updating records in the `core.roles` and `core.role_permissions` tables. Mutations are accessed through the `core` mutation type (the mutation type for the `core` module). See [Access Control](../4-engine-configuration/5-access-control.md) for complete documentation.
+:::
+
+### How Mutation Permissions Work
+
+Permissions are configured in the `role_permissions` table with the following key fields:
+
+- **role**: The role name (e.g., "user", "admin", "editor")
+- **type_name**: The GraphQL type name (e.g., "Mutation", "Query", or module-specific types)
+- **field_name**: The field name within the type (e.g., "insert_articles", "update_users") or `"*"` for all fields
+- **disabled**: When `true`, blocks access completely
+- **filter**: Mandatory filter automatically applied to update/delete mutations (row-level security)
+- **data**: Default values automatically injected into insert/update mutations
+
+### Understanding type_name and Module Types
+
+The `type_name` field in permissions refers to the **GraphQL type name**, not the mutation or query name. For each module in your schema, Hugr generates separate GraphQL types:
+
+**For the default module (no module name):**
+- **Query type**: `"Query"` - Contains all query fields
+- **Mutation type**: `"Mutation"` - Contains all mutation fields (insert_, update_, delete_)
+- **Function type**: `"Function"` - Contains all function fields
+- **MutationFunction type**: `"MutationFunction"` - Contains all mutating function fields
+
+**For named modules:**
+- **Query type**: `"_module_<module_name>_query"` - Example: `"_module_core_query"`
+- **Mutation type**: `"_module_<module_name>_mutation"` - Example: `"_module_core_mutation"`
+- **Function type**: `"_module_<module_name>_function"` - Example: `"_module_core_function"`
+- **MutationFunction type**: `"_module_<module_name>_function_mutation"` - Example: `"_module_core_function_mutation"`
+
+For nested modules, dots are replaced with underscores: `sales.reports` becomes `"_module_sales_reports_mutation"`.
+
+**Examples:**
 
 ```graphql
+# Restrict a specific mutation in the default Mutation type
 mutation {
-  insert_customers(data: {
-    name: "John Doe"
-    email: "existing@example.com"  # Duplicate email
-  }) {
-    id
+  core {
+    insert_role_permissions(data: {
+      role: "editor"
+      type_name: "Mutation"              # The GraphQL type
+      field_name: "insert_articles"      # The mutation field
+      disabled: false
+    })
+  }
+}
+
+# Block all mutations globally
+mutation {
+  core {
+    insert_role_permissions(data: {
+      role: "readonly"
+      type_name: "Mutation"              # The GraphQL type
+      field_name: "*"                    # All mutation fields
+      disabled: true
+    })
+  }
+}
+
+# Restrict a query in the core module
+mutation {
+  core {
+    insert_role_permissions(data: {
+      role: "user"
+      type_name: "_module_core_query"    # Query type for core module
+      field_name: "roles"                # The query field
+      disabled: true
+    })
   }
 }
 ```
 
-Response:
-```json
-{
-  "errors": [
-    {
-      "message": "duplicate key value violates unique constraint \"customers_email_key\"",
-      "path": ["insert_customers"],
-      "extensions": {
-        "code": "CONSTRAINT_VIOLATION"
-      }
+See [Module Organization](/docs/engine-configuration/schema-definition/modules) for more details on how modules work.
+
+### Restricting Mutations by Role
+
+**Example: Block all mutations for readonly role**
+
+```graphql
+mutation {
+  core {  # Mutation type for the core module
+    insert_role_permissions(data: {  # Mutation field
+      role: "readonly"
+      type_name: "Mutation"
+      field_name: "*"
+      disabled: true
+    }) {
+      role
+      type_name
     }
-  ]
+  }
 }
 ```
 
-### Validation Errors
+This blocks all mutations for users with the `readonly` role.
 
-Invalid input data returns validation errors:
+**Example: Allow specific mutations only**
 
-```json
-{
-  "errors": [
-    {
-      "message": "Field 'email' is required but not provided",
-      "path": ["insert_customers"],
-      "extensions": {
-        "code": "BAD_USER_INPUT"
-      }
+```graphql
+mutation {
+  core {  # Mutation type for the core module
+    # Block all mutations
+    blockAll: insert_role_permissions(data: {
+      role: "contributor"
+      type_name: "Mutation"
+      field_name: "*"
+      disabled: true
+    }) {
+      role
     }
-  ]
+
+    # But allow insert_articles
+    allowInsert: insert_role_permissions(data: {
+      role: "contributor"
+      type_name: "Mutation"
+      field_name: "insert_articles"
+      disabled: false
+    }) {
+      role
+    }
+  }
 }
 ```
 
-### Transaction Failures
+Due to permission priority (exact match wins over wildcard), the `contributor` role can only execute `insert_articles` mutations.
 
-If any mutation in a transaction fails, all operations are rolled back:
+### Enforcing Default Values
 
-```json
-{
-  "errors": [
-    {
-      "message": "Transaction rolled back due to constraint violation in update_inventory",
-      "extensions": {
-        "code": "TRANSACTION_FAILED"
+Use the `data` field to automatically inject values into mutations that cannot be overridden by the user:
+
+**Example: Auto-set author on article creation**
+
+```graphql
+mutation {
+  core {  # Mutation type for the core module
+    insert_role_permissions(data: {
+      role: "editor"
+      type_name: "Mutation"
+      field_name: "insert_articles"
+      data: {
+        author_id: "[$auth.user_id]"
+        status: "draft"
+        created_by: "[$auth.user_name]"
       }
+    }) {
+      role
+      type_name
     }
-  ]
+  }
 }
 ```
+
+When an `editor` inserts an article, these values are automatically set:
+- `author_id` is set to the authenticated user's ID
+- `status` is always set to `"draft"`
+- `created_by` is set to the user's name
+
+**Authentication variables** like `[$auth.user_id]` and `[$auth.user_name]` are dynamically replaced with the authenticated user's information.
+
+### Row-Level Security with Filters
+
+Use the `filter` field to restrict which rows can be modified by update and delete mutations:
+
+**Example: Users can only modify their own documents**
+
+```graphql
+mutation {
+  core {  # Mutation type for the core module
+    # Restrict update_documents
+    update: insert_role_permissions(data: {
+      role: "user"
+      type_name: "Mutation"
+      field_name: "update_documents"
+      filter: {
+        owner_id: { eq: "[$auth.user_id]" }
+      }
+    }) {
+      role
+    }
+
+    # Restrict delete_documents
+    delete: insert_role_permissions(data: {
+      role: "user"
+      type_name: "Mutation"
+      field_name: "delete_documents"
+      filter: {
+        owner_id: { eq: "[$auth.user_id]" }
+      }
+    }) {
+      role
+    }
+  }
+}
+```
+
+When a `user` executes an update or delete:
+
+```graphql
+mutation {
+  # User's mutation
+  delete_documents(filter: { id: { eq: 123 } }) {
+    affected_rows
+  }
+}
+```
+
+The mandatory filter is automatically merged, so the actual filter becomes:
+```json
+{
+  "id": { "eq": 123 },
+  "owner_id": { "eq": "<current_user_id>" }
+}
+```
+
+This ensures users can only modify their own documents, even if they try to specify different IDs.
+
+### Complete Example: Multi-Tenant Application
+
+```graphql
+mutation {
+  core {  # Mutation type for the core module
+    insert_roles(data: {
+      name: "tenant_user"
+      description: "User within a tenant organization"
+      permissions: [
+        # Users can only see their tenant's customers
+        {
+          type_name: "Query"
+          field_name: "customers"
+          filter: {
+            tenant_id: { eq: "[$auth.tenant_id]" }
+          }
+        }
+        # Auto-set tenant_id on insert
+        {
+          type_name: "Mutation"
+          field_name: "insert_customers"
+          data: {
+            tenant_id: "[$auth.tenant_id]"
+          }
+        }
+        # Can only update own tenant's customers
+        {
+          type_name: "Mutation"
+          field_name: "update_customers"
+          filter: {
+            tenant_id: { eq: "[$auth.tenant_id]" }
+          }
+        }
+        # Can only delete own tenant's customers
+        {
+          type_name: "Mutation"
+          field_name: "delete_customers"
+          filter: {
+            tenant_id: { eq: "[$auth.tenant_id]" }
+          }
+        }
+      ]
+    }) {
+      name
+      permissions {
+        type_name
+        filter
+        data
+      }
+    }
+  }
+}
+```
+
+### Authentication Variables
+
+Available variables for use in `filter` and `data` fields:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `[$auth.user_id]` | User ID (string) | "12345" |
+| `[$auth.user_id_int]` | User ID (integer) | 12345 |
+| `[$auth.user_name]` | Username | "john.doe" |
+| `[$auth.role]` | User's role | "editor" |
+| `[$auth.auth_type]` | Authentication type | "jwt", "apikey" |
+
+You can also reference custom JWT claims like `[$auth.tenant_id]`, `[$auth.department_id]`, etc.
+
+### Permission Priority
+
+When multiple permissions match, Hugr uses the **most specific** one:
+
+1. **Exact match**: `(type_name: "insert_users", field_name: "email")`
+2. **Type with wildcard field**: `(type_name: "insert_users", field_name: "*")`
+3. **Wildcard type with exact field**: `(type_name: "*", field_name: "email")`
+4. **Both wildcards**: `(type_name: "*", field_name: "*")`
+5. **No match**: Allowed by default
+
+This allows you to create broad rules with specific exceptions.
+
+### See Also
+
+- [Access Control](../4-engine-configuration/5-access-control.md) - Complete RBAC documentation
+- [Authentication Setup](../7-deployment/4-auth.md) - Configure authentication
+- [Filtering](./1-queries/3-filtering.md) - Filter syntax for row-level security
+
+## Error Handling
+
+### How Error Handling Works
+
+Hugr transforms GraphQL mutations into SQL statements and executes them against the data source. Error handling works as follows:
+
+**Schema Validation (by Hugr)**:
+- **Type checking**: Field values must match declared types (String, Int, Boolean, etc.)
+- **Required fields**: Non-nullable fields marked with `!` must be provided
+- **Field existence**: Only fields defined in the schema can be used
+- **Input structure**: Mutation input must match generated input types
+
+**Database Errors (from data source)**:
+- All other validation is delegated to the underlying database
+- Constraint violations, foreign key errors, and business logic errors are returned directly from the database
+- No additional validation layer is applied by Hugr
+
+### Error Types
+
+Errors from mutations fall into two categories:
+
+1. **Schema Validation Errors** - Caught by Hugr before executing the query:
+   - Type mismatches (e.g., passing string when Float! is expected)
+   - Missing required fields
+   - Unknown fields not in schema
+   - Invalid input structure
+
+2. **Database Errors** - Returned directly from the database:
+   - Constraint violations (unique, foreign key, not null, check)
+   - Permission/access errors
+   - Database-specific validation errors
+
+The error message format and content depends on the underlying database (PostgreSQL, MySQL, DuckDB, etc.).
+
+### Transaction Behavior
+
+When multiple mutations are executed in a single request, they run within a database transaction. If any mutation fails, the entire transaction is rolled back automatically. This ensures data consistency across related operations.
 
 ## Filter Operators
 
@@ -843,30 +1098,6 @@ mutation {
 }
 ```
 
-### Use Batch Operations
-
-For multiple inserts, use batch operations for better performance:
-
-```graphql
-# Good: Single batch operation
-mutation {
-  insert_products_batch(data: [
-    { name: "Product 1", price: 10 }
-    { name: "Product 2", price: 20 }
-    { name: "Product 3", price: 30 }
-  ]) {
-    affected_rows
-  }
-}
-
-# Avoid: Multiple single inserts
-mutation {
-  p1: insert_products(data: { name: "Product 1", price: 10 }) { id }
-  p2: insert_products(data: { name: "Product 2", price: 20 }) { id }
-  p3: insert_products(data: { name: "Product 3", price: 30 }) { id }
-}
-```
-
 ### Validate Input Data
 
 Validate data on the client side before sending mutations to reduce errors:
@@ -943,6 +1174,9 @@ mutation {
 ## See Also
 
 - [Mutations Definition](../4-engine-configuration/3-schema-definition/3-data-objects/5-mutations.md) - Learn how to define mutations in schema
+- [Access Control](../4-engine-configuration/5-access-control.md) - Role-based permissions, default values, and mandatory filters
+- [Tables - Default Values](../4-engine-configuration/3-schema-definition/3-data-objects/2-tables.md#default-values-and-sequences) - Default expressions and auto-generated values
+- [@default Directive](../8-references/1-directives.md#default) - Complete reference for @default directive
 - [Filtering](./1-queries/3-filtering.md) - Complete guide to filter operators
 - [Relations](./1-queries/5-relations.md) - Working with related data
 - [Cache Directives](../4-engine-configuration/6-cache.md) - Cache management

@@ -36,6 +36,101 @@ type total_sales @view(name: "total_sales_view") @module(name: "sales.reports") 
 
 This structure allows you to organize your schema in a way that reflects the logical grouping of your data and operations.
 
+## Generated GraphQL Types
+
+When you define modules in your schema, Hugr automatically generates separate GraphQL types for queries, mutations, and functions within each module. Understanding these type names is important when configuring access control and permissions.
+
+### Type Naming Convention
+
+For each module, Hugr creates the following GraphQL types:
+
+**For the default module (no `@module` directive):**
+- **Query type**: `"Query"` - Contains all query fields (tables, views, aggregations)
+- **Mutation type**: `"Mutation"` - Contains all mutation fields (insert_, update_, delete_)
+- **Function type**: `"Function"` - Contains all read-only function fields
+- **MutationFunction type**: `"MutationFunction"` - Contains all mutating function fields
+
+**For named modules:**
+
+The type name follows the pattern: `_module_<module_name>_<suffix>`
+
+Where suffix is:
+- `_query` for query types
+- `_mutation` for mutation types
+- `_function` for function types
+- `_function_mutation` for mutating function types
+
+**Examples:**
+- Module `crm` → Query type: `"_module_crm_query"`
+- Module `crm` → Mutation type: `"_module_crm_mutation"`
+- Module `crm` → Function type: `"_module_crm_function"`
+- Module `core` → Query type: `"_module_core_query"`
+- Module `core` → Mutation type: `"_module_core_mutation"`
+
+**For nested modules:**
+
+Dots in module names are replaced with underscores:
+- Module `sales.reports` → Query type: `"_module_sales_reports_query"`
+- Module `sales.reports` → Mutation type: `"_module_sales_reports_mutation"`
+- Module `data.analytics.metrics` → Query type: `"_module_data_analytics_metrics_query"`
+
+### Usage in Access Control
+
+These type names are used when configuring role-based access control (RBAC) permissions. The `type_name` field in permissions refers to these generated GraphQL types:
+
+```graphql
+mutation {
+  core {
+    # Restrict access to all queries in the crm module
+    insert_role_permissions(data: {
+      role: "external_api"
+      type_name: "_module_crm_query"     # Query type for crm module
+      field_name: "*"                     # All query fields
+      disabled: true
+    }) {
+      role
+      type_name
+    }
+  }
+}
+```
+
+```graphql
+mutation {
+  core {
+    # Allow only specific mutation in sales.reports module
+    insert_role_permissions(data: {
+      role: "analyst"
+      type_name: "_module_sales_reports_mutation"  # Mutation type for sales.reports module
+      field_name: "insert_report_data"             # Specific mutation field
+      disabled: false
+    }) {
+      role
+      type_name
+    }
+  }
+}
+```
+
+```graphql
+mutation {
+  core {
+    # Block all mutations in default module
+    insert_role_permissions(data: {
+      role: "readonly"
+      type_name: "Mutation"               # Default module Mutation type
+      field_name: "*"                     # All mutation fields
+      disabled: true
+    }) {
+      role
+      type_name
+    }
+  }
+}
+```
+
+See [Access Control](/docs/engine-configuration/access-control) for complete documentation on configuring permissions with module types.
+
 ## Querying with Modules
 
 When querying data that is organized into modules, you will need to include the module names in your queries. For example, to query the `customers` table in the `crm` module, you would write:
