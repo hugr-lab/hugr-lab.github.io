@@ -44,7 +44,7 @@ The Queries section covers all aspects of data retrieval through the GraphQL API
 - **Generated Fields**: Use automatically generated transformation fields
 - **Cube & Hypertable**: Query OLAP cubes and time-series data
 
-[Explore Queries Documentation →](./1-queries/)
+[Explore Queries Documentation →](./1-queries/index.md)
 
 ### 2. Mutations
 
@@ -235,7 +235,7 @@ The GraphQL API respects all authentication rules configured for the hugr instan
 - **Disabled Fields**: Fields marked as `disabled: true` are completely inaccessible
 - **Anonymous Access**: Optional support for public, unauthenticated access
 
-See [Access Control Documentation](../engine-configuration/access-control.md) for configuration details.
+See [Access Control Documentation](../4-engine-configuration/5-access-control.md) for configuration details.
 
 ## Performance Best Practices
 
