@@ -283,19 +283,23 @@ Content-Type: application/json
 
 ### GraphQL to Arrow Type Mapping
 
-| GraphQL Type | Arrow Type | Notes |
-|-------------|------------|-------|
-| `ID` | `String` or `Int64` | Depends on actual value type |
-| `String` | `Utf8` | UTF-8 encoded strings |
-| `Int` | `Int32` | 32-bit signed integer |
-| `BigInt` | `Int64` | 64-bit signed integer |
-| `Float` | `Float64` | 64-bit floating point |
-| `Boolean` | `Boolean` | True/false values |
-| `DateTime` | `Timestamp(Microsecond, UTC)` | Microsecond precision |
-| `Date` | `Date32` | Days since epoch |
-| `Time` | `Time64(Microsecond)` | Time of day |
-| `JSON` | `Utf8` | JSON string |
-| `UUID` | `Utf8` | UUID string |
+DuckDB exports data using its Arrow C-API. The following table shows how Hugr GraphQL types map to Arrow types via DuckDB:
+
+| GraphQL Type | DuckDB Type | Arrow Type | Notes |
+|-------------|-------------|------------|-------|
+| `ID` | `BIGINT` or `VARCHAR` | `Int64` or `Utf8` | Depends on actual value type |
+| `String` | `VARCHAR` | `Utf8` | UTF-8 encoded strings |
+| `Int` | `INTEGER` | `Int32` | 32-bit signed integer |
+| `BigInt` | `BIGINT` | `Int64` | 64-bit signed integer |
+| `Float` | `DOUBLE` | `Float64` | 64-bit floating point |
+| `Boolean` | `BOOLEAN` | `Boolean` | True/false values |
+| `Timestamp` | `TIMESTAMP` | `Timestamp(Microsecond, None)` | Microsecond precision, no timezone |
+| `Date` | `DATE` | `Date32` | Days since epoch (1970-01-01) |
+| `Time` | `TIME` | `Time64(Microsecond)` | Microseconds since midnight |
+| `Interval` | `INTERVAL` | `Interval(MonthDayNano)` | Months, days, and nanoseconds components |
+| `JSON` | `VARCHAR` | `Utf8` | JSON as string |
+| `H3Cell` | `UBIGINT` | `UInt64` | H3 cell index as unsigned 64-bit integer |
+| `Vector` | `FLOAT[]` | `List<Float32>` | Array of floats for embeddings |
 
 ### Nullable vs Non-Nullable
 
@@ -399,16 +403,21 @@ Response format: JSON with GeoJSON geometry
 JSON response (loses precision):
 ```json
 {
-  "timestamp": "2025-01-15T10:30:45.123456Z",  // String
-  "value": 123.456789012345678  // Rounded float
+  "timestamp": "2025-01-15T10:30:45.123456",  // String representation
+  "value": 123.456789012345678  // May lose precision in JSON
 }
 ```
 
-Arrow IPC (preserves types):
+Arrow IPC (preserves types and precision):
 ```
-timestamp: Timestamp(Microsecond, UTC) = 1736938245123456
-value: Float64 = 123.456789012345678
+timestamp: Timestamp(Microsecond, None) = 1736938245123456  // DuckDB TIMESTAMP (microseconds)
+value: Float64 = 123.456789012345678  // Full precision maintained
 ```
+
+**Key differences**:
+- Arrow preserves exact microsecond timestamp values as INT64
+- Arrow maintains full Float64 precision without JSON serialization loss
+- DuckDB TIMESTAMP type does not include timezone information (stored as UTC)
 
 ## WebSocket Streaming Protocol
 
@@ -858,7 +867,7 @@ Content-Type: application/json
 - Scales well with large datasets
 
 **Considerations**:
-- Small overhead for very small datasets (<100 rows)
+- Small overhead for very small datasets (less than 100 rows)
 - Requires client-side Arrow library
 - Binary format (not human-readable)
 
