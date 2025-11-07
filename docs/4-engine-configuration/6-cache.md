@@ -1631,7 +1631,9 @@ Cache directives seamlessly integrate with hugr's [caching infrastructure](/docs
 
 ### How Directives Interact with L1/L2 Cache
 
-When you use `@cache`:
+When you use `@cache`, the behavior depends on your cache configuration:
+
+**With Both L1 and L2 Enabled** (two-tier caching):
 
 1. **First Request**:
    - Check L1 cache (in-memory)
@@ -1644,23 +1646,54 @@ When you use `@cache`:
    - If L1 expires, serve from L2 cache
    - If both expire, re-execute query
 
+**With L1 Only** (in-memory caching):
+   - Cache stored only in Hugr server memory
+   - Fast access, but not shared across multiple Hugr instances
+   - Cache lost on server restart
+
+**With L2 Only** (direct distributed caching):
+   - Cache goes directly to Redis/Memcached
+   - Shared across all Hugr instances
+   - Survives server restarts
+   - Slightly higher latency than L1, but still much faster than database
+
 ### Cache Configuration Requirements
 
-To use cache directives, enable caching in your deployment:
+To use cache directives, enable at least one cache level in your deployment. You can use L1, L2, or both:
 
+**Option 1: L1 Only (In-Memory)**
 ```bash
-# L1 Cache (In-Memory)
+# In-memory cache only
 CACHE_L1_ENABLED=true
 CACHE_L1_MAX_SIZE=512  # MB
+CACHE_TTL=5m
+```
 
-# L2 Cache (Distributed)
+**Option 2: L2 Only (Distributed)**
+```bash
+# Direct distributed cache without L1
 CACHE_L2_ENABLED=true
 CACHE_L2_BACKEND=redis
 CACHE_L2_ADDRESSES=redis:6379
-
-# Default TTL
 CACHE_TTL=5m
 ```
+
+**Option 3: Both L1 and L2 (Recommended for Production)**
+```bash
+# Two-tier caching for optimal performance
+CACHE_L1_ENABLED=true
+CACHE_L1_MAX_SIZE=512  # MB
+CACHE_L2_ENABLED=true
+CACHE_L2_BACKEND=redis
+CACHE_L2_ADDRESSES=redis:6379
+CACHE_TTL=5m
+```
+
+:::tip Configuration Choice
+- **L1 only**: Best for single-instance deployments
+- **L2 only**: Best when you need cache sharing but want to minimize Hugr server memory usage
+- **Both**: Best for high-traffic production with multiple Hugr instances
+:::
 
 See [Caching Configuration](/docs/deployment/caching) for full setup details.
 
@@ -2039,9 +2072,11 @@ query {
 
 1. **Caching not enabled**:
    ```bash
-   # Check configuration
-   CACHE_L1_ENABLED=true  # Must be true
+   # Check configuration - at least one must be enabled
+   CACHE_L1_ENABLED=true  # For in-memory cache
+   # OR
    CACHE_L2_ENABLED=true  # For distributed cache
+   # OR both for two-tier caching
    ```
 
 2. **Directive missing or incorrect**:
