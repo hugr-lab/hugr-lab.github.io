@@ -2,7 +2,7 @@
     "label": "GraphQL Operations: Queries & Mutations",
     "position": 5,
     "link": {
-        "type": "generated-index",
-        "description": "Explore the core concepts of GraphQL operations, including queries and mutations. Learn how to define and execute these operations to interact with your GraphQL API effectively."
+        "type": "doc",
+        "id": "5-graphql/index"
     }
 }
