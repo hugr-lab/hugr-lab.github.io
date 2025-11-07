@@ -365,19 +365,19 @@ mutation {
       description: "Content editor with limited permissions"
       permissions: [
         {
-          type_name: "articles"
-          field_name: "*"
+          type_name: "Query"
+          field_name: "articles"
         }
         {
-          type_name: "insert_articles"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "insert_articles"
           data: {
             author_id: "[$auth.user_id]"
           }
         }
         {
-          type_name: "update_articles"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "update_articles"
           filter: {
             author_id: { eq: "[$auth.user_id]" }
           }
@@ -418,8 +418,8 @@ mutation {
     # Step 2: Add permissions for this role
     perm1: insert_role_permissions(data: {
       role: "editor"
-      type_name: "articles"
-      field_name: "*"
+      type_name: "Query"
+      field_name: "articles"
     }) {
       role
       type_name
@@ -427,8 +427,8 @@ mutation {
 
     perm2: insert_role_permissions(data: {
       role: "editor"
-      type_name: "insert_articles"
-      field_name: "*"
+      type_name: "Mutation"
+      field_name: "insert_articles"
     }) {
       role
       type_name
@@ -532,8 +532,8 @@ mutation {
   core {
     insert_role_permissions(data: {
       role: "editor"
-      type_name: "articles"
-      field_name: "*"
+      type_name: "Query"
+      field_name: "articles"
       hidden: false
       disabled: false
     }) {
@@ -655,8 +655,8 @@ mutation {
   core {
     insert_role_permissions(data: {
       role: "user"
-      type_name: "orders"
-      field_name: "*"
+      type_name: "Query"
+      field_name: "orders"
       filter: {
         user_id: { eq: "[$auth.user_id]" }
       }
@@ -677,8 +677,8 @@ mutation {
   core {
     insert_role_permissions(data: {
       role: "regional_manager"
-      type_name: "stores"
-      field_name: "*"
+      type_name: "Query"
+      field_name: "stores"
       filter: {
         region: { eq: "[$auth.user_region]" }
       }
@@ -697,8 +697,8 @@ mutation {
   core {
     insert_role_permissions(data: {
       role: "moderator"
-      type_name: "comments"
-      field_name: "*"
+      type_name: "Query"
+      field_name: "comments"
       filter: {
         _or: [
           { author_id: { eq: "[$auth.user_id]" } }
@@ -724,8 +724,8 @@ mutation {
   core {
     insert_role_permissions(data: {
       role: "user"
-      type_name: "insert_articles"
-      field_name: "*"
+      type_name: "Mutation"
+      field_name: "insert_articles"
       data: {
         author_id: "[$auth.user_id]"
         created_by: "[$auth.user_name]"
@@ -745,8 +745,8 @@ mutation {
   core {
     insert_role_permissions(data: {
       role: "editor"
-      type_name: "update_articles"
-      field_name: "*"
+      type_name: "Mutation"
+      field_name: "update_articles"
       data: {
         status: "pending_review"
         reviewed_by: null
@@ -783,8 +783,8 @@ mutation {
   core {
     insert_role_permissions(data: {
       role: "employee"
-      type_name: "departments"
-      field_name: "*"
+      type_name: "Query"
+      field_name: "departments"
       filter: {
         department_id: { eq: "[$auth.department_id]" }
       }
@@ -830,8 +830,8 @@ mutation {
   core {
     insert_role_permissions(data: {
       role: "readonly"
-      type_name: "delete_users"
-      field_name: "*"
+      type_name: "Mutation"
+      field_name: "delete_users"
       disabled: true  # Delete mutation blocked
     }) {
       role
@@ -854,29 +854,29 @@ mutation {
       description: "User within a tenant organization"
       permissions: [
         {
-          type_name: "customers"
-          field_name: "*"
+          type_name: "Query"
+          field_name: "customers"
           filter: {
             tenant_id: { eq: "[$auth.tenant_id]" }
           }
         }
         {
-          type_name: "insert_customers"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "insert_customers"
           data: {
             tenant_id: "[$auth.tenant_id]"
           }
         }
         {
-          type_name: "update_customers"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "update_customers"
           filter: {
             tenant_id: { eq: "[$auth.tenant_id]" }
           }
         }
         {
-          type_name: "delete_customers"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "delete_customers"
           filter: {
             tenant_id: { eq: "[$auth.tenant_id]" }
           }
@@ -905,22 +905,22 @@ mutation {
       description: "Read-only access to articles"
       permissions: [
         {
-          type_name: "articles"
-          field_name: "*"
+          type_name: "Query"
+          field_name: "articles"
         }
         {
-          type_name: "insert_articles"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "insert_articles"
           disabled: true
         }
         {
-          type_name: "update_articles"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "update_articles"
           disabled: true
         }
         {
-          type_name: "delete_articles"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "delete_articles"
           disabled: true
         }
       ]
@@ -935,30 +935,30 @@ mutation {
       description: "Can create and edit own articles"
       permissions: [
         {
-          type_name: "articles"
-          field_name: "*"
+          type_name: "Query"
+          field_name: "articles"
           filter: {
             author_id: { eq: "[$auth.user_id]" }
           }
         }
         {
-          type_name: "insert_articles"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "insert_articles"
           data: {
             author_id: "[$auth.user_id]"
             status: "draft"
           }
         }
         {
-          type_name: "update_articles"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "update_articles"
           filter: {
             author_id: { eq: "[$auth.user_id]" }
           }
         }
         {
-          type_name: "delete_articles"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "delete_articles"
           filter: {
             author_id: { eq: "[$auth.user_id]" }
           }

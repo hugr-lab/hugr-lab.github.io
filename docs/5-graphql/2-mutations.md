@@ -684,11 +684,71 @@ Access control is managed through the GraphQL API by inserting/updating records 
 Permissions are configured in the `role_permissions` table with the following key fields:
 
 - **role**: The role name (e.g., "user", "admin", "editor")
-- **type_name**: The mutation name (e.g., "insert_articles", "update_users", "delete_orders") or "Mutation" for all mutations
-- **field_name**: The field name or `"*"` for all fields
+- **type_name**: The GraphQL type name (e.g., "Mutation", "Query", or module-specific types)
+- **field_name**: The field name within the type (e.g., "insert_articles", "update_users") or `"*"` for all fields
 - **disabled**: When `true`, blocks access completely
 - **filter**: Mandatory filter automatically applied to update/delete mutations (row-level security)
 - **data**: Default values automatically injected into insert/update mutations
+
+### Understanding type_name and Module Types
+
+The `type_name` field in permissions refers to the **GraphQL type name**, not the mutation or query name. For each module in your schema, Hugr generates separate GraphQL types:
+
+**For the default module (no module name):**
+- **Query type**: `"Query"` - Contains all query fields
+- **Mutation type**: `"Mutation"` - Contains all mutation fields (insert_, update_, delete_)
+- **Function type**: `"Function"` - Contains all function fields
+- **MutationFunction type**: `"MutationFunction"` - Contains all mutating function fields
+
+**For named modules:**
+- **Query type**: `"_module_<module_name>_query"` - Example: `"_module_core_query"`
+- **Mutation type**: `"_module_<module_name>_mutation"` - Example: `"_module_core_mutation"`
+- **Function type**: `"_module_<module_name>_function"` - Example: `"_module_core_function"`
+- **MutationFunction type**: `"_module_<module_name>_function_mutation"` - Example: `"_module_core_function_mutation"`
+
+For nested modules, dots are replaced with underscores: `sales.reports` becomes `"_module_sales_reports_mutation"`.
+
+**Examples:**
+
+```graphql
+# Restrict a specific mutation in the default Mutation type
+mutation {
+  core {
+    insert_role_permissions(data: {
+      role: "editor"
+      type_name: "Mutation"              # The GraphQL type
+      field_name: "insert_articles"      # The mutation field
+      disabled: false
+    })
+  }
+}
+
+# Block all mutations globally
+mutation {
+  core {
+    insert_role_permissions(data: {
+      role: "readonly"
+      type_name: "Mutation"              # The GraphQL type
+      field_name: "*"                    # All mutation fields
+      disabled: true
+    })
+  }
+}
+
+# Restrict a query in the core module
+mutation {
+  core {
+    insert_role_permissions(data: {
+      role: "user"
+      type_name: "_module_core_query"    # Query type for core module
+      field_name: "roles"                # The query field
+      disabled: true
+    })
+  }
+}
+```
+
+See [Module Organization](/docs/engine-configuration/schema-definition/modules) for more details on how modules work.
 
 ### Restricting Mutations by Role
 
@@ -753,8 +813,8 @@ mutation {
   core {  # Mutation type for the core module
     insert_role_permissions(data: {
       role: "editor"
-      type_name: "insert_articles"
-      field_name: "*"
+      type_name: "Mutation"
+      field_name: "insert_articles"
       data: {
         author_id: "[$auth.user_id]"
         status: "draft"
@@ -787,8 +847,8 @@ mutation {
     # Restrict update_documents
     update: insert_role_permissions(data: {
       role: "user"
-      type_name: "update_documents"
-      field_name: "*"
+      type_name: "Mutation"
+      field_name: "update_documents"
       filter: {
         owner_id: { eq: "[$auth.user_id]" }
       }
@@ -799,8 +859,8 @@ mutation {
     # Restrict delete_documents
     delete: insert_role_permissions(data: {
       role: "user"
-      type_name: "delete_documents"
-      field_name: "*"
+      type_name: "Mutation"
+      field_name: "delete_documents"
       filter: {
         owner_id: { eq: "[$auth.user_id]" }
       }
@@ -843,32 +903,32 @@ mutation {
       permissions: [
         # Users can only see their tenant's customers
         {
-          type_name: "customers"
-          field_name: "*"
+          type_name: "Query"
+          field_name: "customers"
           filter: {
             tenant_id: { eq: "[$auth.tenant_id]" }
           }
         }
         # Auto-set tenant_id on insert
         {
-          type_name: "insert_customers"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "insert_customers"
           data: {
             tenant_id: "[$auth.tenant_id]"
           }
         }
         # Can only update own tenant's customers
         {
-          type_name: "update_customers"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "update_customers"
           filter: {
             tenant_id: { eq: "[$auth.tenant_id]" }
           }
         }
         # Can only delete own tenant's customers
         {
-          type_name: "delete_customers"
-          field_name: "*"
+          type_name: "Mutation"
+          field_name: "delete_customers"
           filter: {
             tenant_id: { eq: "[$auth.tenant_id]" }
           }
