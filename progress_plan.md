@@ -7,11 +7,13 @@
 ## 📋 Completion Status
 
 - [ ] New Sections
-  - [ ] JQ Transformations
+  - [x] JQ Transformations ✅ **COMPLETED** (2025-11-07)
   - [ ] Python Client (hugr-client)
   - [ ] Hugr IPC Protocol
-  - [ ] REST API endpoint /jq-query
+  - [x] REST API endpoint /jq-query ✅ **COMPLETED** (2025-11-07)
 - [ ] Enhancement of Existing Sections
+  - [x] Update Overview ✅ **COMPLETED** (2025-11-07)
+  - [ ] Cache Directives Documentation (@cache, @no_cache, @invalidate_cache)
   - [ ] Update examples
   - [ ] Expand reference sections
 - [ ] New Examples
@@ -26,7 +28,7 @@
 
 **File:** `docs/5-graphql/4-jq-transformations.md`
 
-**Status:** ❌ Not created
+**Status:** ✅ **COMPLETED** (2025-11-06)
 
 **Description:** Documentation on using JQ transformations to transform GraphQL query results on the server side.
 
@@ -327,9 +329,9 @@ FORMAT:
 
 ### 4. REST API Endpoint /jq-query
 
-**File:** `docs/6-querying/5-jq-endpoint.md` or include in `docs/6-querying/2-graphql.md`
+**File:** `docs/6-querying/5-jq-endpoint.md`
 
-**Status:** ❌ Not created
+**Status:** ✅ **COMPLETED** (2025-11-07)
 
 **Description:** Documentation for the REST endpoint /jq-query for executing GraphQL queries with JQ transformation.
 
@@ -526,7 +528,7 @@ FORMAT:
 
 **File:** `docs/1-overview.md`
 
-**Status:** ⚠️ Needs enhancement
+**Status:** ✅ **COMPLETED** (2025-11-07)
 
 **Description:** Add JQ transformations to the "Advanced Features" section.
 
@@ -566,9 +568,143 @@ FORMAT:
 
 ---
 
+### 8. Cache Directives Documentation
+
+**File:** `docs/4-engine-configuration/6-cache.md`
+
+**Status:** ⚠️ Nearly empty (only header)
+
+**Description:** Comprehensive documentation for cache-related GraphQL directives: @cache, @no_cache, and @invalidate_cache.
+
+**Implementation Prompt:**
+
+```
+Create comprehensive documentation for cache directives in hugr.
+
+CONTEXT:
+Hugr provides three cache-related directives to control query result caching:
+- @cache - enables caching for fields or objects
+- @no_cache - disables caching for specific queries
+- @invalidate_cache - invalidates cache for specific queries
+
+These directives work with hugr's two-level caching system (L1 in-memory and L2 distributed).
+
+DOCUMENT STRUCTURE:
+
+1. Overview
+   - What are cache directives
+   - When to use them
+   - How they integrate with L1/L2 cache system
+   - Benefits of directive-based caching
+
+2. @cache Directive
+   - Syntax and parameters (ttl, key, tags)
+   - Usage in schema definitions (automatic caching)
+   - Usage at query time (manual caching)
+   - Cache key generation
+   - TTL (time-to-live) configuration
+   - Cache tags for invalidation
+
+3. @no_cache Directive
+   - Syntax
+   - When to use
+   - Examples of bypassing cache
+   - Use cases (real-time data, user-specific data)
+
+4. @invalidate_cache Directive
+   - Syntax
+   - How it works
+   - Use cases (data mutations, forced refresh)
+   - Examples
+
+5. Schema-level Caching
+   - Applying @cache to object types
+   - Automatic cache invalidation on mutations
+   - Tags-based invalidation
+   - Examples with CRUD operations
+
+6. Query-time Caching
+   - Applying @cache to specific queries
+   - Custom cache keys
+   - Dynamic TTL
+   - Combining with filters and variables
+
+7. Cache Key Generation
+   - Automatic key generation (hash of query + variables + role)
+   - Custom keys with key parameter
+   - Role-based cache isolation
+   - Best practices for key naming
+
+8. Cache Tags and Invalidation
+   - Using tags for grouped invalidation
+   - Automatic invalidation on mutations
+   - Manual invalidation with @invalidate_cache
+   - Tag naming conventions
+
+9. Practical Examples
+   - Example 1: Cache static reference data
+   - Example 2: Cache expensive aggregations
+   - Example 3: Per-user cache isolation
+   - Example 4: Invalidate cache on data change
+   - Example 5: Mixed caching strategies
+   - Example 6: Cache with @cache in queryHugr()
+   - Example 7: Bypass cache for real-time data
+
+10. Integration with Caching Infrastructure
+    - How directives interact with L1/L2 cache
+    - Cache configuration requirements
+    - Link to deployment caching configuration
+
+11. Best Practices
+    - When to use schema-level vs query-time caching
+    - Choosing appropriate TTL values
+    - Tag organization strategies
+    - Cache key design
+    - Avoiding cache stampede
+    - Memory considerations
+
+12. Performance Considerations
+    - Cache hit ratio optimization
+    - Impact on query performance
+    - Cache warming strategies
+    - Monitoring cache effectiveness
+
+13. Common Patterns
+    - Caching read-heavy queries
+    - Cache-aside pattern
+    - Write-through caching
+    - Time-based invalidation
+    - Event-based invalidation
+
+14. Troubleshooting
+    - Cache not working
+    - Stale data issues
+    - Cache key collisions
+    - Memory pressure
+
+15. See Also
+    - Link to Caching Configuration (deployment)
+    - Link to Directives Reference
+    - Link to JQ Transformations (@cache in queryHugr)
+
+FORMAT:
+- Markdown with GitHub Flavored Markdown syntax
+- Use code blocks with graphql language
+- Add frontmatter with title: "Cache", sidebar_position: 7
+- Examples should be complete and working
+- Include both schema definitions and query examples
+```
+
+**Information Sources:**
+- docs/8-references/1-directives.md (lines 1506-1583) - @cache, @no_cache, @invalidate_cache reference
+- docs/7-deployment/2-caching.md - L1/L2 cache infrastructure
+- docs/5-graphql/4-jq-transformations.md - @cache usage in queryHugr()
+
+---
+
 ## 📚 New Examples
 
-### 8. Example: JQ Transformations
+### 9. Example: JQ Transformations
 
 **File:** `docs/9-examples/jq-transformations.mdx`
 
@@ -877,19 +1013,20 @@ FORMAT:
 1. ✅ **JQ Transformations** (docs/5-graphql/4-jq-transformations.md) - main missing functionality
 2. ✅ **REST endpoint /jq-query** (docs/6-querying/5-jq-endpoint.md) - part of JQ functionality
 3. ✅ **Update Overview** - add JQ to advanced features
+4. **Cache Directives Documentation** (docs/4-engine-configuration/6-cache.md) - @cache, @no_cache, @invalidate_cache directives
 
 ### Medium Priority:
-4. **Python Client** (docs/6-querying/4-python-client.md) - important for users
-5. **Hugr IPC Protocol** (enhance docs/6-querying/3-hugr-ipc.md)
-6. **Update Function Calls** - add JQ information
-7. **Update HTTP Data Source** - expand JQ section
+5. **Python Client** (docs/6-querying/4-python-client.md) - important for users
+6. **Hugr IPC Protocol** (enhance docs/6-querying/3-hugr-ipc.md)
+7. **Update Function Calls** - add JQ information
+8. **Update HTTP Data Source** - expand JQ section
 
 ### Low Priority (can be done later):
-8. JQ transformation examples
-9. Python client examples
-10. API Reference
-11. Troubleshooting guide
-12. Update Getting Started
+9. JQ transformation examples
+10. Python client examples
+11. API Reference
+12. Troubleshooting guide
+13. Update Getting Started
 
 ---
 
@@ -906,6 +1043,7 @@ docs/
 │   ├── 4-python-client.md               [NEW]
 │   └── 5-jq-endpoint.md                 [NEW]
 ├── 4-engine-configuration/
+│   ├── 6-cache.md                       [ENHANCE]
 │   └── 1-data-sources/
 │       └── 4-http.md                    [UPDATE]
 ├── 8-references/
