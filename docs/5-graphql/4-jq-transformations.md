@@ -340,7 +340,7 @@ X-Hugr-Cache-Invalidate: <true|false>
 
 #### Caching Headers
 
-When hugr has caching configured, you can control caching behavior using the following HTTP headers:
+When hugr has caching configured (see [Caching Configuration](../../7-deployment/2-caching.md)), you can control caching behavior using the following HTTP headers:
 
 | Header | Type | Description |
 |--------|------|-------------|
@@ -1005,7 +1005,7 @@ query {
 
 ### Caching queryHugr() Results
 
-When hugr has caching configured, you can use the `@cache` directive inside `queryHugr()` queries to cache results and avoid redundant database queries.
+When hugr has caching configured (see [Caching Configuration](../../7-deployment/2-caching.md)), you can use the `@cache` directive inside `queryHugr()` queries to cache results and avoid redundant database queries.
 
 #### Using @cache Directive in queryHugr()
 
@@ -1484,6 +1484,8 @@ curl -X POST http://localhost:8080/jq-query \
 - [REST API /jq-query Endpoint](../6-querying/5-jq-endpoint.md) - Detailed endpoint documentation
 - [HTTP Data Sources](../4-engine-configuration/1-data-sources/4-http.md) - JQ in HTTP functions
 - [Overview - Result Transformation](../1-overview.md#5-advanced-features) - Platform capabilities
+- [Caching Configuration](../7-deployment/2-caching.md) - Configure L1/L2 cache for hugr
+- [Deployment Configuration](../7-deployment/1-config.md) - General configuration options
 
 ### Examples
 - [JQ Transformation Examples](../9-examples/jq-transformations.mdx) - Practical use cases
