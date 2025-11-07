@@ -8,6 +8,7 @@
 
 - [ ] New Sections
   - [x] JQ Transformations ✅ **COMPLETED** (2025-11-07)
+  - [x] GraphQL Extensions ✅ **COMPLETED** (2025-11-07)
   - [ ] Python Client (hugr-client)
   - [ ] Hugr IPC Protocol
   - [x] REST API endpoint /jq-query ✅ **COMPLETED** (2025-11-07)

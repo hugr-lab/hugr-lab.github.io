@@ -9,6 +9,10 @@ keywords: [jq, transformations, server-side, graphql, data processing]
 
 Hugr supports powerful server-side JQ transformations to transform GraphQL query results before they are returned to the client. This enables flexible data processing, restructuring, filtering, and enrichment without requiring client-side logic.
 
+:::tip
+JQ transformation results are returned in the `extensions` field of the GraphQL response. See [GraphQL Extensions](/docs/graphql/extensions) for more information about the extension format and how to combine JQ with performance stats.
+:::
+
 ## Overview
 
 ### What are JQ Transformations in Hugr?
