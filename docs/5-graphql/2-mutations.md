@@ -132,39 +132,6 @@ mutation {
 }
 ```
 
-### Batch Insert
-
-Insert multiple records at once:
-
-```graphql
-mutation {
-  insert_products_batch(data: [
-    {
-      name: "Product A"
-      sku: "PROD-A-001"
-      price: 29.99
-      category_id: 5
-    }
-    {
-      name: "Product B"
-      sku: "PROD-B-001"
-      price: 39.99
-      category_id: 5
-    }
-    {
-      name: "Product C"
-      sku: "PROD-C-001"
-      price: 49.99
-      category_id: 6
-    }
-  ]) {
-    affected_rows
-    success
-    message
-  }
-}
-```
-
 ## Update Mutations
 
 ### Basic Update
@@ -522,9 +489,11 @@ Relations cannot be updated through update mutations. To modify relations, use s
 
 ## Auto-Generated Values
 
+Hugr supports automatic value generation for fields using the [`@default` directive](/docs/references/directives#default). This includes sequences, default values, and SQL expressions.
+
 ### Sequences and Auto-Increment
 
-Fields with sequences or auto-increment are automatically populated:
+Fields with sequences or auto-increment are automatically populated using the `@default` directive with `sequence` parameter:
 
 ```graphql
 type orders @table(name: "orders") {
@@ -552,7 +521,11 @@ mutation {
 
 ### Default Values
 
-Fields with default values are optional in mutations:
+Fields with default values are optional in mutations. The `@default` directive supports several types of defaults:
+
+- **Static values**: `@default(value: "pending")` - A constant value
+- **Insert expressions**: `@default(insert_exp: "NOW()")` - SQL expression evaluated on insert
+- **Update expressions**: `@default(update_exp: "NOW()")` - SQL expression evaluated on update
 
 ```graphql
 type customers @table(name: "customers") {
@@ -564,6 +537,10 @@ type customers @table(name: "customers") {
   )
 }
 ```
+
+:::tip
+Default expressions (`insert_exp` and `update_exp`) are executed as SQL expressions on the database side. See [Tables - Default Values](/docs/engine-configuration/schema-definition/data-objects/tables#default-values) for more details on supported expressions and [@default directive reference](/docs/references/directives#default) for all parameters.
+:::
 
 ```graphql
 mutation {
@@ -694,17 +671,133 @@ mutation {
 
 See [Vector Search](./1-queries/11-vector-search.md) for more details on semantic search.
 
+## Access Control and Permissions
+
+Hugr provides role-based access control for mutations, allowing you to restrict who can perform insert, update, and delete operations. Access control is configured in the schema using the [`@auth` directive](../4-engine-configuration/5-access-control.md).
+
+### Role-Based Permissions
+
+Mutations can be restricted to specific roles:
+
+```graphql
+type customers @table(name: "customers")
+  @auth(
+    roles: {
+      admin: { allow_insert: true, allow_update: true, allow_delete: true }
+      manager: { allow_insert: true, allow_update: true, allow_delete: false }
+      user: { allow_insert: false, allow_update: false, allow_delete: false }
+    }
+  ) {
+  id: ID!
+  name: String!
+  email: String!
+}
+```
+
+In this example:
+- **admin** role: Can insert, update, and delete customers
+- **manager** role: Can insert and update customers, but not delete
+- **user** role: Read-only access (no mutations allowed)
+
+If a user without proper permissions attempts a mutation, Hugr returns an authorization error.
+
+### Role-Based Default Values
+
+You can set different default values based on the user's role:
+
+```graphql
+type orders @table(name: "orders")
+  @auth(
+    roles: {
+      admin: {
+        allow_insert: true
+        default_values: { status: "approved" }
+      }
+      user: {
+        allow_insert: true
+        default_values: { status: "pending" }
+      }
+    }
+  ) {
+  id: ID!
+  status: String!
+  customer_id: Int!
+}
+```
+
+When an **admin** inserts an order without specifying status, it defaults to `"approved"`. When a **user** inserts an order, it defaults to `"pending"`.
+
+### Mandatory Filters
+
+Roles can have mandatory filters that automatically apply to update and delete mutations, restricting which records can be modified:
+
+```graphql
+type documents @table(name: "documents")
+  @auth(
+    roles: {
+      admin: {
+        allow_update: true
+        allow_delete: true
+      }
+      user: {
+        allow_update: true
+        allow_delete: true
+        filter: { owner_id: { eq: "$user_id" } }  # Can only modify own documents
+      }
+    }
+  ) {
+  id: ID!
+  title: String!
+  owner_id: Int!
+  content: String!
+}
+```
+
+When a **user** executes an update or delete mutation, the `filter: { owner_id: { eq: "$user_id" } }` is automatically applied, ensuring they can only modify their own documents. The `$user_id` variable is automatically populated from the authenticated user's context.
+
+Example mutation as **user**:
+
+```graphql
+mutation {
+  # User can only delete their own documents
+  delete_documents(filter: { id: { eq: 123 } }) {
+    affected_rows
+  }
+}
+```
+
+Even though the filter only specifies `id`, the mandatory filter `owner_id: { eq: "$user_id" }` is automatically added, so the actual executed filter becomes: `{ id: { eq: 123 }, owner_id: { eq: <current_user_id> } }`.
+
+:::tip
+See [Access Control](../4-engine-configuration/5-access-control.md) for complete documentation on role-based permissions, default values, mandatory filters, and authentication configuration.
+:::
+
 ## Error Handling
 
-### Constraint Violations
+### How Error Handling Works
 
-If a mutation violates database constraints (unique, foreign key, not null), Hugr returns an error:
+Hugr transforms GraphQL mutations into SQL statements and executes them against the data source. Error handling works as follows:
+
+**Schema Validation (by Hugr)**:
+- **Type checking**: Field values must match declared types (String, Int, Boolean, etc.)
+- **Required fields**: Non-nullable fields marked with `!` must be provided
+- **Field existence**: Only fields defined in the schema can be used
+- **Input structure**: Mutation input must match generated input types
+
+**Database Errors (from data source)**:
+- All other validation is delegated to the underlying database
+- Constraint violations, foreign key errors, and business logic errors are returned directly from the database
+- No additional validation layer is applied by Hugr
+
+### Database Constraint Violations
+
+When a mutation violates database constraints (unique, foreign key, not null, check constraints), Hugr returns the database error:
 
 ```graphql
 mutation {
   insert_customers(data: {
     name: "John Doe"
-    email: "existing@example.com"  # Duplicate email
+    email: "existing@example.com"  # Duplicate email (unique constraint)
   }) {
     id
   }
@@ -717,28 +810,61 @@ Response:
   "errors": [
     {
       "message": "duplicate key value violates unique constraint \"customers_email_key\"",
-      "path": ["insert_customers"],
-      "extensions": {
-        "code": "CONSTRAINT_VIOLATION"
-      }
+      "path": ["insert_customers"]
     }
   ]
 }
 ```
 
-### Validation Errors
+The error message comes directly from the database (PostgreSQL, MySQL, DuckDB, etc.) and reflects the database's error format.
 
-Invalid input data returns validation errors:
+### Schema Validation Errors
 
+If the GraphQL mutation doesn't match the schema, Hugr returns a validation error before executing the query:
+
+**Missing required field**:
+```graphql
+mutation {
+  insert_customers(data: {
+    name: "John Doe"
+    # email is required (email: String!) but not provided
+  }) {
+    id
+  }
+}
+```
+
+Response:
 ```json
 {
   "errors": [
     {
-      "message": "Field 'email' is required but not provided",
-      "path": ["insert_customers"],
-      "extensions": {
-        "code": "BAD_USER_INPUT"
-      }
+      "message": "Field 'email' of required type 'String!' was not provided",
+      "path": ["insert_customers", "data"]
+    }
+  ]
+}
+```
+
+**Type mismatch**:
+```graphql
+mutation {
+  insert_products(data: {
+    name: "Product"
+    price: "not a number"  # price is Float!, not String
+  }) {
+    id
+  }
+}
+```
+
+Response:
+```json
+{
+  "errors": [
+    {
+      "message": "Float cannot represent non numeric value: \"not a number\"",
+      "path": ["insert_products", "data", "price"]
     }
   ]
 }
@@ -746,20 +872,39 @@ Invalid input data returns validation errors:
 
 ### Transaction Failures
 
-If any mutation in a transaction fails, all operations are rolled back:
+When multiple mutations are executed in a single request, they run within a transaction. If any mutation fails, the entire transaction is rolled back:
+
+```graphql
+mutation {
+  # Step 1: Update inventory
+  update_products(filter: { id: { eq: 100 } }, data: { stock: -5 }) {
+    affected_rows
+  }
+
+  # Step 2: Create order (this will fail if step 1 fails)
+  insert_orders(data: {
+    product_id: 100
+    quantity: 5
+  }) {
+    id
+  }
+}
+```
+
+If the first mutation fails (e.g., due to a check constraint on stock), the entire transaction rolls back:
 
 ```json
 {
   "errors": [
     {
-      "message": "Transaction rolled back due to constraint violation in update_inventory",
-      "extensions": {
-        "code": "TRANSACTION_FAILED"
-      }
+      "message": "new row for relation \"products\" violates check constraint \"products_stock_check\"",
+      "path": ["update_products"]
     }
   ]
 }
 ```
+
+**Important**: The database transaction is atomic - either all mutations succeed or none do. This ensures data consistency across related operations.
 
 ## Filter Operators
 
@@ -843,30 +988,6 @@ mutation {
 }
 ```
 
-### Use Batch Operations
-
-For multiple inserts, use batch operations for better performance:
-
-```graphql
-# Good: Single batch operation
-mutation {
-  insert_products_batch(data: [
-    { name: "Product 1", price: 10 }
-    { name: "Product 2", price: 20 }
-    { name: "Product 3", price: 30 }
-  ]) {
-    affected_rows
-  }
-}
-
-# Avoid: Multiple single inserts
-mutation {
-  p1: insert_products(data: { name: "Product 1", price: 10 }) { id }
-  p2: insert_products(data: { name: "Product 2", price: 20 }) { id }
-  p3: insert_products(data: { name: "Product 3", price: 30 }) { id }
-}
-```
-
 ### Validate Input Data
 
 Validate data on the client side before sending mutations to reduce errors:
@@ -943,6 +1064,9 @@ mutation {
 ## See Also
 
 - [Mutations Definition](../4-engine-configuration/3-schema-definition/3-data-objects/5-mutations.md) - Learn how to define mutations in schema
+- [Access Control](../4-engine-configuration/5-access-control.md) - Role-based permissions, default values, and mandatory filters
+- [Tables - Default Values](../4-engine-configuration/3-schema-definition/3-data-objects/2-tables.md#default-values) - Default expressions and auto-generated values
+- [@default Directive](../8-references/1-directives.md#default) - Complete reference for @default directive
 - [Filtering](./1-queries/3-filtering.md) - Complete guide to filter operators
 - [Relations](./1-queries/5-relations.md) - Working with related data
 - [Cache Directives](../4-engine-configuration/6-cache.md) - Cache management
