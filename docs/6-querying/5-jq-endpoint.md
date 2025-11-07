@@ -46,7 +46,7 @@ Use when your hugr instance requires authentication.
 
 #### Optional Caching Headers
 
-When hugr has caching configured (see [Caching Configuration](../7-deployment/2-caching.md)), you can control caching behavior:
+When hugr has caching configured (see [Caching Configuration](/docs/deployment/caching)), you can control caching behavior:
 
 ```
 X-Hugr-Cache: <ttl_seconds or duration>
@@ -571,7 +571,7 @@ Implement rate limiting on the /jq-query endpoint to prevent abuse.
 **Issue**: Cache headers ignored
 
 **Checklist**:
-1. Verify caching is configured: [Caching Configuration](../7-deployment/2-caching.md)
+1. Verify caching is configured: [Caching Configuration](/docs/deployment/caching)
 2. Check `CACHE_L1_ENABLED` or `CACHE_L2_ENABLED` is `true`
 3. Ensure valid TTL format (e.g., `5m`, `300`)
 
@@ -601,14 +601,13 @@ Implement rate limiting on the /jq-query endpoint to prevent abuse.
 ## See Also
 
 ### Documentation
-- [JQ Transformations](../5-graphql/4-jq-transformations.md) - Complete JQ transformations guide
-- [Caching Configuration](../7-deployment/2-caching.md) - Configure L1/L2 cache
-- [GraphQL Queries](../5-graphql/1-queries/index.md) - GraphQL query documentation
+- [JQ Transformations](/docs/graphql/jq-transformations) - Complete JQ transformations guide
+- [Caching Configuration](/docs/deployment/caching) - Configure L1/L2 cache
+- [GraphQL Queries](/docs/graphql/queries) - GraphQL query documentation
 - [Official JQ Manual](https://jqlang.github.io/jq/manual/) - JQ language reference
 
 ### Examples
-- [JQ Transformation Examples](../9-examples/jq-transformations.mdx) - Practical examples
-- [HTTP Data Sources](../4-engine-configuration/1-data-sources/4-http.md) - JQ in HTTP functions
+- [HTTP Data Sources](/docs/engine-configuration/data-sources/http) - JQ in HTTP functions
 
 ### Tools
 - [JQ Play](https://jqplay.org/) - Online JQ playground

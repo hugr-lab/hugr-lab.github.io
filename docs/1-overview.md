@@ -103,7 +103,7 @@ Hugr provides powerful server-side JQ transformations for flexible data processi
 - **Data aggregation**: Group, filter, and aggregate results on the server
 - **HTTP function transformations**: Apply JQ to REST API responses in data source functions
 
-Learn more in [JQ Transformations](./5-graphql/4-jq-transformations.md) and [JQ Query Endpoint](./6-querying/5-jq-endpoint.md) documentation.
+Learn more in [JQ Transformations](/docs/graphql/jq-transformations) and [JQ Query Endpoint](/docs/querying/jq-endpoint) documentation.
 
 **Security & Access Control**:
 

@@ -340,7 +340,7 @@ X-Hugr-Cache-Invalidate: <true|false>
 
 #### Caching Headers
 
-When hugr has caching configured (see [Caching Configuration](../../7-deployment/2-caching.md)), you can control caching behavior using the following HTTP headers:
+When hugr has caching configured (see [Caching Configuration](/docs/deployment/caching)), you can control caching behavior using the following HTTP headers:
 
 | Header | Type | Description |
 |--------|------|-------------|
@@ -1005,7 +1005,7 @@ query {
 
 ### Caching queryHugr() Results
 
-When hugr has caching configured (see [Caching Configuration](../../7-deployment/2-caching.md)), you can use the `@cache` directive inside `queryHugr()` queries to cache results and avoid redundant database queries.
+When hugr has caching configured (see [Caching Configuration](/docs/deployment/caching)), you can use the `@cache` directive inside `queryHugr()` queries to cache results and avoid redundant database queries.
 
 #### Using @cache Directive in queryHugr()
 
@@ -1477,19 +1477,18 @@ curl -X POST http://localhost:8080/jq-query \
 ### Documentation
 - [Official JQ Documentation](https://jqlang.github.io/jq/) - Complete JQ language reference
 - [JQ Manual](https://jqlang.github.io/jq/manual/) - JQ functions and operators
-- [GraphQL Queries](./1-queries/index.md) - hugr GraphQL query documentation
-- [Function Calls](./1-queries/1-function-calls.md) - HTTP function JQ parameters
+- [GraphQL Queries](/docs/graphql/queries) - hugr GraphQL query documentation
+- [Function Calls](/docs/graphql/queries/function-calls) - HTTP function JQ parameters
 
 ### Related Topics
-- [REST API /jq-query Endpoint](../6-querying/5-jq-endpoint.md) - Detailed endpoint documentation
-- [HTTP Data Sources](../4-engine-configuration/1-data-sources/4-http.md) - JQ in HTTP functions
-- [Overview - Result Transformation](../1-overview.md#5-advanced-features) - Platform capabilities
-- [Caching Configuration](../7-deployment/2-caching.md) - Configure L1/L2 cache for hugr
-- [Deployment Configuration](../7-deployment/1-config.md) - General configuration options
+- [REST API /jq-query Endpoint](/docs/querying/jq-endpoint) - Detailed endpoint documentation
+- [HTTP Data Sources](/docs/engine-configuration/data-sources/http) - JQ in HTTP functions
+- [Overview - Result Transformation](/docs/overview#5-advanced-features) - Platform capabilities
+- [Caching Configuration](/docs/deployment/caching) - Configure L1/L2 cache for hugr
+- [Deployment Configuration](/docs/deployment/config) - General configuration options
 
 ### Examples
-- [JQ Transformation Examples](../9-examples/jq-transformations.mdx) - Practical use cases
-- [HTTP Data Source Examples](../4-engine-configuration/1-data-sources/4-http.md) - JQ with external APIs
+- [HTTP Data Source Examples](/docs/engine-configuration/data-sources/http) - JQ with external APIs
 
 ### External Resources
 - [JQ Play](https://jqplay.org/) - Online JQ playground for testing expressions
