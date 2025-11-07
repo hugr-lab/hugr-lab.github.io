@@ -181,8 +181,8 @@ When checking access, Hugr applies the **most specific** permission that matches
 
 ```graphql
 mutation {
-  core {
-    insert_roles(data: {
+  core {  # Mutation type for the core module
+    insert_roles(data: {  # Mutation field
       name: "limited_editor"
       description: "Can edit most things except sensitive data"
       permissions: [

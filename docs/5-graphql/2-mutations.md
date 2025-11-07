@@ -676,7 +676,7 @@ See [Vector Search](./1-queries/11-vector-search.md) for more details on semanti
 Hugr provides role-based access control (RBAC) for mutations through the `role_permissions` table in the `core` module. You can restrict who can perform insert, update, and delete operations, apply mandatory filters, and enforce default values.
 
 :::tip
-Access control is managed through the GraphQL API by inserting/updating records in the `core.roles` and `core.role_permissions` tables. See [Access Control](../4-engine-configuration/5-access-control.md) for complete documentation.
+Access control is managed through the GraphQL API by inserting/updating records in the `core.roles` and `core.role_permissions` tables. Mutations are accessed through the `core` mutation type (the mutation type for the `core` module). See [Access Control](../4-engine-configuration/5-access-control.md) for complete documentation.
 :::
 
 ### How Mutation Permissions Work
@@ -696,8 +696,8 @@ Permissions are configured in the `role_permissions` table with the following ke
 
 ```graphql
 mutation {
-  core {
-    insert_role_permissions(data: {
+  core {  # Mutation type for the core module
+    insert_role_permissions(data: {  # Mutation field
       role: "readonly"
       type_name: "Mutation"
       field_name: "*"
@@ -716,7 +716,7 @@ This blocks all mutations for users with the `readonly` role.
 
 ```graphql
 mutation {
-  core {
+  core {  # Mutation type for the core module
     # Block all mutations
     blockAll: insert_role_permissions(data: {
       role: "contributor"
@@ -750,7 +750,7 @@ Use the `data` field to automatically inject values into mutations that cannot b
 
 ```graphql
 mutation {
-  core {
+  core {  # Mutation type for the core module
     insert_role_permissions(data: {
       role: "editor"
       type_name: "insert_articles"
@@ -783,7 +783,7 @@ Use the `filter` field to restrict which rows can be modified by update and dele
 
 ```graphql
 mutation {
-  core {
+  core {  # Mutation type for the core module
     # Restrict update_documents
     update: insert_role_permissions(data: {
       role: "user"
@@ -836,7 +836,7 @@ This ensures users can only modify their own documents, even if they try to spec
 
 ```graphql
 mutation {
-  core {
+  core {  # Mutation type for the core module
     insert_roles(data: {
       name: "tenant_user"
       description: "User within a tenant organization"
@@ -935,122 +935,26 @@ Hugr transforms GraphQL mutations into SQL statements and executes them against 
 - Constraint violations, foreign key errors, and business logic errors are returned directly from the database
 - No additional validation layer is applied by Hugr
 
-### Database Constraint Violations
+### Error Types
 
-When a mutation violates database constraints (unique, foreign key, not null, check constraints), Hugr returns the database error:
+Errors from mutations fall into two categories:
 
-```graphql
-mutation {
-  insert_customers(data: {
-    name: "John Doe"
-    email: "existing@example.com"  # Duplicate email (unique constraint)
-  }) {
-    id
-  }
-}
-```
+1. **Schema Validation Errors** - Caught by Hugr before executing the query:
+   - Type mismatches (e.g., passing string when Float! is expected)
+   - Missing required fields
+   - Unknown fields not in schema
+   - Invalid input structure
 
-Response:
-```json
-{
-  "errors": [
-    {
-      "message": "duplicate key value violates unique constraint \"customers_email_key\"",
-      "path": ["insert_customers"]
-    }
-  ]
-}
-```
+2. **Database Errors** - Returned directly from the database:
+   - Constraint violations (unique, foreign key, not null, check)
+   - Permission/access errors
+   - Database-specific validation errors
 
-The error message comes directly from the database (PostgreSQL, MySQL, DuckDB, etc.) and reflects the database's error format.
+The error message format and content depends on the underlying database (PostgreSQL, MySQL, DuckDB, etc.).
 
-### Schema Validation Errors
+### Transaction Behavior
 
-If the GraphQL mutation doesn't match the schema, Hugr returns a validation error before executing the query:
-
-**Missing required field**:
-```graphql
-mutation {
-  insert_customers(data: {
-    name: "John Doe"
-    # email is required (email: String!) but not provided
-  }) {
-    id
-  }
-}
-```
-
-Response:
-```json
-{
-  "errors": [
-    {
-      "message": "Field 'email' of required type 'String!' was not provided",
-      "path": ["insert_customers", "data"]
-    }
-  ]
-}
-```
-
-**Type mismatch**:
-```graphql
-mutation {
-  insert_products(data: {
-    name: "Product"
-    price: "not a number"  # price is Float!, not String
-  }) {
-    id
-  }
-}
-```
-
-Response:
-```json
-{
-  "errors": [
-    {
-      "message": "Float cannot represent non numeric value: \"not a number\"",
-      "path": ["insert_products", "data", "price"]
-    }
-  ]
-}
-```
-
-### Transaction Failures
-
-When multiple mutations are executed in a single request, they run within a transaction. If any mutation fails, the entire transaction is rolled back:
-
-```graphql
-mutation {
-  # Step 1: Update inventory
-  update_products(filter: { id: { eq: 100 } }, data: { stock: -5 }) {
-    affected_rows
-  }
-
-  # Step 2: Create order (this will fail if step 1 fails)
-  insert_orders(data: {
-    product_id: 100
-    quantity: 5
-  }) {
-    id
-  }
-}
-```
-
-If the first mutation fails (e.g., due to a check constraint on stock), the entire transaction rolls back:
-
-```json
-{
-  "errors": [
-    {
-      "message": "new row for relation \"products\" violates check constraint \"products_stock_check\"",
-      "path": ["update_products"]
-    }
-  ]
-}
-```
-
-**Important**: The database transaction is atomic - either all mutations succeed or none do. This ensures data consistency across related operations.
+When multiple mutations are executed in a single request, they run within a database transaction. If any mutation fails, the entire transaction is rolled back automatically. This ensures data consistency across related operations.
 
 ## Filter Operators
 
