@@ -330,7 +330,26 @@ This example:
 ```
 Content-Type: application/json
 Authorization: Bearer <token>  # if authentication is required
+
+# Optional caching headers (when caching is configured)
+X-Hugr-Cache: <ttl_seconds or duration>
+X-Hugr-Cache-Key: <custom_cache_key>
+X-Hugr-Cache-Tags: <tag1,tag2,tag3>
+X-Hugr-Cache-Invalidate: <true|false>
 ```
+
+#### Caching Headers
+
+When hugr has caching configured, you can control caching behavior using the following HTTP headers:
+
+| Header | Type | Description |
+|--------|------|-------------|
+| `X-Hugr-Cache` | String | Cache TTL (time-to-live). Can be specified as seconds (e.g., `300`) or duration format (e.g., `5m`, `1h`, `30s`). |
+| `X-Hugr-Cache-Key` | String | Custom cache key. If empty, the key is computed as a hash of the request body. The user's role is automatically appended to the key. |
+| `X-Hugr-Cache-Tags` | String | Comma-separated list of cache tags for grouped invalidation (e.g., `users,reports,dashboard`). |
+| `X-Hugr-Cache-Invalidate` | Boolean | If `true`, forces query re-execution and invalidates the cache entry for this key (+ role). |
+
+**Cache Key Format**: `<custom_key or hash(request_body)>:<user_role>`
 
 **Request Body**:
 ```json
@@ -414,6 +433,87 @@ curl -X POST http://localhost:8080/jq-query \
     }
   }'
 ```
+
+#### Example 4: With Caching (5 minute TTL)
+
+```bash
+curl -X POST http://localhost:8080/jq-query \
+  -H "Content-Type: application/json" \
+  -H "X-Hugr-Cache: 5m" \
+  -H "X-Hugr-Cache-Tags: users,reports" \
+  -d '{
+    "jq": ".data.users_aggregation",
+    "query": {
+      "query": "{ users_aggregation { _rows_count total_sales { sum } } }"
+    }
+  }'
+```
+
+**First request**: Executes query and caches result for 5 minutes
+**Subsequent requests** (within 5 min): Returns cached result immediately
+
+#### Example 5: Custom Cache Key
+
+```bash
+curl -X POST http://localhost:8080/jq-query \
+  -H "Content-Type: application/json" \
+  -H "X-Hugr-Cache: 300" \
+  -H "X-Hugr-Cache-Key: dashboard:daily-stats" \
+  -H "X-Hugr-Cache-Tags: dashboard,analytics" \
+  -d '{
+    "jq": ".data | {total_users: .users_aggregation._rows_count, total_orders: .orders_aggregation._rows_count}",
+    "query": {
+      "query": "{ users_aggregation { _rows_count } orders_aggregation { _rows_count } }"
+    }
+  }'
+```
+
+**Cache Key**: `dashboard:daily-stats:<user_role>`
+**TTL**: 300 seconds (5 minutes)
+**Tags**: Can be invalidated by tag `dashboard` or `analytics`
+
+#### Example 6: Cache Invalidation
+
+```bash
+# Invalidate and refresh the cache
+curl -X POST http://localhost:8080/jq-query \
+  -H "Content-Type: application/json" \
+  -H "X-Hugr-Cache: 5m" \
+  -H "X-Hugr-Cache-Key: dashboard:daily-stats" \
+  -H "X-Hugr-Cache-Invalidate: true" \
+  -d '{
+    "jq": ".data | {total_users: .users_aggregation._rows_count, total_orders: .orders_aggregation._rows_count}",
+    "query": {
+      "query": "{ users_aggregation { _rows_count } orders_aggregation { _rows_count } }"
+    }
+  }'
+```
+
+This request:
+1. Invalidates the existing cache entry for key `dashboard:daily-stats:<role>`
+2. Executes the query
+3. Stores the new result with 5-minute TTL
+
+#### Example 7: Duration Format
+
+```bash
+curl -X POST http://localhost:8080/jq-query \
+  -H "Content-Type: application/json" \
+  -H "X-Hugr-Cache: 1h" \
+  -d '{
+    "jq": ".data.products | group_by(.category) | map({category: .[0].category, count: length})",
+    "query": {
+      "query": "{ products { id name category } }"
+    }
+  }'
+```
+
+Supported duration formats:
+- `30s` - 30 seconds
+- `5m` - 5 minutes
+- `1h` - 1 hour
+- `24h` - 24 hours
+- `300` - 300 seconds (numeric value)
 
 ### Differences from Built-in jq()
 
@@ -899,9 +999,115 @@ query {
 **Best Practices**:
 - Use for small datasets or when necessary
 - Consider pre-joining data in the main query when possible
-- Cache results when appropriate
+- Cache results when appropriate using `@cache` directive
 - Use aggregation queries to minimize the number of calls
 :::
+
+### Caching queryHugr() Results
+
+When hugr has caching configured, you can use the `@cache` directive inside `queryHugr()` queries to cache results and avoid redundant database queries.
+
+#### Using @cache Directive in queryHugr()
+
+The `@cache` directive can be applied to any field within a `queryHugr()` query to cache the results:
+
+```graphql
+query {
+  jq(query: "
+    queryHugr(\"
+      query($start: Timestamp!, $end: Timestamp!) {
+        order_info: orders_bucket_aggregation(
+          filter: { order_time: { gte: $start, lte: $end } }
+        ) @cache {
+          key { customer_id }
+          aggregations {
+            total { sum }
+            _rows_count
+          }
+        }
+      }\",
+      { start: $start, end: $end }
+    ).data.order_info as $orders |
+    .customers | map(
+      . + {
+        orders: ($orders | map(select(.key.customer_id == .id)))
+      }
+    )
+  ") {
+    customers {
+      id
+      name
+    }
+  }
+}
+```
+
+#### Benefits of Caching
+
+1. **Avoid Repeated Queries**: The same aggregation query won't be executed multiple times
+2. **Improved Performance**: Cached results are served from memory
+3. **Reduced Database Load**: Less pressure on underlying data sources
+4. **Cost Optimization**: Fewer queries to external APIs or databases
+
+#### Cache Key Generation
+
+The cache is automatically keyed by:
+- Query text and variables
+- User role/permissions
+- Data source configuration
+
+#### Example: Caching Customer Statistics
+
+```graphql
+query {
+  enrichedCustomers: jq(query: "
+    # First, get aggregated statistics with caching
+    queryHugr(\"
+      query {
+        customer_stats: customers_bucket_aggregation @cache {
+          key { tier }
+          aggregations {
+            _rows_count
+            total_spent { sum avg }
+          }
+        }
+      }
+    \").data.customer_stats as $stats |
+
+    # Then enrich each customer with their tier stats
+    .customers | map(
+      . as $customer |
+      . + {
+        tier_stats: ($stats | map(select(.key.tier == $customer.tier)) | .[0])
+      }
+    )
+  ", include_origin: false) {
+    customers {
+      id
+      name
+      tier
+    }
+  }
+}
+```
+
+This example:
+- Executes the aggregation query **once** (cached)
+- Reuses cached results for all customers
+- Significantly improves performance for large datasets
+
+#### When to Use Caching in queryHugr()
+
+**Use caching when**:
+- Query results don't change frequently
+- Same query is executed multiple times
+- Aggregations are expensive to compute
+- Working with large datasets
+
+**Avoid caching when**:
+- Data must be real-time
+- Each query uses different parameters
+- Results are user-specific and shouldn't be shared
 
 ## Practical Examples
 
@@ -1119,7 +1325,85 @@ curl -X POST http://localhost:8080/jq-query \
    }
    ```
 
-4. **Cache Transformations**: For repeated transformations, consider caching results
+4. **Use Caching**: Cache results to improve performance and reduce database load
+
+   **Option 1: @cache directive in queryHugr()**
+   ```graphql
+   query {
+     jq(query: "
+       queryHugr('{ stats: users_aggregation @cache { _rows_count } }')
+       .data.stats as $stats |
+       .users | map(. + {total_users: $stats._rows_count})
+     ") {
+       users { id name }
+     }
+   }
+   ```
+
+   **Option 2: X-Hugr-Cache headers for /jq-query**
+   ```bash
+   curl -X POST http://localhost:8080/jq-query \
+     -H "X-Hugr-Cache: 5m" \
+     -H "X-Hugr-Cache-Key: dashboard:stats" \
+     -H "X-Hugr-Cache-Tags: analytics,dashboard" \
+     -d '{...}'
+   ```
+
+### Caching Best Practices
+
+1. **Choose Appropriate TTL**: Balance between data freshness and performance
+   - Real-time data: No caching or very short TTL (30s-1m)
+   - Semi-static data: Medium TTL (5m-1h)
+   - Static/reference data: Long TTL (1h-24h)
+
+2. **Use Cache Tags**: Group related cache entries for easier invalidation
+   ```bash
+   # Tag related queries
+   X-Hugr-Cache-Tags: users,analytics,reports
+
+   # Later, invalidate all queries with specific tag
+   # (implementation depends on cache backend)
+   ```
+
+3. **Custom Cache Keys**: Use meaningful keys for better cache management
+   ```bash
+   # Good: Descriptive key
+   X-Hugr-Cache-Key: dashboard:daily-metrics:2024-01-15
+
+   # Less optimal: Auto-generated hash
+   # (omit header to use request body hash)
+   ```
+
+4. **Cache at the Right Level**:
+   - **Per-user data**: Automatic (role is appended to cache key)
+   - **Shared data**: Use custom cache keys
+   - **Expensive aggregations**: Always cache with @cache directive in queryHugr()
+
+5. **Handle Cache Invalidation**:
+   ```bash
+   # Force refresh when data changes
+   curl -X POST http://localhost:8080/jq-query \
+     -H "X-Hugr-Cache: 5m" \
+     -H "X-Hugr-Cache-Key: dashboard:stats" \
+     -H "X-Hugr-Cache-Invalidate: true" \
+     -d '{...}'
+   ```
+
+6. **Cache Aggregations in queryHugr()**: Most beneficial for expensive queries
+   ```jq
+   # Cache expensive aggregation once
+   queryHugr("
+     query {
+       order_stats: orders_bucket_aggregation @cache {
+         key { status }
+         aggregations { total { sum } _rows_count }
+       }
+     }
+   ").data.order_stats as $stats |
+
+   # Reuse cached results for all customers
+   .customers | map(. + {stats: $stats})
+   ```
 
 ### Debugging JQ Expressions
 
