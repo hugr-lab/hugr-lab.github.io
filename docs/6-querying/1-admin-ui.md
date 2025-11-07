@@ -20,6 +20,8 @@ The Admin UI provides:
 - **Role-Based Schema**: Schema visibility respects user permissions
 - **Embeddable**: Can be embedded in external applications via iframe
 
+![Admin UI Screenshot](./adminui.png)
+
 ## Accessing Admin UI
 
 **Path**: `/admin`
