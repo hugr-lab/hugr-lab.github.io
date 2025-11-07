@@ -226,7 +226,7 @@ curl -X POST http://localhost:8080/query \
   -d '{"query": "{ public_data { id name } }"}'
 ```
 
-Anonymous users only see data permitted for the anonymous role (configured with `@hide` directive).
+Anonymous users only see data permitted for their role based on permissions configured in the `role_permissions` table. Fields with `hidden: true` are not visible in introspection but can be explicitly requested. Fields with `disabled: true` are completely inaccessible.
 
 ## GraphQL Introspection
 
@@ -283,9 +283,12 @@ query TypeIntrospection {
 
 ### Role-Based Schema Visibility
 
-Introspection results respect access control rules:
-- **Anonymous users**: Only see types and fields marked as visible for the anonymous role (without `@hide` directive or with `@hide(roles: ["anonymous"])`)
-- **Authenticated users**: See types and fields permitted for their assigned role
+Introspection results respect access control rules defined in the `role_permissions` table:
+- **Fields with `hidden: false`** (default): Visible in schema and queries
+- **Fields with `hidden: true`**: Not shown in introspection, but can be explicitly requested
+- **Fields with `disabled: true`**: Completely inaccessible and not visible in introspection
+
+Each role sees only the types and fields permitted by their permissions. If a type/field has no permission entry for a role, it is accessible by default (unless restricted by a wildcard permission).
 
 This ensures that the schema exposed to clients matches their actual access permissions.
 
@@ -607,15 +610,35 @@ query GetUser($id: Int!) {  # Type validation
 
 ### 4. Configure Access Control
 
-Use role-based permissions to restrict access:
+Use role-based permissions to restrict access. Permissions are managed through the `role_permissions` table:
 
 ```graphql
-type users @module(name: "app")
-  @table(name: "users")
-  @hide(roles: ["anonymous"]) {
-  id: Int! @pk
-  name: String!
-  email: String! @hide(roles: ["viewer"])
+mutation {
+  core {
+    # Hide email field for viewer role
+    insert_role_permissions(data: {
+      role: "viewer"
+      type_name: "users"
+      field_name: "email"
+      hidden: true
+    }) {
+      role
+      type_name
+      field_name
+    }
+
+    # Disable password field for all non-admin roles
+    insert_role_permissions(data: {
+      role: "viewer"
+      type_name: "users"
+      field_name: "password"
+      disabled: true
+    }) {
+      role
+      type_name
+      field_name
+    }
+  }
 }
 ```
 
@@ -660,8 +683,8 @@ Remove sensitive fields from responses using permissions or transformations.
 
 **Solutions**:
 1. Check user role: Verify JWT claims or API key role
-2. Review access control rules
-3. Check `@hide` directives on types/fields
+2. Review access control rules in `role_permissions` table
+3. Check `hidden` and `disabled` flags on permissions for the role
 4. Test with admin role to isolate permission issues
 
 ### Invalid Query Syntax

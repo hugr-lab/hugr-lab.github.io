@@ -42,14 +42,15 @@ When disabled, the `/admin` endpoint returns a 404 error, but the GraphQL API at
 
 ## Authentication
 
-The Admin UI respects all authentication rules configured for the hugr instance. Users must authenticate to access protected data.
+The Admin UI respects all authentication rules configured for the hugr instance. Authentication assigns a role which determines what types and fields are accessible based on the `role_permissions` table.
 
 ### Anonymous Access
 
 If anonymous access is enabled (`ALLOWED_ANONYMOUS=true`), the Admin UI will:
 - Allow access without authentication
-- Show only types and fields visible to the anonymous role
-- Hide types/fields marked with `@hide` directive (unless explicitly allowed for anonymous)
+- Show only types and fields visible to the anonymous role based on `role_permissions`
+- Fields with `hidden: true` are not shown in schema introspection (but can be explicitly requested)
+- Fields with `disabled: true` are completely inaccessible
 - Display "Public Schema" mode indicator
 
 **Example**: Enable anonymous access
@@ -58,11 +59,11 @@ ALLOWED_ANONYMOUS=true
 ANONYMOUS_ROLE=anonymous
 ```
 
-Users will see a limited schema with only publicly accessible types.
+Anonymous users will see only the schema permitted by their role permissions.
 
 ### Authenticated Access
 
-For authenticated access, users must provide credentials. The Admin UI supports multiple authentication methods:
+Hugr uses role-based authentication. If no valid authentication token/key/cookie is provided, the API returns 401 Unauthorized. The Admin UI supports multiple authentication methods:
 
 #### 1. Bearer Token (JWT/API Key)
 
@@ -102,28 +103,56 @@ For web applications, authentication tokens can be passed via cookies. This is t
 
 ### Role-Based Schema Visibility
 
-The Admin UI automatically filters the schema based on the user's role:
+The Admin UI automatically filters the schema based on the user's role using permissions from the `role_permissions` table:
 
-- **Anonymous users**: See only public types (without `@hide` or explicitly allowed)
-- **Authenticated users**: See types and fields permitted for their role
-- **Admin users**: Typically see the full schema
+- **Fields with `hidden: false`** (default): Visible in schema and queries
+- **Fields with `hidden: true`**: Not shown in introspection, but can be explicitly requested in queries
+- **Fields with `disabled: true`**: Completely inaccessible
 
-**Example**:
+**Example permissions**:
 ```graphql
-type users @module(name: "app")
-  @table(name: "users")
-  @hide(roles: ["anonymous"]) {  # Hidden from anonymous users
-  id: Int! @pk
-  name: String!
-  email: String! @hide(roles: ["viewer"])  # Hidden from viewer role
-  password: String! @hide  # Hidden from all roles
+mutation {
+  core {
+    # Anonymous users cannot see users type at all
+    insert_role_permissions(data: {
+      role: "anonymous"
+      type_name: "users"
+      field_name: "*"
+      disabled: true
+    }) {
+      role
+      type_name
+    }
+
+    # Viewer role cannot see email field
+    insert_role_permissions(data: {
+      role: "viewer"
+      type_name: "users"
+      field_name: "email"
+      hidden: true
+    }) {
+      role
+      field_name
+    }
+
+    # Password field disabled for all except admin
+    insert_role_permissions(data: {
+      role: "viewer"
+      type_name: "users"
+      field_name: "password"
+      disabled: true
+    }) {
+      role
+      field_name
+    }
+  }
 }
 ```
 
 In the Admin UI:
 - **Anonymous**: Won't see the `users` type at all
-- **Viewer**: Will see `users` but without `email` and `password` fields
-- **Editor/Admin**: Will see all fields except `password`
+- **Viewer**: Will see `users` but `email` hidden from introspection, `password` completely blocked
+- **Admin**: Typically sees the full schema (no restrictive permissions)
 
 ## Features
 
@@ -434,91 +463,13 @@ Query history and preferences are stored in browser localStorage:
 
 ## Customization
 
-The Admin UI uses GraphiQL with the Explorer plugin. The HTML template is:
+The Admin UI is built using GraphiQL 4.0.0 with the Explorer plugin. It connects to the GraphQL endpoint at `/query` and includes:
+- React 19.1.0
+- GraphiQL with syntax highlighting and autocomplete
+- Explorer plugin for visual query building
+- Query history and variables support
 
-```html
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hugr GraphQL Explorer (GraphiQL)</title>
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-      }
-
-      #graphiql {
-        height: 100dvh;
-      }
-
-      .loading {
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 4rem;
-      }
-    </style>
-    <link
-      rel="stylesheet"
-      href="https://esm.sh/graphiql@4.0.0/dist/style.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://esm.sh/@graphiql/plugin-explorer@4.0.0/dist/style.css"
-    />
-    <script type="importmap">
-      {
-        "imports": {
-          "react": "https://esm.sh/react@19.1.0",
-          "react/jsx-runtime": "https://esm.sh/react@19.1.0/jsx-runtime",
-          "react-dom": "https://esm.sh/react-dom@19.1.0",
-          "react-dom/client": "https://esm.sh/react-dom@19.1.0/client",
-          "graphiql": "https://esm.sh/graphiql@4.0.0?standalone&external=react,react/jsx-runtime,react-dom,@graphiql/react",
-          "@graphiql/plugin-explorer": "https://esm.sh/@graphiql/plugin-explorer@4.0.0?standalone&external=react,react/jsx-runtime,react-dom,@graphiql/react,graphql",
-          "@graphiql/react": "https://esm.sh/@graphiql/react@0.30.0?standalone&external=react,react/jsx-runtime,react-dom,graphql,@graphiql/toolkit",
-          "@graphiql/toolkit": "https://esm.sh/@graphiql/toolkit@0.11.2?standalone&external=graphql",
-          "graphql": "https://esm.sh/graphql@16.11.0"
-        }
-      }
-    </script>
-    <script type="module">
-      import React from 'react';
-      import ReactDOM from 'react-dom/client';
-      import { GraphiQL } from 'graphiql';
-      import { createGraphiQLFetcher } from '@graphiql/toolkit';
-      import { explorerPlugin } from '@graphiql/plugin-explorer';
-
-      const fetcher = createGraphiQLFetcher({
-        url: "{{ .graphQLPath }}",
-      });
-      const explorer = explorerPlugin();
-
-      function App() {
-        return React.createElement(GraphiQL, {
-          fetcher,
-          plugins: [explorer],
-          defaultQuery: ``,
-          referencesPlugin: explorer.referencesPlugin
-        });
-      }
-
-      const container = document.getElementById('graphiql');
-      const root = ReactDOM.createRoot(container);
-      root.render(React.createElement(App));
-    </script>
-  </head>
-  <body>
-    <div id="graphiql">
-      <div class="loading">Loading…</div>
-    </div>
-  </body>
-</html>
-```
-
-The `{{ .graphQLPath }}` template variable is replaced with the GraphQL endpoint (`/query`) at runtime.
+The interface is served from CDN (esm.sh) and loads automatically when accessing `/admin`.
 
 ## Troubleshooting
 
@@ -546,9 +497,9 @@ The `{{ .graphQLPath }}` template variable is replaced with the GraphQL endpoint
 **Issue**: Types or fields are missing
 
 **Solutions**:
-1. Check user role: Anonymous users see limited schema
-2. Review `@hide` directives on types/fields
-3. Authenticate with appropriate credentials
+1. Check user role: Anonymous users see limited schema based on permissions
+2. Review `role_permissions` table for `hidden` and `disabled` flags
+3. Authenticate with a token/key to access more fields
 4. Use introspection to verify schema:
    ```graphql
    { __schema { types { name } } }
@@ -605,10 +556,10 @@ Use a separate Admin UI instance or embed it in your admin application.
 
 ### 2. Use Role-Based Access
 
-Configure schema visibility based on roles:
-- **Public data**: No `@hide` directive
-- **Internal data**: `@hide(roles: ["anonymous"])`
-- **Sensitive data**: `@hide` (hidden from all roles) or restrict to specific roles
+Configure schema visibility based on roles using the `role_permissions` table:
+- **Public data**: No restrictive permissions (accessible by default)
+- **Internal data**: Set `disabled: true` for anonymous role
+- **Sensitive data**: Set `disabled: true` for all non-admin roles, or `hidden: true` to hide from introspection
 
 ### 3. Implement Session Timeouts
 
