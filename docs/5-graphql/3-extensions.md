@@ -874,7 +874,7 @@ query {
 The `@stats` directive has minimal performance overhead:
 - **Query-level stats**: ~0.01ms overhead
 - **Field-level stats**: ~0.01ms per field
-- **Total impact**: Typically <1% of query execution time
+- **Total impact**: Typically \<1% of query execution time
 
 ### When to Avoid Stats
 
@@ -925,6 +925,5 @@ Use query-level stats for general monitoring and field-level stats only when dri
 - [GraphQL Queries](/docs/graphql/queries) - Query documentation
 
 ### Related Topics
-- [Performance Optimization](/docs/deployment/config#performance) - General performance tips
-- [Monitoring](/docs/deployment/config#monitoring) - Setting up monitoring
 - [Caching](/docs/deployment/caching) - Cache configuration for better performance
+- [Deployment Configuration](/docs/deployment/config) - General deployment configuration

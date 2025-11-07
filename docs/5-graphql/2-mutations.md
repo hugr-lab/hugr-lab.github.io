@@ -539,7 +539,7 @@ type customers @table(name: "customers") {
 ```
 
 :::tip
-Default expressions (`insert_exp` and `update_exp`) are executed as SQL expressions on the database side. See [Tables - Default Values](/docs/engine-configuration/schema-definition/data-objects/tables#default-values) for more details on supported expressions and [@default directive reference](/docs/references/directives#default) for all parameters.
+Default expressions (`insert_exp` and `update_exp`) are executed as SQL expressions on the database side. See [Tables - Default Values](/docs/engine-configuration/schema-definition/data-objects/tables#default-values-and-sequences) for more details on supported expressions and [@default directive reference](/docs/references/directives#default) for all parameters.
 :::
 
 ```graphql
@@ -1175,7 +1175,7 @@ mutation {
 
 - [Mutations Definition](../4-engine-configuration/3-schema-definition/3-data-objects/5-mutations.md) - Learn how to define mutations in schema
 - [Access Control](../4-engine-configuration/5-access-control.md) - Role-based permissions, default values, and mandatory filters
-- [Tables - Default Values](../4-engine-configuration/3-schema-definition/3-data-objects/2-tables.md#default-values) - Default expressions and auto-generated values
+- [Tables - Default Values](../4-engine-configuration/3-schema-definition/3-data-objects/2-tables.md#default-values-and-sequences) - Default expressions and auto-generated values
 - [@default Directive](../8-references/1-directives.md#default) - Complete reference for @default directive
 - [Filtering](./1-queries/3-filtering.md) - Complete guide to filter operators
 - [Relations](./1-queries/5-relations.md) - Working with related data
