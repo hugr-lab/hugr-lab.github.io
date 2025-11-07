@@ -1364,6 +1364,267 @@ query ProductInventory {
 }
 ```
 
+### Example 8: Caching Role Permissions
+
+Cache role permissions for improved authentication and authorization performance. This is a critical use case where caching significantly reduces database load for permission checks.
+
+#### How Hugr Caches Role Permissions
+
+Hugr automatically caches role permissions using a specific cache key pattern and tag:
+
+```graphql
+query ($role: String!, $cacheKey: String) {
+  core {
+    info: roles_by_pk(name: $role) @cache(key: $cacheKey, tags: ["$role_permissions"]) {
+      name
+      disabled
+      permissions {
+        type_name
+        field_name
+        hidden
+        disabled
+        filter
+        data
+      }
+    }
+  }
+}
+```
+
+**Cache Key Format**: `RolePermissions:{role_name}`
+**Cache Tag**: `$role_permissions`
+
+#### Querying Role Permissions with Cache
+
+```graphql
+query GetRolePermissions($roleName: String!) {
+  core {
+    roleInfo: roles_by_pk(name: $roleName)
+      @cache(
+        key: "RolePermissions:admin",  # Or dynamically: concat("RolePermissions:", $roleName)
+        tags: ["$role_permissions"]
+      ) {
+      name
+      disabled
+      permissions {
+        type_name
+        field_name
+        hidden
+        disabled
+        filter
+        data
+      }
+    }
+  }
+}
+```
+
+**Benefits**:
+- Permissions are cached per role
+- Reduces database queries for authorization checks
+- Improves API response times
+- Scales well with multiple concurrent users
+
+#### Invalidating Role Permissions Cache
+
+When role permissions change, invalidate the cache to ensure users get updated permissions:
+
+**Method 1: Invalidate All Role Permissions (Recommended)**
+
+```graphql
+mutation UpdateRolePermissions($roleName: String!, $permissions: [PermissionInput!]!) {
+  # Update role permissions
+  updateRole(name: $roleName, permissions: $permissions) {
+    name
+    permissions {
+      type_name
+      field_name
+    }
+  }
+
+  # Invalidate all role permissions cache
+  invalidatePermissions: function {
+    core {
+      cache {
+        invalidate(tags: ["$role_permissions"]) {
+          success
+          affected_rows
+          message
+        }
+      }
+    }
+  }
+}
+```
+
+**Method 2: Invalidate Specific Role**
+
+```graphql
+query RefreshRolePermissions($roleName: String!) {
+  core {
+    # Invalidate and re-fetch specific role
+    roleInfo: roles_by_pk(name: $roleName)
+      @invalidate_cache
+      @cache(
+        key: "RolePermissions:admin",
+        tags: ["$role_permissions"]
+      ) {
+      name
+      permissions {
+        type_name
+        field_name
+      }
+    }
+  }
+}
+```
+
+**Method 3: Programmatic Invalidation by Tag**
+
+```graphql
+mutation ClearAllRolePermissionsCache {
+  clearCache: function {
+    core {
+      cache {
+        invalidate(tags: ["$role_permissions"]) {
+          success
+          affected_rows
+          message
+        }
+      }
+    }
+  }
+}
+```
+
+#### Complete Workflow Example
+
+```graphql
+# 1. Create or update role
+mutation UpdateAdminRole {
+  updateRole(
+    name: "admin",
+    permissions: [
+      { type_name: "users", field_name: "*", disabled: false },
+      { type_name: "orders", field_name: "*", disabled: false }
+    ]
+  ) {
+    name
+    permissions {
+      type_name
+      field_name
+    }
+  }
+
+  # 2. Invalidate role permissions cache
+  invalidatePermissions: function {
+    core {
+      cache {
+        invalidate(tags: ["$role_permissions"]) {
+          success
+          affected_rows
+          message
+        }
+      }
+    }
+  }
+}
+
+# 3. Next request will fetch fresh permissions from database
+query GetAdminPermissions {
+  core {
+    admin: roles_by_pk(name: "admin")
+      @cache(
+        key: "RolePermissions:admin",
+        tags: ["$role_permissions"],
+        ttl: 3600  # Cache for 1 hour
+      ) {
+      name
+      disabled
+      permissions {
+        type_name
+        field_name
+        hidden
+        disabled
+        filter
+        data
+      }
+    }
+  }
+}
+```
+
+#### Best Practices for Permission Caching
+
+1. **Use Consistent Cache Keys**
+   - Always use format: `RolePermissions:{role_name}`
+   - Ensures predictable cache behavior
+   - Easy to debug and monitor
+
+2. **Long TTL for Permissions**
+   - Permissions change infrequently
+   - Use TTL of 1-24 hours
+   - Rely on manual invalidation after updates
+
+3. **Always Invalidate After Changes**
+   - Invalidate cache immediately after role updates
+   - Use `$role_permissions` tag to clear all roles
+   - Consider security implications of stale permissions
+
+4. **Monitor Cache Effectiveness**
+   - Track `affected_rows` to see how many entries were cleared
+   - Monitor permission check latency
+   - Alert on failed invalidations
+
+5. **Graceful Fallback**
+   - If cache invalidation fails, consider forcing refresh
+   - Log failures for security auditing
+   - Have monitoring for stale permissions
+
+#### Security Considerations
+
+**⚠️ Important**: Stale permission cache can lead to security issues:
+
+- **Always invalidate** after permission changes
+- **Verify invalidation success** in mutations
+- **Use short TTLs** for highly sensitive roles
+- **Consider real-time invalidation** for critical permissions
+
+```graphql
+mutation UpdateCriticalPermissions($roleName: String!) {
+  updateRole(name: $roleName, permissions: [...]) {
+    name
+  }
+
+  # Verify invalidation succeeded
+  invalidateResult: function {
+    core {
+      cache {
+        invalidate(tags: ["$role_permissions"]) {
+          success
+          message
+        }
+      }
+    }
+  }
+}
+
+# Check: invalidateResult.function.core.cache.invalidate.success === true
+```
+
+#### Performance Impact
+
+**Without Caching**:
+- Permission check on every request
+- 50-100ms database query per request
+- High database load
+
+**With Caching**:
+- Permission check from cache (1-5ms)
+- Reduced database load by 90%+
+- Better response times for users
+- Scales to thousands of concurrent users
+
 ## Integration with Caching Infrastructure
 
 Cache directives seamlessly integrate with hugr's [caching infrastructure](/docs/deployment/caching).
