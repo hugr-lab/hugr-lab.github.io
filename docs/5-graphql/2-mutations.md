@@ -673,104 +673,250 @@ See [Vector Search](./1-queries/11-vector-search.md) for more details on semanti
 
 ## Access Control and Permissions
 
-Hugr provides role-based access control for mutations, allowing you to restrict who can perform insert, update, and delete operations. Access control is configured in the schema using the [`@auth` directive](../4-engine-configuration/5-access-control.md).
+Hugr provides role-based access control (RBAC) for mutations through the `role_permissions` table in the `core` module. You can restrict who can perform insert, update, and delete operations, apply mandatory filters, and enforce default values.
 
-### Role-Based Permissions
+:::tip
+Access control is managed through the GraphQL API by inserting/updating records in the `core.roles` and `core.role_permissions` tables. See [Access Control](../4-engine-configuration/5-access-control.md) for complete documentation.
+:::
 
-Mutations can be restricted to specific roles:
+### How Mutation Permissions Work
 
-```graphql
-type customers @table(name: "customers")
-  @auth(
-    roles: {
-      admin: { allow_insert: true, allow_update: true, allow_delete: true }
-      manager: { allow_insert: true, allow_update: true, allow_delete: false }
-      user: { allow_insert: false, allow_update: false, allow_delete: false }
-    }
-  ) {
-  id: ID!
-  name: String!
-  email: String!
-}
-```
+Permissions are configured in the `role_permissions` table with the following key fields:
 
-In this example:
-- **admin** role: Can insert, update, and delete customers
-- **manager** role: Can insert and update customers, but not delete
-- **user** role: Read-only access (no mutations allowed)
+- **role**: The role name (e.g., "user", "admin", "editor")
+- **type_name**: The mutation name (e.g., "insert_articles", "update_users", "delete_orders") or "Mutation" for all mutations
+- **field_name**: The field name or `"*"` for all fields
+- **disabled**: When `true`, blocks access completely
+- **filter**: Mandatory filter automatically applied to update/delete mutations (row-level security)
+- **data**: Default values automatically injected into insert/update mutations
 
-If a user without proper permissions attempts a mutation, Hugr returns an authorization error.
+### Restricting Mutations by Role
 
-### Role-Based Default Values
-
-You can set different default values based on the user's role:
-
-```graphql
-type orders @table(name: "orders")
-  @auth(
-    roles: {
-      admin: {
-        allow_insert: true
-        default_values: { status: "approved" }
-      }
-      user: {
-        allow_insert: true
-        default_values: { status: "pending" }
-      }
-    }
-  ) {
-  id: ID!
-  status: String!
-  customer_id: Int!
-}
-```
-
-When an **admin** inserts an order without specifying status, it defaults to `"approved"`. When a **user** inserts an order, it defaults to `"pending"`.
-
-### Mandatory Filters
-
-Roles can have mandatory filters that automatically apply to update and delete mutations, restricting which records can be modified:
-
-```graphql
-type documents @table(name: "documents")
-  @auth(
-    roles: {
-      admin: {
-        allow_update: true
-        allow_delete: true
-      }
-      user: {
-        allow_update: true
-        allow_delete: true
-        filter: { owner_id: { eq: "$user_id" } }  # Can only modify own documents
-      }
-    }
-  ) {
-  id: ID!
-  title: String!
-  owner_id: Int!
-  content: String!
-}
-```
-
-When a **user** executes an update or delete mutation, the `filter: { owner_id: { eq: "$user_id" } }` is automatically applied, ensuring they can only modify their own documents. The `$user_id` variable is automatically populated from the authenticated user's context.
-
-Example mutation as **user**:
+**Example: Block all mutations for readonly role**
 
 ```graphql
 mutation {
-  # User can only delete their own documents
+  core {
+    insert_role_permissions(data: {
+      role: "readonly"
+      type_name: "Mutation"
+      field_name: "*"
+      disabled: true
+    }) {
+      role
+      type_name
+    }
+  }
+}
+```
+
+This blocks all mutations for users with the `readonly` role.
+
+**Example: Allow specific mutations only**
+
+```graphql
+mutation {
+  core {
+    # Block all mutations
+    blockAll: insert_role_permissions(data: {
+      role: "contributor"
+      type_name: "Mutation"
+      field_name: "*"
+      disabled: true
+    }) {
+      role
+    }
+
+    # But allow insert_articles
+    allowInsert: insert_role_permissions(data: {
+      role: "contributor"
+      type_name: "Mutation"
+      field_name: "insert_articles"
+      disabled: false
+    }) {
+      role
+    }
+  }
+}
+```
+
+Due to permission priority (exact match wins over wildcard), the `contributor` role can only execute `insert_articles` mutations.
+
+### Enforcing Default Values
+
+Use the `data` field to automatically inject values into mutations that cannot be overridden by the user:
+
+**Example: Auto-set author on article creation**
+
+```graphql
+mutation {
+  core {
+    insert_role_permissions(data: {
+      role: "editor"
+      type_name: "insert_articles"
+      field_name: "*"
+      data: {
+        author_id: "[$auth.user_id]"
+        status: "draft"
+        created_by: "[$auth.user_name]"
+      }
+    }) {
+      role
+      type_name
+    }
+  }
+}
+```
+
+When an `editor` inserts an article, these values are automatically set:
+- `author_id` is set to the authenticated user's ID
+- `status` is always set to `"draft"`
+- `created_by` is set to the user's name
+
+**Authentication variables** like `[$auth.user_id]` and `[$auth.user_name]` are dynamically replaced with the authenticated user's information.
+
+### Row-Level Security with Filters
+
+Use the `filter` field to restrict which rows can be modified by update and delete mutations:
+
+**Example: Users can only modify their own documents**
+
+```graphql
+mutation {
+  core {
+    # Restrict update_documents
+    update: insert_role_permissions(data: {
+      role: "user"
+      type_name: "update_documents"
+      field_name: "*"
+      filter: {
+        owner_id: { eq: "[$auth.user_id]" }
+      }
+    }) {
+      role
+    }
+
+    # Restrict delete_documents
+    delete: insert_role_permissions(data: {
+      role: "user"
+      type_name: "delete_documents"
+      field_name: "*"
+      filter: {
+        owner_id: { eq: "[$auth.user_id]" }
+      }
+    }) {
+      role
+    }
+  }
+}
+```
+
+When a `user` executes an update or delete:
+
+```graphql
+mutation {
+  # User's mutation
   delete_documents(filter: { id: { eq: 123 } }) {
     affected_rows
   }
 }
 ```
 
-Even though the filter only specifies `id`, the mandatory filter `owner_id: { eq: "$user_id" }` is automatically added, so the actual executed filter becomes: `{ id: { eq: 123 }, owner_id: { eq: <current_user_id> } }`.
+The mandatory filter is automatically merged, so the actual filter becomes:
+```json
+{
+  "id": { "eq": 123 },
+  "owner_id": { "eq": "<current_user_id>" }
+}
+```
 
-:::tip
-See [Access Control](../4-engine-configuration/5-access-control.md) for complete documentation on role-based permissions, default values, mandatory filters, and authentication configuration.
-:::
+This ensures users can only modify their own documents, even if they try to specify different IDs.
+
+### Complete Example: Multi-Tenant Application
+
+```graphql
+mutation {
+  core {
+    insert_roles(data: {
+      name: "tenant_user"
+      description: "User within a tenant organization"
+      permissions: [
+        # Users can only see their tenant's customers
+        {
+          type_name: "customers"
+          field_name: "*"
+          filter: {
+            tenant_id: { eq: "[$auth.tenant_id]" }
+          }
+        }
+        # Auto-set tenant_id on insert
+        {
+          type_name: "insert_customers"
+          field_name: "*"
+          data: {
+            tenant_id: "[$auth.tenant_id]"
+          }
+        }
+        # Can only update own tenant's customers
+        {
+          type_name: "update_customers"
+          field_name: "*"
+          filter: {
+            tenant_id: { eq: "[$auth.tenant_id]" }
+          }
+        }
+        # Can only delete own tenant's customers
+        {
+          type_name: "delete_customers"
+          field_name: "*"
+          filter: {
+            tenant_id: { eq: "[$auth.tenant_id]" }
+          }
+        }
+      ]
+    }) {
+      name
+      permissions {
+        type_name
+        filter
+        data
+      }
+    }
+  }
+}
+```
+
+### Authentication Variables
+
+Available variables for use in `filter` and `data` fields:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `[$auth.user_id]` | User ID (string) | "12345" |
+| `[$auth.user_id_int]` | User ID (integer) | 12345 |
+| `[$auth.user_name]` | Username | "john.doe" |
+| `[$auth.role]` | User's role | "editor" |
+| `[$auth.auth_type]` | Authentication type | "jwt", "apikey" |
+
+You can also reference custom JWT claims like `[$auth.tenant_id]`, `[$auth.department_id]`, etc.
+
+### Permission Priority
+
+When multiple permissions match, Hugr uses the **most specific** one:
+
+1. **Exact match**: `(type_name: "insert_users", field_name: "email")`
+2. **Type with wildcard field**: `(type_name: "insert_users", field_name: "*")`
+3. **Wildcard type with exact field**: `(type_name: "*", field_name: "email")`
+4. **Both wildcards**: `(type_name: "*", field_name: "*")`
+5. **No match**: Allowed by default
+
+This allows you to create broad rules with specific exceptions.
+
+### See Also
+
+- [Access Control](../4-engine-configuration/5-access-control.md) - Complete RBAC documentation
+- [Authentication Setup](../7-deployment/4-auth.md) - Configure authentication
+- [Filtering](./1-queries/3-filtering.md) - Filter syntax for row-level security
 
 ## Error Handling
 
