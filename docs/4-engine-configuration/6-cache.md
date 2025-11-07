@@ -1,22 +1,32 @@
 ---
-title: "Cache Directives"
+title: "Cache Directives and Functions"
 sidebar_position: 7
-description: Control caching behavior with @cache, @no_cache, and @invalidate_cache directives
-keywords: [cache, caching, @cache, @no_cache, @invalidate_cache, performance, ttl]
+description: Control caching behavior with @cache, @no_cache, @invalidate_cache directives and core.cache.invalidate() function
+keywords: [cache, caching, @cache, @no_cache, @invalidate_cache, core.cache, invalidate, performance, ttl, tags]
 ---
 
-# Cache Directives
+# Cache Directives and Functions
 
-Hugr provides three GraphQL directives to control query result caching: `@cache`, `@no_cache`, and `@invalidate_cache`. These directives work seamlessly with hugr's [two-level caching system](/docs/deployment/caching) (L1 in-memory and L2 distributed) to optimize query performance and reduce database load.
+Hugr provides three GraphQL directives to control query result caching: `@cache`, `@no_cache`, and `@invalidate_cache`. Additionally, the `core.cache.invalidate()` function enables programmatic cache invalidation. These features work seamlessly with hugr's [two-level caching system](/docs/deployment/caching) (L1 in-memory and L2 distributed) to optimize query performance and reduce database load.
+
+## Cache Control Methods
+
+Hugr offers multiple ways to control caching behavior:
+
+1. **[@cache directive](#cache-directive)** - Enable caching for queries or schema types
+2. **[@no_cache directive](#no_cache-directive)** - Disable caching for specific queries
+3. **[@invalidate_cache directive](#invalidate_cache-directive)** - Invalidate cache during query execution
+4. **[core.cache.invalidate() function](#programmatic-cache-invalidation)** - Programmatically invalidate cache by tags
 
 ## Overview
 
 ### What are Cache Directives?
 
-Cache directives are GraphQL directives that allow you to:
-- Enable automatic caching of query results
-- Disable caching for specific queries that require real-time data
-- Invalidate cached data when mutations occur or data becomes stale
+Cache directives and functions allow you to:
+- Enable automatic caching of query results with `@cache`
+- Disable caching for specific queries that require real-time data with `@no_cache`
+- Invalidate cached data when mutations occur with `@invalidate_cache` directive or `core.cache.invalidate()` function
+- Programmatically invalidate cache by tags using `core.cache.invalidate(tags: [...])`
 
 ### When to Use Cache Directives
 
@@ -788,12 +798,278 @@ mutation CreateOrder($input: OrderInput!) {
 
 ### Manual Invalidation with @invalidate_cache
 
+Use the `@invalidate_cache` directive to invalidate cache during query execution:
+
 ```graphql
 query {
   # Invalidate specific tag
   orders @invalidate_cache @cache(ttl: 300, tags: ["orders"]) {
     id
     total
+  }
+}
+```
+
+### Programmatic Cache Invalidation
+
+For manual cache invalidation outside of queries, use the `core.cache.invalidate()` function. This is useful for:
+- Invalidating cache from mutations or scripts
+- Scheduled cache cleanup
+- Administrative operations
+- Event-driven invalidation
+
+#### Function Definition
+
+```graphql
+extend type Function {
+  invalidate(
+    tags: [String!]
+  ): OperationResult @function(name: "invalidate_cache", skip_null_arg: true) @module(name: "core.cache")
+}
+
+type OperationResult {
+  success: Boolean!
+}
+```
+
+#### Syntax
+
+```graphql
+query {
+  function {
+    core {
+      cache {
+        invalidate(tags: ["tag1", "tag2"]) {
+          success
+        }
+      }
+    }
+  }
+}
+```
+
+#### Parameters
+
+| Parameter | Type | Description | Required |
+|-----------|------|-------------|----------|
+| `tags` | [String!] | Array of cache tags to invalidate. All cache entries with these tags will be removed. | Yes |
+
+#### Return Value
+
+Returns `OperationResult` with:
+- `success`: `true` if invalidation succeeded, `false` otherwise
+
+#### Examples
+
+**Example 1: Invalidate Single Tag**
+
+```graphql
+mutation UpdateProducts($input: ProductInput!) {
+  updateProduct(input: $input) {
+    id
+    name
+  }
+
+  # Invalidate all product-related caches
+  invalidateCache: function {
+    core {
+      cache {
+        invalidate(tags: ["products"]) {
+          success
+        }
+      }
+    }
+  }
+}
+```
+
+**Example 2: Invalidate Multiple Tags**
+
+```graphql
+mutation UpdateOrder($id: ID!, $input: OrderInput!) {
+  updateOrder(id: $id, input: $input) {
+    id
+    total
+  }
+
+  # Invalidate multiple related caches
+  invalidateCache: function {
+    core {
+      cache {
+        invalidate(tags: ["orders", "sales", "analytics"]) {
+          success
+        }
+      }
+    }
+  }
+}
+```
+
+**Example 3: Administrative Cache Clear**
+
+```graphql
+mutation ClearDashboardCache {
+  clearCache: function {
+    core {
+      cache {
+        invalidate(tags: ["dashboard", "reports", "stats"]) {
+          success
+        }
+      }
+    }
+  }
+}
+```
+
+**Example 4: Scheduled Cache Refresh**
+
+```graphql
+# Can be executed by cron job or scheduler
+query RefreshAnalyticsCache {
+  # First, invalidate old cache
+  invalidate: function {
+    core {
+      cache {
+        invalidate(tags: ["analytics"]) {
+          success
+        }
+      }
+    }
+  }
+
+  # Then, fetch fresh data (will be cached)
+  analytics: orders_aggregation @cache(ttl: 3600, tags: ["analytics"]) {
+    _rows_count
+    total_revenue { sum }
+  }
+}
+```
+
+**Example 5: Event-Driven Invalidation**
+
+```graphql
+mutation OnDataImport($status: String!) {
+  # After successful data import
+  logImport(status: $status) {
+    success
+  }
+
+  # Invalidate all related caches
+  invalidateCache: function @include(if: $status == "success") {
+    core {
+      cache {
+        invalidate(tags: ["products", "categories", "inventory"]) {
+          success
+        }
+      }
+    }
+  }
+}
+```
+
+#### When to Use
+
+**Use `core.cache.invalidate()` when**:
+- You need to invalidate cache from mutations
+- Performing administrative cache management
+- Implementing scheduled cache refresh
+- Handling event-driven invalidation
+- Cache cleanup is independent of data queries
+
+**Use `@invalidate_cache` directive when**:
+- Invalidation is tied to a specific query
+- You want to invalidate and immediately re-fetch data
+- Invalidation is part of query logic
+
+#### Best Practices
+
+1. **Invalidate Specific Tags**: Only invalidate tags related to changed data
+   ```graphql
+   # ❌ Too broad
+   invalidate(tags: ["all"])
+
+   # ✅ Specific
+   invalidate(tags: ["products:electronics"])
+   ```
+
+2. **Combine with Mutations**: Invalidate cache after data changes
+   ```graphql
+   mutation {
+     updateProduct(id: 1, input: {...}) { id }
+     function { core { cache { invalidate(tags: ["products"]) { success } } } }
+   }
+   ```
+
+3. **Check Success Status**: Verify invalidation succeeded
+   ```graphql
+   mutation {
+     result: function {
+       core {
+         cache {
+           invalidate(tags: ["orders"]) {
+             success
+           }
+         }
+       }
+     }
+   }
+   # Check result.function.core.cache.invalidate.success
+   ```
+
+4. **Use Hierarchical Tags**: Invalidate at different levels
+   ```graphql
+   # Invalidate all orders
+   invalidate(tags: ["orders"])
+
+   # Invalidate only pending orders
+   invalidate(tags: ["orders:pending"])
+   ```
+
+#### Integration Example
+
+Complete example showing cache invalidation in a typical workflow:
+
+```graphql
+mutation CompleteProductUpdate {
+  # 1. Update product data
+  updateProduct(id: 123, input: {
+    name: "New Product Name"
+    price: 99.99
+  }) {
+    id
+    name
+    price
+  }
+
+  # 2. Invalidate related caches
+  invalidateProductCache: function {
+    core {
+      cache {
+        invalidate(tags: ["products", "catalog"]) {
+          success
+        }
+      }
+    }
+  }
+
+  # 3. Invalidate analytics cache
+  invalidateAnalyticsCache: function {
+    core {
+      cache {
+        invalidate(tags: ["analytics", "reports"]) {
+          success
+        }
+      }
+    }
+  }
+}
+
+# Then fetch fresh data
+query GetUpdatedProduct {
+  product(filter: { id: 123 }) @cache(ttl: 300, tags: ["products"]) {
+    id
+    name
+    price
   }
 }
 ```
@@ -923,18 +1199,43 @@ query UserDashboard($userId: ID!) {
 
 ### Example 4: Invalidate Cache on Data Change
 
-Ensure fresh data after mutations:
+Ensure fresh data after mutations using `core.cache.invalidate()`:
 
 ```graphql
-# Update product price
+# Update product price and invalidate cache
 mutation UpdateProductPrice($id: ID!, $price: Float!) {
+  # 1. Update the data
   updateProduct(id: $id, input: { price: $price }) {
     id
     price
   }
+
+  # 2. Invalidate related caches programmatically
+  invalidateCache: function {
+    core {
+      cache {
+        invalidate(tags: ["products", "catalog"]) {
+          success
+        }
+      }
+    }
+  }
 }
 
-# Fetch updated products with cache invalidation
+# Subsequent queries will get fresh data
+query {
+  products @cache(ttl: 300, tags: ["products"]) {
+    id
+    name
+    price
+  }
+}
+```
+
+**Alternative: Using @invalidate_cache directive**
+
+```graphql
+# Fetch updated products with directive
 query {
   products @invalidate_cache @cache(ttl: 300, tags: ["products"]) {
     id
@@ -1612,6 +1913,7 @@ query B { products(filter: { category: "books" }) @cache(ttl: 300) { id } }
 - **[Deployment - Caching Configuration](/docs/deployment/caching)**: L1/L2 cache setup, Redis/Memcached configuration
 - **[Directives Reference](/docs/references/directives)**: Complete directive reference including `@cache`, `@no_cache`, `@invalidate_cache`
 - **[JQ Transformations - Caching queryHugr()](/docs/graphql/jq-transformations#caching-queryhugr-results)**: Using `@cache` in nested queries within JQ expressions
+- **[Function Modules](/docs/graphql/functions)**: Information about `core.cache.invalidate()` and other built-in functions
 - **[GraphQL Queries](/docs/graphql/queries)**: General information about querying in hugr
 - **[Performance Optimization](/docs/deployment/performance)**: General performance tuning guide
 
