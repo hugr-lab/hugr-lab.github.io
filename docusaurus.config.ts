@@ -6,7 +6,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Unified API for Your Data, Wherever It Lives',
-  tagline: 'Power your architecture with a Data-First approach.\nDesign distributed, domain-owned schemas and access SQL, data lakes, and APIs through a single GraphQL layer — with centralized control and governance.',
+  tagline: 'Access databases, files, and APIs through a single, secure interface — with domain ownership and centralized governance built-in.',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
@@ -97,11 +97,9 @@ const config: Config = {
     ],
     image: 'img/hugr-social-card.png',
     navbar: {
-      title: 'hugr',
       logo: {
-        alt: 'My Site Logo',
-        src: 'img/logo.svg',
-        srcDark: 'img/logo-dark.svg',
+        alt: 'Hugr Lab',
+        src: 'img/logo-circle.svg'
       },
       items: [
         {
@@ -109,6 +107,11 @@ const config: Config = {
           sidebarId: 'docsSidebar',
           position: 'left',
           label: 'Docs',
+        },
+        {
+          href: '/docs/join-us/',
+          position: 'left',
+          label: 'Join Us',
         },
         {
           href: 'https://github.com/hugr-lab/hugr',
@@ -163,6 +166,13 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
     },
   } satisfies Preset.ThemeConfig,
+
+  scripts: [
+    {
+      src: 'https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap',
+      async: true,
+    },
+  ],
 
   headTags: [
     {

@@ -1,25 +1,7 @@
 /* ListSection Improved Styles */
 .useCaseSection {
-  padding: 3rem 0;
-  border-bottom: 2px solid var(--ifm-color-emphasis-300);
+  padding: 1rem 0;
   position: relative;
-}
-
-.useCaseSection:last-child {
-  border-bottom: none;
-}
-
-/* Decorative separator line */
-.useCaseSection::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60px;
-  height: 3px;
-  background: linear-gradient(90deg, var(--ifm-color-primary), var(--ifm-color-secondary));
-  border-radius: 2px;
 }
 
 .useCaseSection:last-child::after {
@@ -27,24 +9,31 @@
 }
 
 .useCaseGrid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 3rem;
   align-items: center;
-  min-height: 300px;
+  grid-template-columns: 2fr 1fr;
+  min-height: auto;
 }
 
 .useCaseContent {
-  flex: 1 1 55%;
   min-width: 320px;
+  font-family: 'Quicksand';
+  padding: 2rem 1rem;
+  background-color: rgba(214,229,228,0.39);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .useCaseContent h3 {
-  font-size: 1.8rem;
+  font-size: 1.3rem;
   font-weight: 700;
   margin-bottom: 1rem;
   color: var(--ifm-heading-color);
   line-height: 1.3;
+  font-family: 'Quicksand';
 }
 
 .useCaseContent p {
@@ -70,17 +59,18 @@
 }
 
 .useCaseContent li::before {
-  content: '✓';
+  content: '';
   position: absolute;
   left: 0;
   top: 0;
-  color: var(--ifm-color-primary);
-  font-weight: 700;
-  font-size: 1.1rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  background-image: url('/img/use-cases/checkmark.svg');
+  background-size: contain;
+  background-repeat: no-repeat;
 }
 
 .useCaseVisual {
-  flex: 1 1 40%;
   min-width: 280px;
   display: flex;
   justify-content: center;
@@ -88,41 +78,29 @@
   padding: 2rem;
   border-radius: 12px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.useCaseVisual:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  height: 100%;
 }
 
 .useCaseVisual img {
-  max-width: 100%;
+  width: 100%;
   height: auto;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  max-width: 100%;
+  object-fit: contain;
 }
-
-/* Alternate layout for visual variety */
-.useCaseSection:nth-child(even) .useCaseGrid {
-  flex-direction: row-reverse;
-}
-
-
 
 /* Responsive Design */
 @media (max-width: 996px) {
   .useCaseGrid {
-    flex-direction: column !important;
+    grid-template-columns: 1fr;
     gap: 2rem;
     text-align: center;
   }
   
   .useCaseContent {
-    flex: 1 1 100%;
     min-width: unset;
   }
   
   .useCaseVisual {
-    flex: 1 1 100%;
     min-width: unset;
     order: -1;
   }
@@ -149,12 +127,4 @@
     padding-left: 1.5rem;
     font-size: 0.95rem;
   }
-}
-
-/* Fix for images in use case sections */
-.useCaseVisual img {
-  max-width: 100%;
-  max-height: 200px;
-  height: auto;
-  object-fit: contain;
 }

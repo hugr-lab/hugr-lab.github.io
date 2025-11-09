@@ -1,3 +1,9 @@
+.descriptionSection {
+  background-color: rgba(214,229,228,0.39);
+  padding: 4rem 0rem;
+  margin: 0;
+}
+
 .descriptionGrid {
   display: flex;
   flex-wrap: wrap;
@@ -29,11 +35,21 @@
   line-height: 1.4;
   margin-bottom: 1rem;
   font-weight: 600;
+  font-size: 2rem;
   color: var(--ifm-heading-color);
+  font-family: 'Quicksand';
 }
 
 .paragraph {
-  font-size: 1rem;
+  font-size: 1.3rem;
   line-height: 1.75;
   color: var(--ifm-font-color-base);
+  font-family: 'Quicksand';
+}
+
+.buttons {
+  display: flex;
+  align-items: left;
+  justify-content: left;
+  margin-bottom: 2rem;
 }

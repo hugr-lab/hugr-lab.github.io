@@ -6,6 +6,7 @@
 
 /* You can override the default Infima variables here. */
 :root {
+  --ifm-font-family-base: 'Quicksand', system-ui, -apple-system, sans-serif;
   --ifm-color-primary: #1c7d78;
   --ifm-color-primary-dark: #19716c;
   --ifm-color-primary-darker: #186a66;
@@ -15,7 +16,62 @@
   --ifm-color-primary-lightest: #20908a;
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --ifm-navbar-height: 80px;
+  --ifm-navbar-background-color: rgba(255, 255, 255, 0.5);
 }
+
+.navbar__logo {
+  height: 64px;
+  width: auto;
+}
+
+.navbar__logo img {
+  height: 64px;
+  width: auto;
+}
+
+.navbar__link {
+  font-size: 1.3rem;
+  color: #20908a;
+  font-weight: 600;
+}
+
+.navbar__title {
+  font-family: 'Quicksand';
+  font-size: 1.3rem;
+  color: #20908a;
+  font-weight: 600;
+}
+
+.hero__title {
+  font-family: 'Quicksand';
+  color: #0a3145;
+}
+
+.hero__subtitle {
+  font-family: 'Quicksand';
+  color: #26bab5;
+  font-size: 1.7rem;
+  font-weight: 600;
+}
+
+.hero__description {
+  font-family: 'Quicksand';
+  color: #0d7271;
+  font-size: 1.3rem;
+}
+
+.button {
+  border-radius: 22px;
+  font-family: 'Quicksand';
+}
+
+.highlighted {
+  color: #21807a;
+  font-family: 'Quicksand';
+}
+
+
 /*
 /* For readability concerns, you should choose a lighter palette in dark mode. 
 [data-theme='dark'] {
@@ -29,3 +85,27 @@
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 */
+
+.homepage .navbar--fixed-top {
+  background: transparent !important;
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+.homepage .heroBanner {
+  padding-top: calc(var(--ifm-navbar-height) + 4rem) !important;
+  margin-top: calc(-1 * var(--ifm-navbar-height)) !important;
+}
+
+.homepage .navbar--fixed-top.navbar--scrolled {
+  background-color: var(--ifm-navbar-background-color) !important;
+  box-shadow: var(--ifm-global-shadow-lw) !important;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.homepage .navbar--scrolled .navbar__link,
+.homepage .navbar--scrolled .navbar__title {
+  color: var(--ifm-navbar-link-color) !important;
+}
+

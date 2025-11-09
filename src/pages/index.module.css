@@ -4,15 +4,41 @@
  */
 
 .heroBanner {
-  padding: 4rem 0;
+  padding: 0;
   text-align: center;
   position: relative;
   overflow: hidden;
+  min-height: 800px; /*calc(100vh - var(--ifm-navbar-height)); /* на весь экран */
+  margin-top: 0;
+
+  background-image: url('/img/hero-back.png');
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  
+  /* Используем flexbox для позиционирования */
+  display: flex;
+  align-items: flex-end; /* контент внизу */
+  justify-content: center;
+}
+
+/* Контент внизу */
+.heroBanner .container {
+  padding-bottom: 4rem; /* отступ снизу */
+  width: 100%;
+}
+
+.heroBanner.hero {
+  padding: 0;
 }
 
 @media screen and (max-width: 996px) {
   .heroBanner {
-    padding: 2rem;
+    min-height: 80vh;
+  }
+  
+  .heroBanner .container {
+    padding-bottom: 2rem;
   }
 }
 
@@ -20,6 +46,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 2rem;
 }
 
 /* Use Cases Section Styling */
@@ -33,21 +60,8 @@
 .sectionHeader {
   font-size: 2.5rem;
   font-weight: 800;
-  color: var(--ifm-heading-color);
   line-height: 1.2;
   position: relative;
-}
-
-.sectionHeader::after {
-  content: '';
-  position: absolute;
-  bottom: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80px;
-  height: 4px;
-  background: linear-gradient(90deg, var(--ifm-color-primary), var(--ifm-color-secondary));
-  border-radius: 2px;
 }
 
 /* Main content wrapper */
