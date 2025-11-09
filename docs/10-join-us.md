@@ -78,20 +78,22 @@ Python is the primary tool for data analytics and machine learning in the hugr e
 - Knowledge of Arrow format and data serialization
 - Experience with data visualization and Jupyter notebooks
 
-#### MCP Tools and Model Training
+#### MCP Tools - Talk to Data
 
-We are actively developing Model Context Protocol (MCP) tools:
+We are actively developing Model Context Protocol (MCP) tools for natural language data interaction:
 
-- **MCP Server Development**: Building tools for LLM integration with hugr
-- **Model Training**: Fine-tuning models for schema generation and query optimization
-- **AI-Assisted Development**: Using LLMs to enhance developer experience
-- **Prompt Engineering**: Creating effective prompts for data tasks
+- **MCP Server Development**: Building fundamental tools for "talk to data" capabilities
+- **Natural Language Queries**: Enabling conversational access to data through LLMs
+- **Data Discovery**: Using AI to help users explore and understand their data
+- **Query Generation**: Converting natural language questions into optimized queries
+- **Prompt Engineering**: Creating effective prompts for data interaction tasks
 
 **What you need:**
 - Understanding of LLM capabilities and limitations
 - Experience with prompt engineering and model APIs
 - Knowledge of RAG (Retrieval-Augmented Generation) patterns
-- Interest in AI-assisted development workflows
+- Interest in natural language interfaces for data
+- Understanding of data query patterns and SQL
 
 ### Geospatial Analytics
 
@@ -226,7 +228,7 @@ Docker images and Kubernetes charts for deploying hugr. Includes configurations 
 #### [hugr-lab/mcp](https://github.com/hugr-lab/mcp)
 **Language**: Go | **License**: MIT
 
-Model Context Protocol (MCP) service for hugr. Enables LLM integration and AI-assisted development workflows with hugr.
+Model Context Protocol (MCP) service for hugr. Provides fundamental tools for "talk to data" - enabling natural language interaction with your data through LLM integration.
 
 ### Examples & Learning
 
