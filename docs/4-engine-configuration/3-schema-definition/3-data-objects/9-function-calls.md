@@ -5,6 +5,10 @@ sidebar_position: 9
 
 # Function Calls
 
+:::tip Cross-Source Function Calls
+For calling functions across different data sources using extensions, see [Extensions & Cross-Source Subqueries](/docs/engine-configuration/extension#extending-types-with-cross-source-function-calls).
+:::
+
 Hugr allows you to extend data objects with function call fields, enabling dynamic computations, external API calls, and custom business logic directly within your GraphQL queries.
 
 ## Basic Function Calls

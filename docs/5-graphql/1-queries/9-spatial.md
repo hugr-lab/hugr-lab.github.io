@@ -5,6 +5,10 @@ sidebar_position: 9
 
 # Spatial Queries (_spatial)
 
+:::tip Cross-Source Spatial Queries
+For cross-source spatial queries using extensions, see [Extensions & Cross-Source Subqueries](/docs/engine-configuration/extension#using-spatial-queries-_spatial-across-sources).
+:::
+
 Hugr provides built-in support for spatial queries through the `_spatial` field, available on all data objects with geometry fields. This enables powerful geographic queries like finding nearby locations, identifying intersections, and performing spatial aggregations.
 
 ## Basic Spatial Queries

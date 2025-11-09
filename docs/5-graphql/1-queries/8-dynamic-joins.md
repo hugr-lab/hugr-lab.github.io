@@ -5,6 +5,10 @@ sidebar_position: 8
 
 # Dynamic Joins (_join)
 
+:::tip Cross-Source Joins with Extensions
+For advanced cross-source integration using schema extensions, see [Extensions & Cross-Source Subqueries](/docs/engine-configuration/extension).
+:::
+
 Every data object in Hugr includes a special `_join` field that allows you to create ad-hoc joins at query time. This is particularly useful for joining data that doesn't have predefined foreign key relationships, joining across different data sources, or creating complex join patterns dynamically.
 
 ## Basic Dynamic Join
