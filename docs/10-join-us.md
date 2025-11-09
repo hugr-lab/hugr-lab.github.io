@@ -191,6 +191,71 @@ Join our community:
 
 We value all contributions, whether it's code, documentation, bug reports, or community support. Every contribution helps make hugr better!
 
+## Hugr Ecosystem Repositories
+
+The hugr project consists of multiple repositories, each serving a specific purpose in the ecosystem:
+
+### Core Repositories
+
+#### [hugr-lab/hugr](https://github.com/hugr-lab/hugr)
+**Language**: Go | **License**: MIT
+
+The main Hugr service repository containing the HTTP server implementation. This is the primary entry point for running hugr as a standalone service.
+
+#### [hugr-lab/query-engine](https://github.com/hugr-lab/query-engine)
+**Language**: Go | **License**: MIT
+
+The core query engine implementation. This is a reusable Go package that powers hugr's GraphQL query processing, data source management, and query transformation logic. Can be embedded in custom applications.
+
+### Client Libraries
+
+#### [hugr-lab/hugr-client](https://github.com/hugr-lab/hugr-client)
+**Language**: Python | **License**: MIT
+
+Python client library for hugr. Provides a convenient interface for querying hugr via the Arrow IPC protocol, with support for pandas DataFrames and GeoPandas GeoDataFrames.
+
+### Infrastructure & Deployment
+
+#### [hugr-lab/docker](https://github.com/hugr-lab/docker)
+**Language**: Dockerfile | **License**: MIT
+
+Docker images and Kubernetes charts for deploying hugr. Includes configurations for both single-node and multi-node cluster deployments with load balancing and caching.
+
+### Tools & Extensions
+
+#### [hugr-lab/mcp](https://github.com/hugr-lab/mcp)
+**Language**: Go | **License**: MIT
+
+Model Context Protocol (MCP) service for hugr. Enables LLM integration and AI-assisted development workflows with hugr.
+
+### Examples & Learning
+
+#### [hugr-lab/examples](https://github.com/hugr-lab/examples)
+**Language**: Shell | **License**: MIT
+
+Collection of example projects and tutorials demonstrating various hugr use cases, integrations, and best practices.
+
+#### [hugr-lab/osm_dbt](https://github.com/hugr-lab/osm_dbt)
+**Language**: Shell | **License**: MIT
+
+OpenStreetMap universal DuckDB loader. Demonstrates how to work with geospatial data, DBT transformations, and spatial analytics in hugr.
+
+### Documentation
+
+#### [hugr-lab/hugr-lab.github.io](https://github.com/hugr-lab/hugr-lab.github.io)
+**Language**: CSS (Docusaurus) | **License**: MIT
+
+This documentation website source code. Built with Docusaurus and contains all user guides, API references, and tutorials.
+
+#### [hugr-lab/docs](https://github.com/hugr-lab/docs)
+**License**: MIT
+
+Additional documentation and design documents for the hugr project.
+
+---
+
+**All repositories are open source and licensed under MIT**, making them free to use for both commercial and non-commercial purposes. We welcome contributions to any of these repositories!
+
 ## Contact
 
 If you have questions or want to discuss contribution opportunities:
