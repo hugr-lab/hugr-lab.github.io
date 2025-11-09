@@ -249,11 +249,6 @@ OpenStreetMap universal DuckDB loader. Demonstrates how to work with geospatial 
 
 This documentation website source code. Built with Docusaurus and contains all user guides, API references, and tutorials.
 
-#### [hugr-lab/docs](https://github.com/hugr-lab/docs)
-**License**: MIT
-
-Additional documentation and design documents for the hugr project.
-
 ---
 
 **All repositories are open source and licensed under MIT**, making them free to use for both commercial and non-commercial purposes. We welcome contributions to any of these repositories!
