@@ -4,7 +4,11 @@ sidebar_position: 6
 description: "Extensions are a special type of data source that allow you to extend existing data objects with cross-source subquery and function call fields."
 ---
 
-# Extensions & Cross-Source Subqueries
+# Extension Data Source
+
+:::info
+For a comprehensive guide on using extensions with detailed examples, cross-source queries, and best practices, see [Extensions & Cross-Source Subqueries](../4-extension.md).
+:::
 
 Extensions are a special type of data source that allow you to extend existing data objects with cross-source subquery and function call fields. They can be used to add additional functionality or to integrate with other systems.
 

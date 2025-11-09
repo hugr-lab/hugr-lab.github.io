@@ -5,6 +5,10 @@ sidebar_position: 8
 
 # Joins and Spatial Joins
 
+:::tip Cross-Source Joins
+For extending types with joins across different data sources, see [Extensions & Cross-Source Subqueries](/docs/engine-configuration/extension#extending-types-with-cross-source-joins).
+:::
+
 Beyond foreign key relationships, Hugr provides flexible join capabilities including custom joins, query-time joins, and spatial joins for geographic data.
 
 ## Custom Joins with @join
