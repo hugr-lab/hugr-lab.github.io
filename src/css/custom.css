@@ -43,24 +43,6 @@
   font-weight: 600;
 }
 
-.hero__title {
-  font-family: 'Quicksand';
-  color: #0a3145;
-}
-
-.hero__subtitle {
-  font-family: 'Quicksand';
-  color: #26bab5;
-  font-size: 1.7rem;
-  font-weight: 600;
-}
-
-.hero__description {
-  font-family: 'Quicksand';
-  color: #0d7271;
-  font-size: 1.3rem;
-}
-
 .button {
   border-radius: 22px;
   font-family: 'Quicksand';
@@ -69,6 +51,12 @@
 .highlighted {
   color: #21807a;
   font-family: 'Quicksand';
+}
+
+@media screen and (max-width: 996px) {
+  :root {
+    --ifm-navbar-background-color: rgba(255, 255, 255, 0.9);
+  }
 }
 
 

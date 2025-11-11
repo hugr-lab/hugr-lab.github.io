@@ -203,6 +203,28 @@ const config: Config = {
         content: 'oOE10EHH6DYiVidJkz9BmWI4832W_udAVtPrjMuEHlE',
       },
     },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preconnect',
+        href: 'https://fonts.googleapis.com',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossorigin: 'anonymous',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700;800&display=swap',
+      },
+    },
   ],
 };
 

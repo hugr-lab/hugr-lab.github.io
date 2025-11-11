@@ -8,7 +8,7 @@
   text-align: center;
   position: relative;
   overflow: hidden;
-  min-height: 800px; /*calc(100vh - var(--ifm-navbar-height)); /* на весь экран */
+  min-height: 800px;
   margin-top: 0;
 
   background-image: url('/img/hero-back.png');
@@ -16,23 +16,98 @@
   background-position: center bottom;
   background-repeat: no-repeat;
   
-  /* Используем flexbox для позиционирования */
   display: flex;
-  align-items: flex-end; /* контент внизу */
+  align-items: flex-end;
   justify-content: center;
 }
 
-/* Контент внизу */
 .heroBanner .container {
-  padding-bottom: 4rem; /* отступ снизу */
+  padding-bottom: 4rem; 
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .heroBanner.hero {
   padding: 0;
+  background-color: transparent !important;
 }
 
-@media screen and (max-width: 996px) {
+/* Переопределяем стили Docusaurus для текста */
+.heroBanner :global(.hero__title) {
+  font-family: 'Quicksand' !important;
+  color: #0a3145 !important;
+}
+
+.heroBanner :global(.hero__subtitle) {
+  font-family: 'Quicksand' !important;
+  color: #26bab5 !important;
+  font-size: 1.7rem !important;
+  font-weight: 600 !important;
+}
+
+.heroBanner :global(.hero__description) {
+  font-family: 'Quicksand' !important;
+  color: #0d7271 !important;
+  font-size: 1.3rem !important;
+}
+
+/* Для экранов меньше 800px */
+@media screen and (max-width: 1120px) {
+  .heroBanner {
+    background-image: none;
+    background-color: white !important;
+    min-height: 80vh;
+    isolation: isolate; /* КРИТИЧНО: изолирует stacking context */
+  }
+  
+  /* Фоновое изображение */
+  .heroBanner::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('/img/hero-back-small.png');
+    background-size: cover;
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    opacity: 0.6;
+    z-index: -1; /* КРИТИЧНО: отрицательный z-index */
+  }
+  
+  .heroBanner .container {
+    padding-bottom: 2rem;
+    position: relative;
+    z-index: 1;
+    isolation: isolate; /* КРИТИЧНО: изолирует контент */
+  }
+
+  /* Явно устанавливаем непрозрачность для всех элементов текста */
+  .heroBanner :global(.hero__title),
+  .heroBanner :global(.hero__subtitle),
+  .heroBanner :global(.hero__description),
+  .heroBanner .buttons,
+  .heroBanner .buttons * {
+    opacity: 1 !important;
+  }
+
+  /* Цвета текста на мобильных */
+  .heroBanner :global(.hero__title) {
+    color: #0a3145 !important;
+  }
+
+  .heroBanner :global(.hero__subtitle) {
+    color: #0a3145 !important;
+  }
+
+  .heroBanner :global(.hero__description) {
+    color: #0a3145 !important;
+  }
+}
+
+@media screen and (max-width: 996px) and (min-width: 801px) {
   .heroBanner {
     min-height: 80vh;
   }
