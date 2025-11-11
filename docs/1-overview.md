@@ -58,13 +58,15 @@ Schemas are defined using GraphQL SDL with extended directives, offering:
 
 **Relational Databases**, native connectors:
 	- DuckDB – used as the core query engine and supports attaching DuckDB databases as sources
-	- PostgreSQL (with PostGIS, TimescaleDB). Hugr supports filters, sorting, limits, aggregations, and in-source joins pushed down to PostgreSQL databases.
+	- PostgreSQL (with PostGIS, TimescaleDB, pgvector). Hugr supports filters, sorting, limits, aggregations, and in-source joins pushed down to PostgreSQL databases.
+	- MySQL (through DuckDB without join pushdown)
 
 **Files**:
 
 Through DuckDB, hugr provides access to various file formats and storage systems:
 
 - Parquet, Apache Iceberg, Delta Lake, CSV, JSON
+- Spatial formats: GeoParquet, GeoJSON, Shapefiles (and others GDAL compatible)
 - Hive-style partitioning
 - Stored locally or in cloud object storage (S3-compatible)
 
@@ -72,10 +74,11 @@ Through DuckDB, hugr provides access to various file formats and storage systems
 
 - REST APIs (HTTP). Supports outbound request authentication with OpenAPI flows: HTTP Basic, ApiKey (in headers or parameters), OAuth2 (client credentials, password)
 - Arrow Flight (in development)
+- GraphQL (in development)
 
 **Planned**:
 
-- MySQL (through DuckDB without join pushdown)
+- DuckLake
 - SQLite (through DuckDB without join pushdown)
 - ClickHouse
 
