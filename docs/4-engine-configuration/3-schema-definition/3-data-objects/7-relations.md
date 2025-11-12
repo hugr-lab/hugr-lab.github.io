@@ -199,6 +199,21 @@ query {
       total
     }
   }
+  order_details {
+    id
+    product(inner: true) {  # Only order details with products that are present in the orders with amount > 100
+      name
+      order_details_aggregation (inner: true, filter: { order: { amount: { gt: 100 } } } ) {
+        quantity {
+          sum
+        }
+      }
+    }
+    order(inner: true) {  # Only order details with valid orders
+      id
+      total
+    }
+  }
 }
 ```
 
