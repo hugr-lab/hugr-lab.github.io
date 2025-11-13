@@ -12,6 +12,39 @@ Hugr provides unified GraphQL API across:
 
 All organized in hierarchical modules accessed through single GraphQL schema.
 
+### Module Hierarchy
+
+Modules can be nested to organize schema logically:
+- Root module: `core`
+- Sub-module: `core.sales`
+- Nested: `core.sales.analytics`
+
+**In GraphQL queries:**
+```graphql
+# Root module data object
+query {
+  customers { id name }
+}
+
+# Sub-module data object
+query {
+  sales {
+    orders { id total }
+  }
+}
+
+# Nested module
+query {
+  sales {
+    analytics {
+      revenue_summary { metric value }
+    }
+  }
+}
+```
+
+Each level of nesting reflects the module hierarchy in the GraphQL structure.
+
 ## Core Concepts
 
 ### Auto-Generated Queries
@@ -67,3 +100,13 @@ For each data object (e.g., `customers`):
 - Relations structure
 
 Schema is dynamic and varies by deployment.
+
+## Row-Level Security
+
+Some schema elements may be hidden based on user role:
+- **Fields** - May not appear in introspection if user lacks permission
+- **Queries** - Data objects may be filtered or hidden
+- **Mutations** - May be restricted based on role
+- **Functions** - Custom functions may be role-specific
+
+**Always introspect** to see what's actually available for the current user, rather than assuming schema structure.

@@ -4,6 +4,186 @@
 
 **Analyze server-side** - Use database aggregations, not application-side processing.
 
+## Iterative Analysis Process
+
+Data analysis is an **iterative cycle**, not a single query:
+
+```
+1. Discover → 2. Query → 3. Analyze Results → 4. Refine → Repeat
+```
+
+### Cycle Steps
+
+**1. Discovery Phase**
+- Use `discovery-search_modules` to find relevant modules
+- Use `discovery-search_module_data_objects` to find data objects
+- Use `schema-type_fields` to understand structure
+- Use `discovery-data_object_field_values` to explore field distributions
+
+**2. Query Execution Phase**
+- Use `data-inline_graphql_result` to execute queries
+- Apply jq transforms to extract relevant data
+- Keep results small (size-limited)
+
+**3. Analysis Phase**
+- Examine results
+- Identify patterns, outliers, trends
+- Determine next questions
+
+**4. Refinement Phase**
+- Adjust filters based on findings
+- Drill down into specific segments
+- Add dimensions or change grouping
+- Repeat cycle
+
+### Chain Multiple Queries
+
+For complex analysis, execute a chain of queries:
+
+```
+Query 1: Get overall statistics
+  ↓ Identify interesting segment
+Query 2: Drill down into segment
+  ↓ Find key dimension
+Query 3: Group by dimension
+  ↓ Discover outlier
+Query 4: Investigate outlier details
+```
+
+**Example Chain:**
+1. `object_aggregation` → Find total count and date range
+2. `discovery-data_object_field_values` → Explore categorical field distribution
+3. `object_bucket_aggregation` → Group by top categories
+4. `object(filter: {category: {eq: "interesting"}})` → Get sample records
+5. `data-inline_graphql_result` with jq → Extract specific insights
+
+### Using Tools in Analysis
+
+**Execute Queries:**
+```
+Tool: data-inline_graphql_result
+Input: {
+  query: "query { object_aggregation { _rows_count } }",
+  jq_transform: ".data.object_aggregation._rows_count",
+  max_result_size: 1000
+}
+```
+
+**Explore Field Values:**
+```
+Tool: discovery-data_object_field_values
+Input: {
+  object_name: "customers",
+  field_name: "status",
+  limit: 20,
+  calculate_stats: true,
+  filter: { created_at: { gte: "2024-01-01" } }
+}
+Returns: {
+  distinct: 5,
+  values: ["active", "pending", "inactive", ...]
+}
+```
+
+**Transform Results:**
+Use jq to extract insights:
+- `.data.object_aggregation._rows_count` - Extract count
+- `.data.object_bucket_aggregation | map({key: .key.category, count: .aggregations._rows_count})` - Reshape
+- `.data.object | map(.field)` - Extract field values
+- `.data | to_entries | map({module: .key, count: .value._rows_count})` - Cross-module summary
+
+### Iterative Example
+
+**Task:** Understand customer distribution and behavior
+
+**Iteration 1 - Overview:**
+```graphql
+query {
+  customers_aggregation {
+    _rows_count
+    created_at { min max }
+    total_purchases { sum avg }
+  }
+}
+```
+Result: 10,000 customers, created 2020-2024, avg 5 purchases
+
+**Iteration 2 - Explore Status Field:**
+```
+Tool: discovery-data_object_field_values
+Input: { object_name: "customers", field_name: "status" }
+```
+Result: ["active" (7000), "inactive" (2500), "suspended" (500)]
+
+**Iteration 3 - Compare Segments:**
+```graphql
+query {
+  customers_bucket_aggregation {
+    key { status }
+    aggregations {
+      _rows_count
+      total_purchases { avg sum }
+      last_purchase_date { max }
+    }
+  }
+}
+```
+Result: Active users avg 12 purchases, inactive avg 2
+
+**Iteration 4 - Time Trend:**
+```graphql
+query {
+  customers_bucket_aggregation(
+    filter: { status: { eq: "active" } }
+  ) {
+    key {
+      month: created_at(bucket: month)
+    }
+    aggregations {
+      _rows_count
+    }
+  }
+}
+```
+Result: Growth pattern identified, spike in Q3 2023
+
+**Iteration 5 - Investigate Spike:**
+```graphql
+query {
+  customers(
+    filter: {
+      created_at: { gte: "2023-07-01", lt: "2023-10-01" }
+    }
+    limit: 100
+  ) {
+    id
+    source
+    referral_code
+  }
+}
+```
+Use jq: `.data.customers | group_by(.source) | map({source: .[0].source, count: length})`
+
+### Important Notes
+
+**Row-Level Security:**
+- Schema visibility depends on user role
+- Some fields/objects may be hidden
+- Always introspect to see available data
+- Results may be filtered by RLS policies
+
+**Size Limits:**
+- `data-inline_graphql_result` has max_result_size
+- Large results will be truncated
+- Use aggregations to summarize before inlining
+- Apply jq transforms to reduce result size
+
+**Performance:**
+- Start with aggregations (small results)
+- Use `discovery-data_object_field_values` for field sampling
+- Fetch raw data only when necessary
+- Always apply filters and limits
+
 ## Analysis Type Selection
 
 Based on user requirements:
@@ -286,6 +466,8 @@ For Cube tables with `@measurement` fields, use `measurement_func`:
 
 ## Analysis Workflow
 
+**Iterative approach** - Each step may lead to new questions:
+
 1. **Understand Requirements**
    - What metrics? (count, sum, average)
    - What grouping? (by time, category, dimension)
@@ -293,23 +475,41 @@ For Cube tables with `@measurement` fields, use `measurement_func`:
    - What period? (daily, monthly, quarterly)
 
 2. **Discover Schema**
-   - Find data object
-   - Verify aggregation fields available
+   - Find module and data object
+   - Use `discovery-data_object_field_values` to explore key fields
+   - Use `schema-type_fields` to verify aggregation capabilities
    - Check grouping field types
 
-3. **Choose Pattern**
-   - Select from patterns above
-   - Adapt to specific requirements
+3. **Start with Overview**
+   - Execute `object_aggregation` for overall statistics
+   - Use `data-inline_graphql_result` with jq to extract key numbers
+   - Identify interesting patterns or segments
 
-4. **Apply Filters**
-   - Time range
-   - Status/category filters
-   - Value thresholds
+4. **Drill Down**
+   - Based on overview, form specific questions
+   - Use `object_bucket_aggregation` to group by dimensions
+   - Apply filters to focus on interesting segments
+   - Use `discovery-data_object_field_values` to explore field distributions
 
-5. **Optimize**
-   - Filter before aggregating
-   - Limit bucket results
-   - Use appropriate time buckets
+5. **Investigate Details**
+   - Fetch sample records if needed
+   - Cross-reference with related data objects
+   - Use jq transforms to extract insights
+
+6. **Iterate**
+   - Refine filters based on findings
+   - Add or change dimensions
+   - Execute next query in the chain
+   - Repeat until question is answered
+
+### Tool Selection by Stage
+
+**Discovery:** `discovery-search_modules`, `discovery-search_module_data_objects`
+**Field Exploration:** `discovery-data_object_field_values`, `schema-type_fields`
+**Overview:** `data-inline_graphql_result` with `object_aggregation`
+**Grouping:** `data-inline_graphql_result` with `object_bucket_aggregation`
+**Details:** `data-inline_graphql_result` with `object(filter, limit)`
+**Transform:** Use jq_transform parameter to extract/reshape results
 
 ## Performance Guidelines
 
@@ -412,14 +612,33 @@ bucket: month  # For multi-year
 When performing analysis:
 
 ```
-Analysis approach:
-- Type: [Overall/Grouped/Time Series/Multi-Dimensional]
+Analysis plan (iteration N):
+- Question: [specific question to answer]
+- Tool: data-inline_graphql_result / discovery-data_object_field_values
+- Type: [Overall/Grouped/Time Series/Field Exploration]
 - Metrics: [count, sum, avg, etc.]
-- Grouping: [dimensions]
+- Grouping: [dimensions if applicable]
 - Filters: [conditions]
-- Period: [time range]
+- jq transform: [if needed to extract specific data]
 
-[GraphQL Query]
+[Query or Tool Call]
 
 Expected output: [description]
+Next steps: [what to investigate based on results]
+```
+
+**For iterative analysis:**
+```
+Iteration 1: Overview
+- Execute: object_aggregation
+- Result: [summary]
+- Finding: [key insight]
+
+Iteration 2: Drill down
+- Based on: [previous finding]
+- Execute: object_bucket_aggregation / discovery-data_object_field_values
+- Result: [summary]
+- Finding: [key insight]
+
+Iteration 3: ...
 ```
