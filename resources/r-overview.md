@@ -1,70 +1,69 @@
 # Hugr Overview
 
-## What is Hugr
+## Architecture
 
-Hugr is a GraphQL backend that provides unified API access to distributed data sources:
-- Databases: PostgreSQL, MySQL, DuckDB
-- Files: Parquet, CSV, JSON, GeoParquet
-- APIs: REST endpoints
-- Cloud storage: S3-compatible
+Hugr provides unified GraphQL API across:
+- **Data Sources** - PostgreSQL, MySQL, DuckDB, Files, REST APIs
+- **Modules** - Hierarchical organization (can be nested)
+- **Data Objects** - Tables and views
+  - **Tables** - Full CRUD support
+  - **Views** - Read-only, can be parameterized
+- **Functions** - Custom business logic and computations
 
-## Key Concepts
+All organized in hierarchical modules accessed through single GraphQL schema.
 
-### Modules
-Hierarchical organization of GraphQL queries and mutations:
-```graphql
-query {
-  module_name {
-    data_object { fields }
-
-    nested_module {
-      other_object { fields }
-    }
-  }
-}
-```
-
-### Data Objects
-Tables and views exposed through GraphQL:
-- **Tables** - Support CRUD (queries + mutations)
-- **Views** - Read-only queries, can be parameterized
+## Core Concepts
 
 ### Auto-Generated Queries
-For each data object `customers`:
-- `customers` - List with filter, sort, limit
-- `customers_by_pk(id)` - Single record by primary key
-- `customers_aggregation` - Single-row aggregation
-- `customers_bucket_aggregation` - Grouped aggregation (GROUP BY)
-- `insert_customers` - Create (tables only)
-- `update_customers` - Update (tables only)
-- `delete_customers` - Delete (tables only)
 
-### Relations
-- One-to-one/Many-to-one: Direct field access
-- One-to-many/Many-to-many: List fields with filters
-- Dynamic joins: `_join` field for ad-hoc joins
+For each data object (e.g., `customers`):
+- `customers` - List with filter, sort, pagination
+- `customers_by_pk(id)` - Single by primary key
+- `customers_aggregation` - Overall statistics
+- `customers_bucket_aggregation` - Grouped analysis (GROUP BY)
+- Mutations (tables only): `insert_`, `update_`, `delete_`
 
-## Query Arguments
+### Query Arguments
 
-**Standard arguments:**
-- `filter` - Filter conditions
-- `order_by` - Sort results
+**Standard:**
+- `filter` - Conditions
+- `order_by` - Sorting
 - `limit` / `offset` - Pagination
 - `distinct_on` - Unique values
 
-**Nested arguments:**
-- `nested_limit` / `nested_offset` - Per-parent pagination
-- `nested_order_by` - Post-join sorting
+**Nested (for relations):**
+- `nested_limit` / `nested_offset` - Per-parent limit
+- `nested_order_by` - Sort after join
 - `inner` - INNER vs LEFT join
 
-**Aggregation arguments:**
-- Same as standard, plus grouping in `key { ... }`
+### Relations
 
-## Core Principle
+- **Predefined** - Foreign keys defined in schema
+  - One-to-one/Many-to-one: Direct field
+  - One-to-many/Many-to-many: List fields with subqueries
+- **Dynamic** - `_join` field for ad-hoc joins (cross-source capable)
 
-**Never assume schema structure** - always use MCP discovery tools to find:
+### Special Table Types
+
+**Cube (`@cube`):**
+- OLAP-optimized pre-aggregation
+- Fields with `@measurement` are aggregated
+- Other fields are dimensions (for grouping)
+- Query with `field(measurement_func: SUM|AVG|MIN|MAX|ANY)`
+
+**Hypertable (`@hypertable`):**
+- TimescaleDB time-series optimization
+- Timestamp field with `@timescale_key`
+- Efficient time bucketing
+
+## Discovery Principle
+
+**Never assume** - Always use MCP tools to discover:
 - Available modules
 - Data objects in modules
-- Fields and their types
+- Field names and types
 - Filter operators
-- Relations
+- Aggregation capabilities
+- Relations structure
+
+Schema is dynamic and varies by deployment.

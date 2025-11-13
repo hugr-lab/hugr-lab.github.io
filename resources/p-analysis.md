@@ -214,15 +214,20 @@ regions {
 }
 ```
 
-### H3 Clustering
+### H3 Hexagonal Clustering
+Root-level query for spatial clustering:
 ```graphql
-object_bucket_aggregation {
-  key {
-    h3_cell: location_field(h3_resolution: 7)
-  }
-  aggregations {
-    _rows_count
-    metric { avg }
+h3(resolution: 7) {
+  cell
+  resolution
+  data {
+    object_aggregation(
+      field: "geometry_field"
+      inner: true
+    ) {
+      _rows_count
+      metric { sum avg }
+    }
   }
 }
 ```
@@ -267,22 +272,17 @@ _field_part(extract: hour)
 
 ## Aggregation Functions Reference
 
-**Numeric:**
-- `count` - Count non-null values
-- `sum` - Sum of values
-- `avg` - Average value
-- `min`, `max` - Min/max values
-- `list(distinct: true)` - Array of values
+**Note:** These are common functions. **Always use `schema-type_fields` on `<object>_aggregations` type** to see exact available functions for each field.
 
-**String:**
-- `count` - Count non-null
-- `string_agg(separator: ", ")` - Concatenate
-- `list(distinct: true)` - Array of values
+**Numeric:** `count`, `sum`, `avg`, `min`, `max`, `list`, `any`, `last`
+**String:** `count`, `string_agg`, `list`, `any`, `last`
+**Boolean:** `count`, `bool_and`, `bool_or`
+**Timestamp:** `count`, `min`, `max`
 
-**Boolean:**
-- `count` - Count non-null
-- `bool_and` - Logical AND
-- `bool_or` - Logical OR
+For Cube tables with `@measurement` fields, use `measurement_func`:
+- Numeric: `SUM`, `AVG`, `MIN`, `MAX`, `ANY`
+- Boolean: `OR`, `AND`, `ANY`
+- Timestamp: `MIN`, `MAX`, `ANY`
 
 ## Analysis Workflow
 

@@ -4,65 +4,75 @@
 
 ### Scalar Types
 - GraphQL: `String`, `Int`, `Float`, `Boolean`, `ID`
-- Hugr-specific: `Timestamp`, `JSON`, `Geometry`, `Vector`
+- Hugr: `Timestamp`, `JSON`, `Geometry`, `Vector`
 
-### Type Naming Patterns
-Data object may have prefix based on module/data source:
+### Type Naming
+Data objects may have prefixes:
 ```
 Data object: "customers"
 Possible types:
   - "customers"           # No prefix
-  - "mod_customers"       # With module prefix
-  - "ds_customers"        # With data source prefix
+  - "mod_customers"       # Module prefix
+  - "ds_customers"        # Data source prefix
 ```
 
-**Always discover actual type names - never assume.**
+**Always use `schema-type_fields` to discover actual type names.**
 
 ### Generated Types
 For data object `customers`:
-- `customers` - Main type with fields
-- `customers_filter` - Filter input type
-- `customers_aggregations` - Aggregation result type
-- `customers_mut_input_data` - Insert input (tables only)
-- `customers_mut_data` - Update input (tables only)
+- `customers` - Main type
+- `customers_filter` - Filter input
+- `customers_aggregations` - Aggregation result
+- `customers_bucket_aggregation_key` - Grouping key
+
+**Use `schema-type_fields` to introspect each type.**
+
+## Introspection Strategy
+
+**Critical:** Always use `schema-type_fields` to understand:
+- Available fields on data objects
+- Filter operators for each field type
+- Aggregation functions available
+- Arguments required for queries
+- Input types for mutations
+- Relation fields and their types
+
+Example:
+```
+1. schema-type_fields(type_name="customers")
+   → See: fields, relations, aggregations, _join
+
+2. schema-type_fields(type_name="customers_filter")
+   → See: filterable fields
+
+3. schema-type_fields(type_name="String_filter_input")
+   → See: operators (eq, in, like, etc.)
+
+4. schema-type_fields(type_name="customers_aggregations")
+   → See: available aggregation functions per field
+```
 
 ## Filter System
 
-### Filter Input Structure
-Each field type has specific operators:
+### Filter Operators by Type
 
-**String:**
-- `eq`, `in` - Exact match
-- `like`, `ilike` - Pattern match (%, _)
-- `regex` - Regular expression
-- `is_null` - NULL check
+**String:** `eq`, `in`, `like`, `ilike`, `regex`, `is_null`
+**Numeric:** `eq`, `in`, `gt`, `gte`, `lt`, `lte`, `is_null`
+**Boolean:** `eq`, `is_null`
+**Timestamp:** `eq`, `gt`, `gte`, `lt`, `lte`, `is_null`
+**JSON:** `eq`, `contains`, `has`, `has_all`, `is_null`
+**Geometry:** `eq`, `intersects`, `contains`, `is_null`
 
-**Numeric (Int, Float):**
-- `eq`, `in` - Exact/list match
-- `gt`, `gte`, `lt`, `lte` - Comparisons
-- `is_null` - NULL check
-
-**Boolean:**
-- `eq`, `is_null`
-
-**Timestamp:**
-- `eq`, `gt`, `gte`, `lt`, `lte`, `is_null`
-
-**JSON:**
-- `eq`, `contains`, `has`, `has_all`, `is_null`
-
-**Geometry:**
-- `eq`, `intersects`, `contains`, `is_null`
+**Note:** Use `schema-type_fields` on filter types to see exact available operators.
 
 ### Boolean Logic
-- `_and: [...]` - All conditions must match
-- `_or: [...]` - Any condition must match
-- `_not: {...}` - Negate condition
-
-Multiple fields at same level = implicit AND.
+- `_and: [...]` - All match
+- `_or: [...]` - Any match
+- `_not: {...}` - Negate
 
 ### Relation Filters
-**For one-to-one/many-to-one:**
+
+**One-to-one/Many-to-one:**
 ```graphql
 filter: {
   related_object: {
@@ -71,7 +81,7 @@ filter: {
 }
 ```
 
-**For one-to-many/many-to-many:**
+**One-to-many/Many-to-many:**
 ```graphql
 filter: {
   related_objects: {
@@ -82,71 +92,137 @@ filter: {
 }
 ```
 
+**Important:** Can also aggregate and group by related data - use `schema-type_fields` on aggregation types to see relation aggregation fields.
+
 ## Aggregation System
 
-### Aggregation Functions by Type
+### Functions by Type
 
 **Numeric:** `count`, `sum`, `avg`, `min`, `max`, `list`, `any`, `last`
 **String:** `count`, `string_agg`, `list`, `any`, `last`
 **Boolean:** `count`, `bool_and`, `bool_or`
 **Timestamp:** `count`, `min`, `max`
 
-### Time Bucketing
+**Note:** These are common functions. Use `schema-type_fields` on `<object>_aggregations` type to see exact available functions for each field.
+
+### Aggregating Relations
+
+Can aggregate through relations:
 ```graphql
-key {
-  date_field(bucket: day)    # day, week, month, quarter, year
-  date_field(bucket_interval: "15 minutes")
+customers {
+  orders_aggregation {
+    _rows_count
+    total { sum }
+  }
 }
 ```
 
-### Time Parts
+Can group by relations:
 ```graphql
-key {
-  _field_part(extract: year)   # year, quarter, month, day, hour
+orders_bucket_aggregation {
+  key {
+    customer {
+      country
+    }
+  }
+  aggregations { ... }
 }
 ```
 
-## Special Fields
+### Time Operations
+```graphql
+# Bucketing
+timestamp_field(bucket: day|week|month|quarter|year)
+timestamp_field(bucket_interval: "15 minutes")
+
+# Parts
+_field_part(extract: year|quarter|month|day|hour)
+```
+
+## Special Features
+
+### Cube Tables (`@cube`)
+
+Fields marked `@measurement` are aggregated, others are dimensions.
+
+```graphql
+# Query cube with measurement functions
+cube_table {
+  dimension_field        # Group by
+  measurement_field(measurement_func: SUM)  # Aggregate
+}
+```
+
+Available `measurement_func`:
+- Numeric: `SUM`, `AVG`, `MIN`, `MAX`, `ANY`
+- Boolean: `OR`, `AND`, `ANY`
+- Timestamp: `MIN`, `MAX`, `ANY`
+
+**Use `schema-type_fields` on cube type to see which fields are measurements.**
 
 ### Dynamic Joins (_join)
+
 Every data object has `_join` field:
 ```graphql
-_join(fields: ["field1", "field2"]) {
-  other_object(fields: ["match_field1", "match_field2"]) {
-    ...
-  }
+_join(fields: ["field1"]) {
+  other_object(fields: ["match_field"]) { ... }
 }
 ```
+
+Cross-source capable. Join fields must have matching types.
 
 ### Spatial Joins (_spatial)
+
 For geometry fields:
 ```graphql
-_spatial(field: "geometry_field", type: CONTAINS) {
-  other_object(field: "point_field") {
-    ...
+_spatial(field: "geometry", type: CONTAINS|INTERSECTS|DWITHIN|TOUCHES|WITHIN) {
+  other_object(field: "point") { ... }
+}
+```
+
+### H3 Clustering
+
+Root-level query for hexagonal spatial aggregation:
+```graphql
+h3(resolution: 7) {
+  cell
+  resolution
+  data {
+    object_aggregation(field: "geometry", inner: true) {
+      _rows_count
+    }
   }
 }
 ```
 
-Types: `CONTAINS`, `INTERSECTS`, `DWITHIN`, `TOUCHES`, `WITHIN`
+### Semantic Search
 
-### Vector Search
-Use `similarity` argument (not filter):
+Use `similarity` argument with text (not vector):
 ```graphql
 data_object(
   similarity: {
     name: "vector_field"
-    vector: [0.1, 0.2, ...]
-    distance: Cosine    # Cosine, L2, InnerProduct
+    text: "search query"     # Text, not embeddings
+    distance: Cosine
     limit: 10
   }
-) { ... }
+  filter: { ... }
+) {
+  id
+  title
+  _distance
+}
 ```
 
-## Discovery Strategy
+Distance metrics: `Cosine`, `L2`, `InnerProduct`
+
+## Discovery Workflow
 
 1. Find modules → `discovery-search_modules`
 2. Find objects → `discovery-search_module_data_objects`
-3. Examine fields → `schema-type_fields`
-4. Check filters → `schema-type_fields` on filter type
-5. Get values → `discovery-data_object_field_values`
+3. **Introspect fields** → `schema-type_fields` on object type
+4. **Check filters** → `schema-type_fields` on filter type
+5. **Check aggregations** → `schema-type_fields` on aggregations type
+6. Get values → `discovery-data_object_field_values`
+
+**Key:** Step 3-5 (introspection) is critical for understanding exact schema structure.

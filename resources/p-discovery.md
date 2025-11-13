@@ -2,78 +2,178 @@
 
 ## Core Principle
 
-**NEVER assume schema structure exists. ALWAYS discover first.**
+**NEVER assume schema exists. ALWAYS discover first.**
 
-Schema is dynamic - module names, data objects, fields, and types vary by deployment.
+Schema is dynamic - names, structures vary by deployment. What exists in one Hugr instance may not exist in another.
 
-## Discovery Tools Usage
+## MCP Tools
 
-### 1. Find Modules
+### Discovery Tools
+
+**discovery-search_modules**
+- Input: Natural language query (e.g., "sales analytics")
+- Returns: Ranked list of matching modules
+- Use: Find relevant modules by description
+
+**discovery-search_data_sources**
+- Input: Search query
+- Returns: Available data sources
+- Use: Understand system architecture
+
+**discovery-search_module_data_objects**
+- Input: Module name, search query
+- Returns: Data objects with types (table/view)
+- Use: Find tables and views in module
+
+**discovery-search_module_functions**
+- Input: Module name, search query
+- Returns: Functions with signatures
+- Use: Discover custom functions
+
+**discovery-data_object_field_values**
+- Input: Data object name, field name
+- Returns: Distinct values, statistics
+- Use: Understand categorical data
+
+### Schema Tools
+
+**schema-type_fields**
+- Input: Type name, optional pagination/ranking
+- Returns: Fields with types, descriptions, arguments
+- Use: **CRITICAL** - introspect all types for fields, filters, aggregations
+
+**schema-type_info**
+- Input: Type name
+- Returns: Type metadata
+- Use: Get type overview before detailed inspection
+
+**schema-enum_values**
+- Input: Enum type name
+- Returns: Valid enum values
+- Use: Understand enum options
+
+## Discovery Strategy
+
+### Step 1: Find Modules
 **Tool:** `discovery-search_modules`
-**When:** Starting exploration, need to find domain-specific data
-**Pattern strategy:**
-- Broad: `pattern: "*"`
-- Specific: `pattern: "sales*"` or `pattern: "*analytics*"`
+**Input:** Natural language describing domain (e.g., "customer data", "sales")
 
-### 2. Find Data Objects
+### Step 2: Find Data Objects
 **Tool:** `discovery-search_module_data_objects`
-**When:** Found relevant module, need to see tables/views
-**Input:** `module_path: "module_name"`
-**Check response:** `type` field - "table" (CRUD) or "view" (read-only)
+**Input:** Module name from Step 1, optional search query
+**Check:** `type` field - "table" or "view"
 
-### 3. Examine Fields
+### Step 3: Introspect Type Structure
 **Tool:** `schema-type_fields`
-**When:** Need to know available fields and their types
-**Type naming:** Try `"object_name"`, `"prefix_object_name"` if first fails
-**Look for:**
-- Regular fields: `id`, `name`, etc.
-- Relations: Array types like `[related_object!]!`
-- Aggregations: `object_aggregation`, `object_bucket_aggregation`
-- Special: `_join`, `_spatial`
+**Input:** Type name (try object name, then with prefix if needed)
+**Critical:** Look for:
+- Regular fields and types
+- Relation fields (array types)
+- Aggregation fields (`_aggregation`, `_bucket_aggregation`)
+- Special fields (`_join`, `_spatial`)
+- Cube measurements (if `@cube` table)
 
-### 4. Validate Filters
+### Step 4: Validate Filters
 **Tool:** `schema-type_fields`
-**When:** Before applying filters
-**Check:** `object_filter` type, then field-specific filter types
-**Example:** `String_filter_input` shows `eq`, `in`, `like`, `ilike`, `is_null`
+**Input:** `<object>_filter` type
+**Check:** Available filter fields
 
-### 5. Explore Values
+Then check operators:
+**Input:** Field-specific filter type (e.g., `String_filter_input`)
+**Check:** Available operators
+
+### Step 5: Check Aggregations
+**Tool:** `schema-type_fields`
+**Input:** `<object>_aggregations` type
+**Check:** Available aggregation functions per field
+
+For bucket aggregations:
+**Input:** `<object>_bucket_aggregation_key` type
+**Check:** Available grouping fields
+
+### Step 6: Explore Values
 **Tool:** `discovery-data_object_field_values`
-**When:** Need to understand categorical data or valid values
-**Input:** `module_path`, `data_object`, `field_name`
+**Input:** Data object name, field name
+**Use:** Understand data distribution, get valid values
 
-## Decision Tree
+## Workflow Examples
 
-```
-Task: Query data
-├─ Don't know module
-│  └─> discovery-search_modules
-│
-├─ Know module, need objects
-│  └─> discovery-search_module_data_objects
-│
-├─ Know object, need fields
-│  └─> schema-type_fields(type_name=object)
-│
-├─ Need to filter
-│  └─> schema-type_fields(type_name=object_filter)
-│     └─> schema-type_fields(type_name=field_type_filter_input)
-│
-└─ Need categorical values
-   └─> discovery-data_object_field_values
-```
+### Example 1: Find and Query Data
+
+**Task:** Query active records
+
+**Steps:**
+1. `discovery-search_modules` with query "main data"
+   → Returns: ["main", "analytics"]
+
+2. `discovery-search_module_data_objects` on "main"
+   → Returns: [{name: "records", type: "table"}]
+
+3. `schema-type_fields` on "records"
+   → Fields: id, status, created_at, ...
+
+4. `schema-type_fields` on "records_filter"
+   → Has: status field
+
+5. `schema-type_fields` on "String_filter_input" (or whatever status type filter is)
+   → Operators: eq, in, like, ...
+
+6. Build query with discovered schema
+
+### Example 2: Aggregation Analysis
+
+**Task:** Group by category, aggregate metrics
+
+**Steps:**
+1-2. Discover module and data object (as Example 1)
+
+3. `schema-type_fields` on "data_object"
+   → Look for `_bucket_aggregation` field
+
+4. `schema-type_fields` on "data_object_aggregations"
+   → See available aggregation functions per field
+
+5. `schema-type_fields` on "data_object_bucket_aggregation_key"
+   → See groupable fields
+
+6. Build bucket aggregation query
+
+### Example 3: Cube Table
+
+**Task:** Query cube with measurements
+
+**Steps:**
+1-2. Discover module and cube table
+
+3. `schema-type_fields` on cube type
+   → Identify which fields accept `measurement_func` argument
+   → These are `@measurement` fields
+
+4. `schema-type_fields` on field types to see available `measurement_func` values
+
+5. Build cube query with dimensions and measurements
 
 ## Common Mistakes
 
-### ❌ Assuming Names
+### ❌ Assuming Module Names
 ```
 # Wrong
-query { customers { ... } }
+query { sales { ... } }
 
 # Right
-1. discovery-search_modules
-2. discovery-search_module_data_objects
-3. Build query with discovered names
+1. discovery-search_modules(query="sales")
+2. Use discovered module name
+```
+
+### ❌ Assuming Type Names
+```
+# Wrong
+schema-type_fields(type_name="customers")
+
+# Right
+1. Try "customers"
+2. If fails, try with prefix
+3. Check discovery response for hints
 ```
 
 ### ❌ Guessing Operators
@@ -86,19 +186,19 @@ filter: { name: { equals: "value" } }
 2. Use discovered: { eq: "value" }
 ```
 
-### ❌ Ignoring Prefixes
+### ❌ Not Introspecting Aggregations
 ```
-# Wrong - assuming no prefix
-schema-type_fields(type_name="customers")
+# Wrong - assuming functions exist
+aggregations { field { sum avg min max } }
 
-# Right - try variations
-1. Try "customers"
-2. If fails, try "mod_customers" or check discovery results
+# Right
+1. schema-type_fields(type_name="object_aggregations")
+2. Use only available functions for each field
 ```
 
-### ❌ Not Checking Object Type
+### ❌ Skipping Table Type Check
 ```
-# Wrong - mutation on view
+# Wrong - trying mutation on view
 mutation { insert_view_object(...) }
 
 # Right
@@ -107,73 +207,57 @@ mutation { insert_view_object(...) }
 3. Only tables support mutations
 ```
 
-## Workflow Examples
-
-### Example 1: Simple Query
-**Task:** Get active records
-
-**Steps:**
-1. `discovery-search_modules(pattern="*")` → Find relevant module
-2. `discovery-search_module_data_objects(module_path="...")` → Find data object
-3. `schema-type_fields(type_name="object")` → Confirm fields exist
-4. `schema-type_fields(type_name="object_filter")` → Validate filter operators
-5. Build query with discovered schema
-
-### Example 2: Aggregation
-**Task:** Group by category
-
-**Steps:**
-1. Discover module and object (steps 1-2 from Example 1)
-2. `schema-type_fields(type_name="object")` → Look for `bucket_aggregation` field
-3. `schema-type_fields(type_name="object_aggregations")` → Check available aggregations
-4. Build bucket aggregation query
-
-### Example 3: Cross-Source Join
-**Task:** Join data from different sources
-
-**Steps:**
-1. `discovery-search_data_sources` → See available sources
-2. For each source: discover objects and fields
-3. Verify join fields exist and types match
-4. Confirm `_join` field available
-5. Build dynamic join query
-
 ## Validation Checklist
 
 Before constructing query:
-- [ ] Module name discovered (not assumed)
+- [ ] Module name discovered
 - [ ] Data object name discovered
-- [ ] All field names verified
+- [ ] Type introspected with `schema-type_fields`
 - [ ] Filter operators validated
-- [ ] Relation names confirmed
-- [ ] Type prefixes checked
+- [ ] Aggregation functions checked
+- [ ] Relation fields confirmed
+- [ ] Arguments understood
+
+## Critical: Always Introspect
+
+**Don't rely on assumptions or documentation examples.**
+
+Use `schema-type_fields` on:
+- Object types - see fields, relations
+- Filter types - see operators
+- Aggregation types - see functions
+- Key types - see groupable fields
+- Input types - see mutation arguments
+
+Schema varies by deployment. Introspection is the source of truth.
 
 ## Response Pattern
 
-When discovering schema, communicate:
+When discovering:
 ```
 Discovering schema...
 
-1. Modules found: [list]
-2. Selected module: [name]
-3. Data objects: [list]
-4. Selected object: [name] (table/view)
-5. Available fields: [list]
-6. Filter operators: [list for relevant fields]
+1. Searching modules: [query]
+   Found: [list]
 
-Constructing query with discovered schema...
+2. Searching data objects in [module]
+   Found: [name] (type: table/view)
+
+3. Introspecting [type] fields...
+   Available: [list]
+
+4. Checking filters...
+   Operators: [list]
+
+5. Checking aggregations...
+   Functions: [list per field]
+
+Ready to build query with discovered schema.
 ```
 
 If not found:
 ```
 Could not find [element].
-Available options: [list what was found]
-Please clarify or verify the request.
+Available: [what was found]
+Suggestion: [alternative approach or clarification needed]
 ```
-
-## Performance Notes
-
-- Cache discovery results during session (schema rarely changes)
-- Start with specific patterns when possible (`sales*` vs `*`)
-- Only discover what's needed for current task
-- Use field values discovery sparingly (can be slow on large datasets)

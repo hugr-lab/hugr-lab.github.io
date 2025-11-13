@@ -188,12 +188,12 @@ regions {
 }
 ```
 
-### Vector Similarity Search
+### Semantic Search
 ```graphql
 documents(
   similarity: {
     name: "embedding"
-    vector: [0.1, 0.2, ...]
+    text: "machine learning research"  # Text query, not vector
     distance: Cosine
     limit: 10
   }
