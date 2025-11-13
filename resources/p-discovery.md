@@ -26,14 +26,15 @@ Schema is dynamic - names, structures vary by deployment. What exists in one Hug
 - Use: Find tables and views in module
 
 **discovery-search_module_functions**
-- Input: Module name, search query
-- Returns: Functions with signatures
-- Use: Discover custom functions
+- Input: Module name, search query, optional sub-modules/mutations flags
+- Returns: Functions with signatures and return types
+- Use: Discover custom functions and mutations
 
 **discovery-data_object_field_values**
-- Input: Data object name, field name
-- Returns: Distinct values, statistics
-- Use: Understand categorical data
+- Input: Data object name, field name, optional filters
+- Returns: Distinct values list, optional statistics (min/max/avg/count)
+- Use: Understand data distribution, validate field values, get categorical options
+- Can filter data before sampling values
 
 ### Schema Tools
 
@@ -51,6 +52,14 @@ Schema is dynamic - names, structures vary by deployment. What exists in one Hug
 - Input: Enum type name
 - Returns: Valid enum values
 - Use: Understand enum options
+
+### Query Execution Tool
+
+**data-inline_graphql_result**
+- Input: GraphQL query, optional variables, optional jq transform
+- Returns: Query result as inline JSON (size-limited)
+- Use: Execute queries directly after schema discovery, test queries
+- Supports jq transforms for result processing
 
 ## Discovery Strategy
 

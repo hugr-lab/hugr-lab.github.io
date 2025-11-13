@@ -27,19 +27,22 @@ Instructions for AI models on specific workflows:
 
 ## MCP Tools
 
-Hugr MCP server provides 8 tools:
+Hugr MCP server provides 9 tools:
 
 **Discovery:**
-- `discovery-search_modules` - Find modules by pattern
-- `discovery-search_data_sources` - List data sources
-- `discovery-search_module_data_objects` - List tables/views in module
-- `discovery-search_module_functions` - List functions in module
-- `discovery-data_object_field_values` - Get field value distribution
+- `discovery-search_modules` - Find modules by natural language query
+- `discovery-search_data_sources` - Find data sources by query
+- `discovery-search_module_data_objects` - Find tables/views in module
+- `discovery-search_module_functions` - Find functions/mutations in module
+- `discovery-data_object_field_values` - Get field value statistics and distribution
 
 **Schema:**
 - `schema-type_info` - Get type metadata
-- `schema-type_fields` - List type fields
+- `schema-type_fields` - List type fields with introspection
 - `schema-enum_values` - Get enum values
+
+**Execution:**
+- `data-inline_graphql_result` - Execute GraphQL query and return inline result
 
 ## Key Principles
 
