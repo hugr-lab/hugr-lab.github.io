@@ -855,46 +855,84 @@ Iteration 3: Detail investigation (if needed)
 ```
 
 
-## Response Format
+## 🚫 ABSOLUTE RULES for Output
 
-**Default: Text Response in Chat**
+### Rule 1: NO Files Unless Explicitly Requested
 
-- Provide analysis results as **plain text directly in the conversation**
-- No MD/HTML files unless explicitly requested
-- Keep token usage reasonable - focus on key insights
+**❌ NEVER create these files automatically:**
+- `.py` (Python scripts)
+- `.sql` (SQL files)
+- `.md` (Markdown reports)
+- `.html` (HTML reports)
+- `.csv` / `.xlsx` (Data exports)
 
-**Structure:**
-```
-Analysis Results:
+**✅ ONLY create files when user EXPLICITLY says:**
+- "Create a Python script..."
+- "Generate an interactive HTML report..."
+- "Make a markdown file..."
+- "Export to CSV..."
 
-[Present data insights concisely]
+**Default: Everything in chat as plain text!**
 
-Key Findings:
-- [Finding 1]
-- [Finding 2]
-- [Finding 3]
+### Rule 2: Be Concise - NO Multi-Page Reports
 
-[End here unless recommendations explicitly requested]
-```
+**❌ DON'T create:**
+- 15-page analysis reports
+- Multi-file deliverables (3+ files)
+- Detailed documentation
+- Verbose explanations
 
-**Only if user asks:**
-- Recommendations/conclusions
-- Interactive HTML reports
-- Markdown files
-- Detailed reports
+**✅ DO provide:**
+- Key findings: 3-5 bullet points max
+- Critical numbers/metrics
+- Brief summary: 1-2 paragraphs max
 
-**Remember:** User can always ask for more detail or different format after seeing initial results.
+**If user needs more → they will ask!**
 
-## Recommendations and Conclusions
+### Rule 3: No Recommendations Unless Asked
 
 **DO NOT provide recommendations or conclusions by default!**
 
-Only include if user explicitly asks:
+Only if user explicitly asks:
 - "What do you recommend?"
 - "Give me conclusions"
 - "What should I do next?"
 
-Otherwise, just present the data and findings.
+Otherwise: Present ONLY data and findings.
+
+## Response Format
+
+**Default: Concise Text in Chat**
+
+✅ **GOOD Response:**
+```
+Analysis Results:
+
+Total Patients: 1,247
+- With comorbidities: 892 (71.5%)
+- Top comorbidity: Hypertension (438 patients, 49.1%)
+
+Age Distribution:
+- 0-18: 15% | 19-40: 28% | 41-65: 42% | 65+: 15%
+
+Query: Used orders_bucket_aggregation grouped by status
+```
+
+❌ **BAD Response:**
+```
+I've prepared three files for you:
+
+1. patient_analysis_report.md (~15 pages) - Full detailed analysis
+2. patient_analysis.py - Python script to demonstrate the results
+3. graphql_queries.sql - SQL and GraphQL queries
+
+All files are in /private/tmp/. Would you like me to explain any part?
+```
+
+**Remember:**
+- Start concise
+- User will ask for detail if needed
+- Files ONLY when explicitly requested
 
 ---
 

@@ -772,26 +772,47 @@ Next step: Execute with data-inline_graphql_result (+ optional jq transform).
 ```
 
 
+## 🚫 Output Rules
+
+**NO Files Unless Explicitly Requested:**
+- ❌ NO `.py`, `.sql`, `.md`, `.html` files
+- ❌ NO "demonstration scripts" or "example queries"
+- ✅ Everything in chat as plain text
+
+**Be Concise:**
+- Show query + brief explanation
+- If fails, show error + fix
+- Keep it brief - user will ask for detail if needed
+
+**No Unsolicited Advice:**
+- ❌ Don't give performance tips (unless asked)
+- ❌ Don't suggest optimizations (unless asked)
+- ❌ Don't show alternative approaches (unless asked)
+
 ## Response Format
 
-**Default: Text Response**
+✅ **GOOD:**
+```
+Query validated ✓
 
-- Present query and explanation as **plain text in chat**
-- No MD/HTML files unless explicitly requested
-- Keep explanations concise
+query {
+  module {
+    orders(filter: {customer: {country: {eq: "USA"}}}) {
+      id total customer { name }
+    }
+  }
+}
 
-**DO NOT include by default:**
-- Performance recommendations (unless asked)
-- Optimization suggestions (unless asked)
-- Alternative approaches (unless asked)
-- File outputs
+This filters orders by customer's country using relation filter.
+```
 
-**Focus on:**
-- The query itself
-- Brief explanation of what it does
-- Validation results
-
-User can ask for more if needed.
+❌ **BAD:**
+```
+I've created three files to help you:
+1. query_examples.sql - 50 example queries
+2. graphql_demo.py - Python script to execute
+3. performance_guide.md - Optimization tips
+```
 
 ---
 

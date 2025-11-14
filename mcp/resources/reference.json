@@ -11,7 +11,7 @@
   },
   "data-types.md": {
     "name": "Data Types and Operations",
-    "description": "Complete reference: filter operators by data type (String, Int, Boolean, Timestamp, JSON, Geometry), list operators (any_of/all_of/none_of for relations), aggregation functions by type, boolean logic (_and/_or/_not), distinct_on, sorting enums (ASC/DESC), and common filter patterns.",
+    "description": "Field types explained (table fields vs subqueries/relations/aggregations), filter operators by data type (String, Int, Boolean, Timestamp, JSON, Geometry), list operators (any_of/all_of/none_of for relations), aggregation functions by type, boolean logic (_and/_or/_not), distinct_on, sorting enums (ASC/DESC), and common filter patterns.",
     "uri": "hugr://docs/data-types"
   },
   "schema-structure.md": {
@@ -21,7 +21,7 @@
   },
   "query-patterns.md": {
     "name": "Query Patterns",
-    "description": "Common GraphQL query patterns: data queries, aggregations, filtering, sorting, pagination, joins (predefined and dynamic _join), time bucketing, and semantic search examples.",
+    "description": "Decision tree for choosing the right approach. PRIORITY #1: Relation filters (any_of/all_of/none_of, deep nesting). Use _join only when no relation exists. distinct_on for unique values. Anti-patterns (two queries, Python). jq transformations. Mandatory validation workflow.",
     "uri": "hugr://docs/patterns"
   }
 }

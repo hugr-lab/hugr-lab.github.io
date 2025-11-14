@@ -403,25 +403,48 @@ After discovery, BEFORE building query:
 Ready to proceed to query building with verified schema.
 ```
 
+## 🚫 Output Rules
+
+**NO Files Unless Explicitly Requested:**
+- ❌ NO `.py`, `.sql`, `.md`, `.html` files
+- ✅ Everything in chat as plain text
+
+**Be Concise:**
+- Report discovered schema concisely
+- 3-5 key findings max
+- User will ask for detail if needed
+
+**No Recommendations by Default:**
+- ❌ Don't suggest what to query
+- ❌ Don't suggest next steps
+- ✅ Just report what was found
+
 ## Response Format
 
-**Default: Text Response**
+**Default: Concise Text in Chat**
 
-- Report discovered schema as **plain text in chat**
-- No MD/HTML files unless explicitly requested
-- Present findings concisely
+✅ **GOOD:**
+```
+Schema Discovery Results:
 
-**DO NOT include by default:**
-- Recommendations on what to query (unless asked)
-- Suggestions for next steps (unless asked)
-- File outputs
+Module: sales.analytics
+Data Objects:
+- orders (table) - 15 fields
+- customers (table) - 8 fields
+- revenue (view, parameterized) - 5 fields
 
-**Focus on:**
-- What was discovered
-- Field names and types
-- Available operations
+Key Relations:
+- orders.customer → customers
+- orders.items (one-to-many)
 
-User will decide what to do with the information.
+Next: Use schema-type_fields to see field details
+```
+
+❌ **BAD:**
+```
+I've created discovery_report.md with full schema details (20 pages)
+and schema_queries.sql with example queries.
+```
 
 ---
 

@@ -2,6 +2,108 @@
 
 Quick reference for filter operators, aggregation functions, and list operations.
 
+## Field Types in GraphQL Schema
+
+**Understand the difference between field types:**
+
+### 1. Direct Table/View Fields (Scalar Fields)
+These are regular columns from the database:
+```graphql
+customers {
+  id              # Direct field (Int)
+  name            # Direct field (String)
+  email           # Direct field (String)
+  created_at      # Direct field (Timestamp)
+  active          # Direct field (Boolean)
+}
+```
+**Filter these with scalar operators:** `eq`, `in`, `like`, `gt`, `lt`
+
+### 2. Relation Fields (Subqueries)
+These are related objects accessible through foreign keys:
+```graphql
+customers {
+  id
+  name
+
+  # ONE-TO-MANY RELATION (returns array)
+  orders {        # Subquery! Not a table field
+    id
+    total
+  }
+
+  # MANY-TO-ONE RELATION (returns single object)
+  company {       # Subquery! Not a table field
+    name
+    country
+  }
+}
+```
+**Filter relations with:**
+- Many-to-one: Direct access `company: { country: { eq: "USA" } }`
+- One-to-many: List operators `orders: { any_of: {...} }`
+
+### 3. Aggregation Fields
+These compute values across records:
+```graphql
+customers {
+  id
+  name
+
+  # AGGREGATION SUBQUERY (computes from related records)
+  orders_aggregation {
+    _rows_count
+    total { sum avg }
+  }
+
+  # BUCKET AGGREGATION (GROUP BY)
+  orders_bucket_aggregation {
+    key { status }
+    aggregations { _rows_count }
+  }
+}
+```
+**These are computed, not stored fields!**
+
+### 4. Special Subquery Fields
+These enable dynamic operations:
+```graphql
+customers {
+  id
+  email
+
+  # DYNAMIC JOIN (no predefined relation needed)
+  _join(fields: ["email"]) {
+    external_data(fields: ["email"]) {
+      data
+    }
+  }
+
+  # SPATIAL JOIN (for geometry fields)
+  _spatial(field: "location", type: DWITHIN) {
+    nearby_stores(field: "location") {
+      name
+    }
+  }
+}
+```
+
+### 5. Function Call Fields
+These invoke server-side functions:
+```graphql
+customers {
+  id
+
+  # FUNCTION CALL (parameterized)
+  customer_stats(from: "2024-01-01", to: "2024-12-31") {
+    total_orders
+    total_spent
+  }
+}
+```
+
+**⚠️ CRITICAL: Always use `schema-type_fields` to discover which fields are available!**
+
 ## Filter Operators by Type
 
 ### String Fields
