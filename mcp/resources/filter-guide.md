@@ -281,92 +281,32 @@ query {
 
 ## 🔗 Filtering with Dynamic Joins (_join)
 
-Use `_join` for query-time joins and filter the joined data.
+Use `_join` for query-time joins when NO predefined relation exists.
 
-### Basic Query-Time Join
+### Basic Pattern
 
 ```graphql
-query {
-  customers(
-    filter: { country: { eq: "USA" } }
-  ) {
-    id
-    name
-
-    # Join with orders at query time
-    _join(fields: ["id"]) {
-      orders(
-        fields: ["customer_id"]
-        filter: {
-          status: { eq: "pending" }
-          total: { gt: 1000 }
-        }
-      ) {
-        id
-        total
-        status
-      }
+table_a {
+  id
+  _join(fields: ["id"]) {
+    table_b(
+      fields: ["a_id"]
+      filter: { status: { eq: "active" } }
+    ) {
+      id
+      data
     }
   }
 }
 ```
 
-### Cross-Source Joins with Filters
+**Key Points:**
+- `_join(fields: ["field1", "field2"])` - join source fields
+- `table_b(fields: ["match1", "match2"])` - join target fields
+- Can apply `filter` to joined data
+- Can aggregate joined results
 
-```graphql
-query {
-  postgres_customers(
-    filter: { active: { eq: true } }
-  ) {
-    id
-    name
-
-    # Join with MySQL orders from different data source
-    _join(fields: ["email"]) {
-      mysql_orders(
-        fields: ["customer_email"]
-        filter: {
-          created_at: { gte: "2024-01-01" }
-          status: { in: ["pending", "processing"] }
-        }
-      ) {
-        id
-        total
-      }
-    }
-  }
-}
-```
-
-### Aggregating Joined Data with Filters
-
-```graphql
-query {
-  products {
-    id
-    name
-
-    _join(fields: ["id"]) {
-      # Aggregate only 5-star reviews
-      reviews_aggregation(
-        fields: ["product_id"]
-        filter: { rating: { eq: 5 } }
-      ) {
-        _rows_count
-        rating {
-          avg
-        }
-      }
-    }
-  }
-}
-```
-
-**Pattern:**
-1. Filter parent data (customers, products, etc.)
-2. Join at query time with `_join`
-3. Filter joined data with nested `filter`
-4. Can aggregate joined results
+**For advanced patterns:** See `hugr://docs/patterns` → "_join Patterns"
 
 ---
 
@@ -374,115 +314,44 @@ query {
 
 For geographic data, use `_spatial` to filter by spatial relationships.
 
-### Basic Spatial Join with Filter
+### Basic Pattern
 
 ```graphql
-query {
-  stores(
-    filter: { active: { eq: true } }
+regions {
+  id
+  name
+  _spatial(
+    field: "boundary"
+    type: CONTAINS  # or INTERSECTS, WITHIN, DWITHIN
+    buffer: 5000    # optional, for DWITHIN (meters)
   ) {
-    id
-    name
-    location
-
-    # Find customers within 5km
-    _spatial(
-      field: "location"
-      type: DWITHIN
-      buffer: 5000  # meters
+    locations(
+      field: "point"
+      filter: { active: { eq: true } }
     ) {
-      customers(
-        field: "address_location"
-        filter: {
-          vip: { eq: true }
-          last_order: { gte: "2024-01-01" }
-        }
-      ) {
-        id
-        name
-      }
+      id
+      name
     }
   }
 }
 ```
 
-### Spatial Join Types
+### Spatial Types
 
-| Type | Description | Example Use |
-|------|-------------|-------------|
-| `INTERSECTS` | Geometries share any space | Find overlapping regions |
-| `WITHIN` | Geometry completely inside | Find points in polygon |
-| `CONTAINS` | Reference inside geometry | Find polygon containing point |
-| `DISJOINT` | Geometries don't overlap | Find non-adjacent areas |
-| `DWITHIN` | Within distance (needs buffer) | Find nearby locations |
+- `INTERSECTS` - Geometries share any space
+- `WITHIN` - Geometry completely inside
+- `CONTAINS` - Reference inside geometry
+- `DISJOINT` - Geometries don't overlap
+- `DWITHIN` - Within distance (requires buffer)
 
-### Complex Spatial Query
+**Key Points:**
+- `field:` geometry field on parent object
+- `type:` spatial relationship type
+- `buffer:` distance in meters (for DWITHIN)
+- Can apply `filter` to spatial results
+- Can aggregate spatial results
 
-```graphql
-query {
-  delivery_zones {
-    id
-    name
-    boundary
-
-    # Active orders within zone
-    _spatial(field: "boundary", type: CONTAINS) {
-      orders(
-        field: "delivery_location"
-        filter: {
-          _and: [
-            { status: { in: ["pending", "processing"] } }
-            { scheduled_time: { lte: "2024-12-31T23:59:59Z" } }
-            {
-              customer: {
-                vip: { eq: true }
-              }
-            }
-          ]
-        }
-      ) {
-        id
-        delivery_location
-        customer {
-          name
-        }
-      }
-    }
-  }
-}
-```
-
-### Spatial Aggregation with Filters
-
-```graphql
-query {
-  regions {
-    id
-    name
-
-    _spatial(field: "boundary", type: CONTAINS) {
-      # Aggregate only residential buildings
-      buildings_aggregation(
-        field: "location"
-        filter: {
-          building_type: { eq: "residential" }
-        }
-      ) {
-        _rows_count
-        area {
-          sum
-        }
-      }
-    }
-  }
-}
-```
-
-**Pattern:**
-1. Filter parent geographic data
-2. Spatial join with `_spatial(field, type, buffer)`
-3. Filter joined spatial data
-4. Can aggregate spatial results
+**For advanced patterns:** See `hugr://docs/patterns` → "Spatial Query Patterns"
 
 ---
 
@@ -696,7 +565,8 @@ Or use MCP tool: `schema-type_fields(type_name: "customers_list_filter")`
 ## 📚 Related Resources
 
 - **Operator reference by type:** `hugr://docs/data-types`
-- **Relation filter patterns:** `hugr://docs/patterns`
+- **Advanced patterns:** `hugr://docs/patterns` → "_join Patterns", "Spatial Query Patterns"
+- **Aggregation guide:** `hugr://docs/aggregations`
 - **Common validation errors:** `hugr://docs/data-types` → "Common Validation Errors & Fixes"
 
 ---

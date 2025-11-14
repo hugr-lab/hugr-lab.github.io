@@ -191,13 +191,64 @@ _join(fields: ["field1", "field2"]) {
 }
 ```
 
+### _join with Filtering
+```graphql
+customers(
+  filter: { country: { eq: "USA" } }
+) {
+  id
+  name
+
+  _join(fields: ["id"]) {
+    orders(
+      fields: ["customer_id"]
+      filter: {
+        status: { eq: "pending" }
+        total: { gt: 1000 }
+      }
+    ) {
+      id
+      total
+      status
+    }
+  }
+}
+```
+
+### Cross-Source _join
+```graphql
+postgres_customers(
+  filter: { active: { eq: true } }
+) {
+  id
+  name
+
+  # Join with MySQL data
+  _join(fields: ["email"]) {
+    mysql_orders(
+      fields: ["customer_email"]
+      filter: {
+        created_at: { gte: "2024-01-01" }
+      }
+    ) {
+      id
+      total
+    }
+  }
+}
+```
+
 ### _join with Aggregation
 ```graphql
 products {
   id
   name
   _join(fields: ["id"]) {
-    reviews_aggregation(fields: ["product_id"]) {
+    # Aggregate joined data
+    reviews_aggregation(
+      fields: ["product_id"]
+      filter: { rating: { eq: 5 } }
+    ) {
       _rows_count
       rating { avg }
     }
@@ -206,6 +257,174 @@ products {
 ```
 
 **⚠️ Remember: Check for relations first with `schema-type_fields`!**
+
+---
+
+## 🗺️ Spatial Query Patterns
+
+**For spatial filtering fundamentals:** Read `hugr://docs/filters`
+
+### Basic Spatial Join
+
+```graphql
+stores(
+  filter: { active: { eq: true } }
+) {
+  id
+  name
+  location
+
+  # Find customers within 5km
+  _spatial(
+    field: "location"
+    type: DWITHIN
+    buffer: 5000  # meters
+  ) {
+    customers(
+      field: "address_location"
+      filter: {
+        vip: { eq: true }
+      }
+    ) {
+      id
+      name
+    }
+  }
+}
+```
+
+### Spatial Types
+
+| Type | Use Case |
+|------|----------|
+| `INTERSECTS` | Find overlapping regions |
+| `WITHIN` | Find points in polygon |
+| `CONTAINS` | Find polygon containing point |
+| `DISJOINT` | Find non-adjacent areas |
+| `DWITHIN` | Find nearby locations (requires buffer) |
+
+### Complex Spatial Query
+
+```graphql
+delivery_zones {
+  id
+  name
+  boundary
+
+  # Active orders within zone
+  _spatial(field: "boundary", type: CONTAINS) {
+    orders(
+      field: "delivery_location"
+      filter: {
+        _and: [
+          { status: { in: ["pending", "processing"] } }
+          { scheduled_time: { lte: "2024-12-31T23:59:59Z" } }
+          {
+            customer: {
+              vip: { eq: true }
+            }
+          }
+        ]
+      }
+    ) {
+      id
+      delivery_location
+      customer {
+        name
+      }
+    }
+  }
+}
+```
+
+### Spatial Aggregation
+
+```graphql
+regions {
+  id
+  name
+
+  _spatial(field: "boundary", type: CONTAINS) {
+    # Aggregate buildings within region
+    buildings_aggregation(
+      field: "location"
+      filter: {
+        building_type: { eq: "residential" }
+      }
+    ) {
+      _rows_count
+      area {
+        sum
+      }
+    }
+
+    # Bucket by building type
+    buildings_bucket_aggregation(field: "location") {
+      key {
+        building_type
+      }
+      aggregations {
+        _rows_count
+        area { sum }
+      }
+    }
+  }
+}
+```
+
+### Geospatial Analytics
+
+```graphql
+query {
+  # Cities with nearby airports
+  cities {
+    id
+    name
+    population
+
+    _spatial(
+      field: "location"
+      type: DWITHIN
+      buffer: 50000  # 50km
+    ) {
+      airports(field: "location") {
+        id
+        name
+        type
+      }
+
+      airports_aggregation(field: "location") {
+        _rows_count
+      }
+    }
+  }
+
+  # Regional statistics
+  regions_bucket_aggregation {
+    key {
+      region_type
+    }
+    aggregations {
+      _rows_count
+      area { sum }
+
+      _spatial(field: "boundary", type: CONTAINS) {
+        businesses_aggregation(field: "location") {
+          _rows_count
+        }
+        businesses_bucket_aggregation(field: "location") {
+          key {
+            business_type
+          }
+          aggregations {
+            _rows_count
+          }
+        }
+      }
+    }
+  }
+}
+```
 
 ## ✨ distinct_on Patterns
 
@@ -355,55 +574,65 @@ query { sales { analytics { revenue { metric } } } }
 
 **Always use the `module` field from discovery results!**
 
-## Aggregation Patterns
+## 📊 Aggregation Patterns
 
-### Single-Row Aggregation
-```graphql
-orders_aggregation(filter: { status: { eq: "completed" } }) {
-  _rows_count
-  total {
-    sum
-    avg
-    min
-    max
-  }
-  customer_id {
-    count(distinct: true)  # Distinct count
-  }
-}
-```
+**For aggregation fundamentals:** Read `hugr://docs/aggregations`
 
-### Bucket Aggregation (GROUP BY)
+### Common Use Cases
+
+**Sales Dashboard:**
 ```graphql
-orders_bucket_aggregation(
-  filter: { status: { eq: "completed" } }
-  order_by: [{ field: "aggregations.total.sum", direction: DESC }]
-  limit: 10
-) {
-  key {
-    status
-    customer { country }  # Group by relation!
-  }
-  aggregations {
+query {
+  # Total metrics
+  orders_aggregation(
+    filter: { status: { eq: "completed" } }
+  ) {
     _rows_count
-    total {
-      sum
-      avg
+    total { sum avg }
+  }
+
+  # Top customers
+  orders_bucket_aggregation(
+    order_by: [{ field: "aggregations.total.sum", direction: DESC }]
+    limit: 10
+  ) {
+    key {
+      customer { id name }
+    }
+    aggregations {
+      _rows_count
+      total { sum }
     }
   }
 }
 ```
 
-### Time-Based Grouping
+**Time Series Analysis:**
 ```graphql
-bucket_aggregation {
+orders_bucket_aggregation(
+  filter: { created_at: { gte: "2024-01-01" } }
+) {
   key {
-    order_date(bucket: month)
-    year: _order_date_part(extract: year)
+    month: created_at(bucket: month)
   }
   aggregations {
     _rows_count
-    revenue { sum }
+    total { sum avg }
+  }
+}
+```
+
+**Multi-Dimensional Analysis:**
+```graphql
+orders_bucket_aggregation {
+  key {
+    customer { country }
+    status
+    month: created_at(bucket: month)
+  }
+  aggregations {
+    _rows_count
+    total { sum }
   }
 }
 ```
