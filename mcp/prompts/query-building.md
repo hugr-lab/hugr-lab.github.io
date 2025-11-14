@@ -116,6 +116,143 @@ query {
 - distinct_on Patterns section
 - Multi-object queries section
 
+### Step 3.5: Working with Functions
+
+**Functions can be:**
+1. **Direct function calls** - via `query { function { ... } }` or `mutation { function { ... } }`
+2. **Function fields** - embedded in data objects
+
+#### A. Direct Function Calls
+
+**After discovering functions with `discovery-search_module_functions`:**
+
+1. **Verify signature:**
+   ```
+   schema-type_fields(type_name: "Function")
+   → Find function with parameters and return type
+   ```
+
+2. **Build query with module path:**
+   ```graphql
+   query {
+     function {
+       analytics {           # Module from discovery
+         get_recommendations(
+           customer_id: 123
+           limit: 10
+         ) {
+           id
+           name
+           score
+         }
+       }
+     }
+   }
+   ```
+
+3. **If table function (returns array):**
+   - Can use `filter`, `order_by`, `limit`, `offset`
+   - Can aggregate: `<function>_aggregation`, `<function>_bucket_aggregation`
+
+   ```graphql
+   query {
+     function {
+       analytics {
+         get_recommendations(customer_id: 123) {
+           filter: { price: { lte: 100 } }
+           order_by: [{ field: "score", direction: DESC }]
+           limit: 5
+         }
+       }
+     }
+   }
+   ```
+
+4. **Mutation functions:**
+   ```graphql
+   mutation {
+     function {
+       orders {
+         place_order(
+           customer_id: 123
+           items: "{\"product_id\": 456, \"quantity\": 2}"
+         ) {
+           order_id
+           status
+         }
+       }
+     }
+   }
+   ```
+
+#### B. Function Fields on Data Objects
+
+**Discovered via `schema-type_fields` on data object type:**
+
+1. **No query arguments - calculated automatically:**
+   ```graphql
+   query {
+     orders {
+       id
+       total
+       shipping_cost  # Function field - auto-calculated
+     }
+   }
+   ```
+
+2. **With query arguments:**
+   ```graphql
+   query {
+     products {
+       id
+       price
+       currency
+       # Function field with argument
+       price_converted(to_currency: "EUR")
+     }
+   }
+   ```
+
+3. **Table function fields (return arrays):**
+   ```graphql
+   query {
+     customers {
+       id
+       name
+       # Table function field
+       recommendations(limit: 10) {
+         filter: { price: { lte: 100 } }
+         order_by: [{ field: "score", direction: DESC }]
+       }
+     }
+   }
+   ```
+
+4. **Can aggregate function fields:**
+   ```graphql
+   query {
+     customers {
+       id
+       # Aggregate table function field
+       recommendations_aggregation(limit: 100) {
+         _rows_count
+         price {
+           avg
+           min
+           max
+         }
+       }
+     }
+   }
+   ```
+
+**Verification checklist for functions:**
+- [ ] Checked function signature with `schema-type_fields`
+- [ ] Verified all parameter types and names
+- [ ] Used correct module path from discovery
+- [ ] If table function - can use filter/order_by/limit
+- [ ] If function field - checked if requires query arguments
+
 ### Step 4: VALIDATE Query (MANDATORY!)
 
 **🚫 NEVER execute without validating first!**

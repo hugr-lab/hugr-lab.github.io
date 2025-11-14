@@ -188,6 +188,78 @@ For bucket aggregations:
 **Input:** Data object name, field name
 **Use:** Understand data distribution, get valid values
 
+### Step 7: Discover Functions
+**Tool:** `discovery-search_module_functions`
+**Input:** Module name, optional search query, `include_sub_modules` flag
+**Returns:** Functions with names, signatures, return types
+
+**Function Types:**
+1. **Query Functions** - Read-only computations
+   - Called via `query { function { <name>(...) } }`
+   - Can be in nested modules: `query { function { services { weather { current(...) } } } }`
+
+2. **Mutation Functions** - Data modifications
+   - Called via `mutation { function { <name>(...) } }`
+   - Use `only_mutations: true` parameter to filter
+
+3. **Function Fields** - Embedded in data objects
+   - Appear as regular fields on objects (discovered via `schema-type_fields`)
+   - Examples: `order.shipping_cost`, `customer.tier`, `product.recommendations`
+
+**After discovering a function:**
+
+1. **Check signature** - `schema-type_fields(type_name: "Function")` or `schema-type_fields(type_name: "MutationFunction")`
+   - Verify parameter types and names
+   - Check return type
+
+2. **If function is in module:**
+   ```graphql
+   query {
+     function {
+       services {           # Module path
+         weather {          # Sub-module
+           current_weather(lat: 40.7, lon: -74.0) {
+             temperature
+           }
+         }
+       }
+     }
+   }
+   ```
+
+3. **If table function (returns array):**
+   - Can filter: `filter: {...}`
+   - Can sort: `order_by: [{field: "...", direction: DESC}]`
+   - Can paginate: `limit`, `offset`
+   - Can aggregate: `<function>_aggregation`, `<function>_bucket_aggregation`
+
+4. **If function field on data object:**
+   - May require query-time arguments
+   - Example: `price_converted(to_currency: "EUR")`
+
+**Discovery example:**
+```
+1. discovery-search_module_functions(module_name: "services", query: "weather")
+   Returns: [{name: "current_weather", module: "services.weather", ...}]
+
+2. schema-type_fields(type_name: "Function")
+   Find: current_weather(lat: Float!, lon: Float!): WeatherData
+
+3. Build query using module path:
+   query {
+     function {
+       services {
+         weather {
+           current_weather(lat: 40.7, lon: -74.0) {
+             temperature
+             humidity
+           }
+         }
+       }
+     }
+   }
+```
+
 ## Workflow Examples
 
 ### Example 1: Find and Query Data
@@ -254,6 +326,85 @@ For bucket aggregations:
 4. `schema-type_fields` on field types to see available `measurement_func` values
 
 5. Build cube query with dimensions and measurements
+
+### Example 4: Function Discovery and Calling
+
+**Task:** Call function to get recommendations
+
+**Steps:**
+1. `discovery-search_module_functions` with query "recommendations"
+   → Returns: [{name: "get_recommendations", module: "analytics", return_type: "[Product]", is_table: true}]
+
+2. `schema-type_fields` on "Function"
+   → Find: get_recommendations(customer_id: Int!, limit: Int): [Product]
+
+3. Check if table function (is_table: true)
+   → Yes! Can use filter, order_by, limit, aggregation
+
+4. Build query:
+   ```graphql
+   query {
+     function {
+       analytics {
+         get_recommendations(
+           customer_id: 123
+           limit: 10
+         ) {
+           id
+           name
+           price
+           score
+         }
+       }
+     }
+   }
+   ```
+
+5. Or with filtering (if table function):
+   ```graphql
+   query {
+     function {
+       analytics {
+         get_recommendations(customer_id: 123) {
+           # Can use standard query arguments on table functions
+           filter: { price: { lte: 100 } }
+           order_by: [{ field: "score", direction: DESC }]
+           limit: 5
+         }
+       }
+     }
+   }
+   ```
+
+**For function fields on data objects:**
+
+1. `schema-type_fields` on data object (e.g., "orders")
+   → Find: shipping_cost: Float (with arguments if needed)
+
+2. If function field has arguments, call with them:
+   ```graphql
+   query {
+     orders {
+       id
+       total
+       # Function field - automatically calculated per order
+       shipping_cost
+     }
+   }
+   ```
+
+3. If function field requires query arguments:
+   ```graphql
+   query {
+     products {
+       id
+       price
+       currency
+       # Function field with query-time argument
+       price_converted(to_currency: "EUR")
+     }
+   }
+   ```
 
 ## Common Mistakes
 
