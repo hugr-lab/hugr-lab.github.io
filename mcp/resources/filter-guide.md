@@ -149,39 +149,31 @@ When aggregating data with joins, use the `inner` argument to filter aggregation
 ### inner: true - Only Include Matching Rows
 
 **Without inner (default):**
-All rows in the parent dataset are included, even if they have no matching joined data.
+All parent rows are included in the result, even if they have no matching joined data (like LEFT JOIN).
 
 **With inner: true:**
-Only rows that have matching joined data are included in the aggregation.
+Only parent rows that have matching joined data are included (like INNER JOIN).
 
-### Example: Population Density with inner
+### Example: Customers with Active Orders
 
 ```graphql
 query {
-  h3(resolution: 6) {
-    cell
-    data {
-      # Only include cells that have population data
-      districts: boundaries_aggregation(
-        field: "geom"
-        inner: true  # Filter: only cells with district data
-      ) {
-        pop: _join(fields: ["district_code"]) {
-          population(fields: ["code"]) {
-            count {
-              sum
-            }
-          }
-        }
-      }
+  # Get only customers who have active orders
+  customers_aggregation(
+    inner: true  # Only customers with orders
+  ) {
+    _rows_count  # Count of customers WITH orders
 
-      # All cells included
-      buildings: buildings_aggregation(
-        field: "geom"
-        # inner: false (default) - all cells
+    # Join with orders
+    orders: _join(fields: ["id"]) {
+      orders_aggregation(
+        fields: ["customer_id"]
+        filter: { status: { eq: "active" } }
       ) {
-        area {
+        _rows_count  # Total active orders
+        total {
           sum
+          avg
         }
       }
     }
@@ -189,7 +181,37 @@ query {
 }
 ```
 
-**Use Case:** When calculating distributions or ratios, `inner: true` ensures the denominator is only calculated for rows with numerator data.
+**Without inner (default):**
+```graphql
+query {
+  # Get ALL customers, even those without orders
+  customers_aggregation {
+    _rows_count  # Count of ALL customers
+
+    orders: _join(fields: ["id"]) {
+      orders_aggregation(fields: ["customer_id"]) {
+        _rows_count  # Total orders
+      }
+    }
+  }
+}
+```
+
+### Use Cases for inner: true
+
+1. **Filter by existence of related data:**
+   - Only products with reviews
+   - Only categories with products
+   - Only users with purchases
+
+2. **Accurate ratio calculations:**
+   - Average order value (only for customers with orders)
+   - Conversion rate (only for visitors with purchases)
+   - Response rate (only for sent emails with responses)
+
+3. **Avoiding null/zero values:**
+   - Skip empty aggregations
+   - Exclude entities with no related data
 
 ---
 
