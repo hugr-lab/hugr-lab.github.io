@@ -109,12 +109,61 @@ customers {
 ### String Fields
 ```graphql
 name: {
-  eq: "exact match"           # Equal to
+  eq: "exact match"           # Equal to (exact string match)
   in: ["option1", "option2"]  # In list
-  like: "%pattern%"           # Pattern match (% = wildcard)
-  ilike: "%CASE%"             # Case-insensitive pattern
-  regex: "^[A-Z].*"           # Regular expression
+  like: "%pattern%"           # Pattern match (% = wildcard, _ = single char)
+  ilike: "%CASE%"             # Case-insensitive pattern match
+  regex: "^[A-Z][a-z]+"       # Regular expression (POSIX ERE syntax)
   is_null: true               # Is/is not null
+}
+```
+
+**Available String Operators:**
+- ✅ `eq`, `in`, `like`, `ilike`, `regex`, `is_null`
+- ❌ **NOT AVAILABLE:** `not_like`, `not_ilike`, `not_regex` (use boolean logic instead)
+
+**Pattern Matching Examples:**
+```graphql
+# like / ilike patterns (SQL LIKE syntax)
+name: { like: "John%" }      # Starts with "John"
+name: { like: "%Doe" }       # Ends with "Doe"
+name: { like: "%John%" }     # Contains "John"
+name: { like: "J_hn" }       # Matches "John", "Jahn" (single char wildcard)
+name: { ilike: "%john%" }    # Case-insensitive contains
+
+# regex (POSIX ERE - Extended Regular Expression)
+name: { regex: "^[A-Z][a-z]+" }        # Starts with uppercase, lowercase letters
+email: { regex: "^[a-z0-9._%+-]+@" }   # Email pattern
+code: { regex: "^(USD|EUR|GBP)$" }     # Exact match from set
+```
+
+**⚠️ REGEX SYNTAX - CRITICAL:**
+- **Use POSIX ERE syntax** (PostgreSQL and DuckDB standard)
+- **NOT Perl/PCRE syntax** - these features DON'T work:
+  - ❌ Lookahead/lookbehind: `(?=`, `(?!`, `(?<=`, `(?<!`
+  - ❌ Non-capturing groups: `(?:`
+  - ❌ Lazy quantifiers: `*?`, `+?`
+  - ❌ Unicode properties: `\p{L}`, `\p{N}`
+  - ❌ Atomic groups: `(?>...)`
+
+**✅ POSIX ERE Features (THESE WORK):**
+- Basic: `.` (any char), `^` (start), `$` (end)
+- Quantifiers: `*` (0+), `+` (1+), `?` (0-1), `{n}`, `{n,m}`
+- Character classes: `[abc]`, `[^abc]`, `[a-z]`, `[0-9]`
+- Predefined classes: `[:alnum:]`, `[:alpha:]`, `[:digit:]`, `[:space:]`
+- Alternation: `(pattern1|pattern2)`
+- Grouping: `(pattern)`
+
+**Negation Example (use boolean logic):**
+```graphql
+# Instead of not_like or not_ilike:
+filter: {
+  _not: { name: { like: "%test%" } }  # ✅ Does NOT contain "test"
+}
+
+# Instead of not_regex:
+filter: {
+  _not: { email: { regex: "@example\\.com$" } }  # ✅ Does NOT end with @example.com
 }
 ```
 
@@ -388,15 +437,47 @@ order_by: [
 ]
 ```
 
-### Sort by Aggregations
+### Sort by Aggregations (bucket_aggregation)
 ```graphql
-bucket_aggregation(
+# ✅ CORRECT - sorting bucket_aggregation results
+customers_bucket_aggregation(
   order_by: [
-    { field: "aggregations.total.sum", direction: DESC }
-    { field: "key.category", direction: ASC }
+    { field: "aggregations.total.sum", direction: DESC }    # Sort by aggregated value
+    { field: "aggregations._rows_count", direction: DESC }  # Sort by count
+    { field: "key.country", direction: ASC }                # Sort by grouping key
   ]
-)
+) {
+  key { country }
+  aggregations {
+    _rows_count
+    total { sum }  # Must select fields used in order_by
+  }
+}
 ```
+
+**⚠️ CRITICAL ORDER_BY STRUCTURE:**
+```graphql
+# ✅ CORRECT - use "aggregations." prefix
+order_by: [
+  { field: "aggregations.total.sum", direction: DESC }
+]
+
+# ❌ WRONG - don't use separate aggregations field
+order_by: [
+  { field: "total.sum", aggregations: true }  # NO! This doesn't exist!
+]
+
+# ❌ WRONG - don't use field without aggregations prefix
+order_by: [
+  { field: "total.sum", direction: DESC }  # NO! Missing "aggregations." prefix!
+]
+```
+
+**Rules for bucket_aggregation order_by:**
+1. Aggregation fields: use `aggregations.FIELD.FUNCTION` format
+2. Key fields: use `key.FIELD` format
+3. Must select fields in query that you're sorting by
+4. Direction is REQUIRED (ASC or DESC)
 
 ## Common Patterns
 
@@ -458,3 +539,185 @@ Finds customers who have at least one order containing at least one item of an e
 4. **Uppercase enums:** ASC/DESC, not asc/desc
 5. **_rows_count:** Not `count` at aggregation root
 6. **distinct:** Use `count(distinct: true)` or `distinct_on`
+
+---
+
+## ⚠️ Common Validation Errors & Fixes
+
+### Error 1: Non-existent Filter Field
+
+**Error:**
+```
+Field "description" is not defined by type "synthea_conditions_list_filter"
+```
+
+**Cause:** Trying to filter by field that doesn't exist in schema
+
+**Fix:**
+```graphql
+# ❌ WRONG - assuming field exists
+filter: {
+  description: { like: "%diabetes%" }  # Field doesn't exist!
+}
+
+# ✅ CORRECT - discover fields first
+# Use: schema-type_fields(type_name: "synthea_conditions")
+# Then use actual field name (e.g., "condition_description" or "code")
+filter: {
+  code: { like: "E11%" }  # Use actual field name
+}
+```
+
+**Prevention:** ALWAYS use `schema-type_fields` to discover available fields before building filters.
+
+### Error 2: Non-existent String Operator
+
+**Error:**
+```
+Field "not_ilike" is not defined by type "StringFilter". Did you mean "ilike"?
+```
+
+**Cause:** Using operator that doesn't exist (like `not_ilike`, `not_like`, `not_regex`)
+
+**Fix:**
+```graphql
+# ❌ WRONG - not_ilike doesn't exist
+filter: {
+  name: { not_ilike: "%test%" }  # Operator doesn't exist!
+}
+
+# ✅ CORRECT - use boolean logic
+filter: {
+  _not: {
+    name: { ilike: "%test%" }  # Wrap in _not
+  }
+}
+```
+
+**Available String operators:** `eq`, `in`, `like`, `ilike`, `regex`, `is_null` ONLY.
+
+### Error 3: Wrong order_by Structure for Aggregations
+
+**Error:**
+```
+Field "OrderByField.field" of required type "String!" was not provided
+Field "aggregations" is not defined by type "OrderByField"
+```
+
+**Cause:** Using wrong structure for sorting bucket_aggregation
+
+**Fix:**
+```graphql
+# ❌ WRONG - aggregations as separate field
+order_by: [
+  { field: "total.sum", aggregations: true }  # Wrong structure!
+]
+
+# ❌ WRONG - missing aggregations prefix
+order_by: [
+  { field: "total.sum", direction: DESC }  # Missing prefix!
+]
+
+# ✅ CORRECT - aggregations as part of field path
+order_by: [
+  { field: "aggregations.total.sum", direction: DESC }  # Correct!
+]
+```
+
+**Rule:** For bucket_aggregation, use `aggregations.FIELD.FUNCTION` or `key.FIELD` in the field path.
+
+### Error 4: Perl/PCRE Regex Features
+
+**Error:**
+```
+REGEX: Invalid Input Error: invalid perl operator: (?!
+```
+
+**Cause:** Using Perl/PCRE regex syntax (lookahead, lookbehind, etc.) instead of POSIX ERE
+
+**Fix:**
+```graphql
+# ❌ WRONG - Perl regex with negative lookahead
+filter: {
+  code: { regex: "^(?!test).*$" }  # (?! is Perl-specific, doesn't work!
+}
+
+# ✅ CORRECT - use POSIX ERE or different approach
+filter: {
+  # Option 1: Use negation with boolean logic
+  _not: {
+    code: { regex: "^test" }  # Negate the match
+  }
+}
+
+# ✅ CORRECT - use character class negation
+filter: {
+  code: { regex: "^[^t].*$" }  # Starts with non-t character (POSIX ERE)
+}
+```
+
+**Remember:** Use POSIX ERE only - no `(?!`, `(?=`, `(?<=`, `(?<!`, `(?:`, `*?`, `+?`, etc.
+
+### Error 5: Using Relation Filters on Scalar Fields
+
+**Error:**
+```
+Field "any_of" is not defined by type "StringFilter"
+```
+
+**Cause:** Using relation operators (any_of/all_of/none_of) on scalar fields
+
+**Fix:**
+```graphql
+# ❌ WRONG - any_of on scalar field
+filter: {
+  status: { any_of: { eq: "active" } }  # status is String, not relation!
+}
+
+# ✅ CORRECT - use 'in' for multiple values
+filter: {
+  status: { in: ["active", "pending", "completed"] }
+}
+
+# ✅ CORRECT - any_of only for relations
+filter: {
+  orders: {  # orders is a relation (one-to-many)
+    any_of: {
+      status: { eq: "active" }
+    }
+  }
+}
+```
+
+**Rule:** `any_of`/`all_of`/`none_of` are ONLY for relation fields, use `in` for scalar fields.
+
+---
+
+## 🔍 Debugging Checklist
+
+When you get validation errors:
+
+1. **Field doesn't exist?**
+   - ✅ Use `schema-type_fields` to discover actual field names
+   - ✅ Check spelling and case sensitivity
+   - ✅ Verify field exists in this type (not confused with related type)
+
+2. **Operator doesn't exist?**
+   - ✅ Use `schema-type_fields(type_name: "TypeName_filter_input")` to see available operators
+   - ✅ Check if field type matches (String vs Int vs relation)
+   - ✅ For negation, use `_not: { field: { operator } }` instead of `not_operator`
+
+3. **order_by error?**
+   - ✅ For bucket_aggregation: use `aggregations.field.function` or `key.field`
+   - ✅ For regular queries: use just `field` or `relation.field`
+   - ✅ Always include `direction: ASC` or `direction: DESC`
+
+4. **Regex error?**
+   - ✅ Remove Perl/PCRE features: `(?!`, `(?=`, `(?:`, `*?`, `\p{}`
+   - ✅ Use POSIX ERE only: `^`, `$`, `[]`, `*`, `+`, `?`, `{n,m}`, `|`, `()`
+   - ✅ Test pattern is valid POSIX ERE syntax
+
+5. **Query validation failed?**
+   - ✅ ALWAYS validate with `data-validate_graphql_query` BEFORE execution
+   - ✅ Read error message carefully - it tells you exactly what's wrong
+   - ✅ Fix and re-validate until it passes

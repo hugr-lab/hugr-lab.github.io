@@ -546,3 +546,16 @@ With jq transform:
 5. **Validate MANDATORY** - Every query, every time
 6. **Deep nesting OK** - Filter by relations 3-4 levels deep
 7. **Read `hugr://docs/data-types`** - For operators and functions reference
+
+## 🔍 Troubleshooting
+
+**If you get validation errors**, read `hugr://docs/data-types` section **"Common Validation Errors & Fixes"**.
+
+Common mistakes covered:
+- Non-existent fields (forgot to use `schema-type_fields`)
+- Non-existent operators (`not_ilike`, `not_like` don't exist)
+- Wrong `order_by` structure for aggregations
+- Perl/PCRE regex instead of POSIX ERE
+- Using `any_of` on scalar fields instead of `in`
+
+**Prevention: ALWAYS validate queries with `data-validate_graphql_query` BEFORE execution!**

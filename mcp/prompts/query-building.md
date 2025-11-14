@@ -139,6 +139,16 @@ Error: "jq compile error: syntax error"
 4. If fails → Fix errors and go back to step 2
 ```
 
+**⚠️ IF VALIDATION FAILS:**
+Read `hugr://docs/data-types` section **"Common Validation Errors & Fixes"** for:
+- Non-existent field errors → Use `schema-type_fields` to discover actual fields
+- Non-existent operator errors → Check available operators (e.g., `not_ilike` doesn't exist, use `_not: { field: { ilike } }`)
+- Wrong `order_by` structure → For bucket_aggregation, use `aggregations.field.function` format
+- Regex errors → Use POSIX ERE only, not Perl/PCRE (no `(?!`, `(?=`, etc.)
+- Type mismatch errors → Don't use `any_of` on scalars, use `in` instead
+
+**ALWAYS READ THE ERROR MESSAGE - it tells you exactly what's wrong!**
+
 ### Step 5: Execute Query and Process with jq
 
 **Execute with jq transform for data processing:**
