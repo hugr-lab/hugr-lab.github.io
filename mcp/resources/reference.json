@@ -1,4 +1,9 @@
 {
+  "ai-instructions.md": {
+    "name": "AI Assistant Instructions",
+    "description": "⭐ START HERE ⭐ Complete guide for AI assistants on when and how to use Hugr MCP. Automatic trigger detection, decision tree, workflow patterns, and critical rules. Read this first when user asks about data!",
+    "uri": "hugr://ai/instructions"
+  },
   "index.md": {
     "name": "Documentation Index",
     "description": "Navigation guide for all Hugr MCP resources and prompts. Overview of available documentation, tools, and key principles.",

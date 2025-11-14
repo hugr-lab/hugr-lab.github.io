@@ -10,19 +10,22 @@ mcp/
 ├── index.md               # Detailed implementation guide
 ├── example_server.go      # Complete Go implementation example
 ├── resources/             # Static reference documentation
-│   ├── reference.json     # Resource metadata (4 resources)
-│   ├── index.md           # Documentation index
-│   ├── r-overview.md      # Hugr architecture (2.9KB)
-│   ├── r-schema-structure.md  # Type system (5.3KB)
-│   └── r-query-patterns.md    # GraphQL patterns (3.9KB)
+│   ├── reference.json     # Resource metadata (6 resources)
+│   ├── ai-instructions.md # ⭐ AI assistant guide (9.2KB)
+│   ├── index.md           # Documentation index (1.9KB)
+│   ├── overview.md        # Hugr architecture (3.4KB)
+│   ├── data-types.md      # Filter operators (10.7KB)
+│   ├── schema-structure.md# Type system (5.9KB)
+│   └── query-patterns.md  # GraphQL patterns (10.7KB)
 └── prompts/               # Interactive workflow templates
-    ├── reference.json     # Prompt metadata (3 prompts)
-    ├── discovery.md       # Schema discovery (7.4KB)
-    ├── query-building.md  # Query construction (6.5KB)
-    └── analysis.md        # Iterative analysis (14.2KB)
+    ├── reference.json     # Prompt metadata (4 prompts)
+    ├── start.md           # ⭐ Auto-routing (4.9KB)
+    ├── discovery.md       # Schema discovery (13.3KB)
+    ├── query-building.md  # Query construction (10.9KB)
+    └── analysis.md        # Iterative analysis (17.6KB)
 ```
 
-**Total size:** ~40KB
+**Total size:** ~97KB
 
 ## 🚀 Quick Start
 
@@ -84,10 +87,21 @@ Resources provide **reference material** for LLMs to understand Hugr.
 
 | URI | Name | Description | Size |
 |-----|------|-------------|------|
+| `hugr://ai/instructions` | **AI Instructions** ⭐ | **How to work with Hugr MCP** (for AI assistants) | 9.2KB |
 | `hugr://docs/index` | Documentation Index | Navigation guide | 1.9KB |
 | `hugr://docs/overview` | Hugr Overview | Architecture, modules, RLS | 2.9KB |
-| `hugr://docs/schema` | Schema Structure | Types, introspection, filters | 5.3KB |
-| `hugr://docs/patterns` | Query Patterns | GraphQL examples | 3.9KB |
+| `hugr://docs/data-types` | Data Types | Filter operators, aggregations | 10.7KB |
+| `hugr://docs/schema` | Schema Structure | Types, introspection, filters | 5.9KB |
+| `hugr://docs/patterns` | Query Patterns | GraphQL examples, anti-patterns | 10.7KB |
+
+**⭐ Special Resource: `hugr://ai/instructions`**
+
+This resource teaches AI assistants:
+- **When** to use Hugr MCP (automatic trigger detection)
+- **How** to work with prompts (decision tree, routing)
+- **What** workflow to follow (read overview → use start prompt → follow instructions)
+
+AI models should read this resource first when user asks about data.
 
 ### Usage in Claude
 
@@ -103,44 +117,66 @@ Prompts guide LLMs through **specific tasks** with optional parameters.
 
 | Name | Description | Arguments | Size |
 |------|-------------|-----------|------|
-| `discovery` | Schema discovery workflow | `task` (optional) | 7.4KB |
-| `query-building` | Query construction guide | `task` (optional) | 6.5KB |
-| `analysis` | Iterative analysis workflow | `task` (optional) | 14.2KB |
+| **`start`** ⭐ | **Router - auto-classifies & routes to specialized prompts** | `task` (optional) | 4.9KB |
+| `discovery` | Schema discovery workflow | `task` (optional) | 13.3KB |
+| `query-building` | Query construction guide | `task` (optional) | 10.9KB |
+| `analysis` | Iterative analysis workflow | `task` (optional) | 17.6KB |
+
+**⭐ Main Entry Point: `start` prompt**
+
+The `start` prompt automatically:
+1. Analyzes user's request
+2. Classifies task type (analysis / discovery / query-building)
+3. Routes to appropriate specialized prompt
+
+AI assistants should use `start` prompt for any data-related request.
 
 ### Usage in Claude
 
-**Without parameters** (full guide):
+**Recommended: Use start prompt** (auto-routing):
 ```
-/discovery
+User: "Show me top customers by revenue"
+Assistant: [Invokes start prompt with task]
+→ start classifies → routes to analysis → completes task
 ```
 
-**With task parameter**:
+**Direct prompt usage** (when you know which one):
 ```
 /discovery task="find all tables related to orders"
 /query-building task="get top 10 products by revenue"
 /analysis task="analyze customer distribution by region"
 ```
 
+**Without parameters** (get full guide):
+```
+/start
+/discovery
+/query-building
+/analysis
+```
+
 ## 🔧 Implementation Details
 
 ### Template Rendering
 
-Prompts use Handlebars-style syntax:
+Prompts use **Go text/template** syntax:
 
 ```markdown
-{{#if task}}
+{{if .task}}
 ## Current Task
 
-**Objective:** {{task}}
+**Objective:** {{.task}}
 
 **Instructions:**
 ...
-{{/if}}
+{{end}}
 ```
 
 The `renderTemplate()` function in `example_server.go`:
-- Replaces `{{variable}}` with value
-- Shows/hides `{{#if variable}}...{{/if}}` blocks based on value
+- Uses Go's `text/template` package
+- Replaces `{{.variable}}` with value from arguments
+- Shows/hides `{{if .variable}}...{{end}}` blocks based on value
+- Access arguments with dot prefix: `.task`, `.module`, etc.
 
 ### Metadata Files
 
@@ -242,46 +278,103 @@ Include entire `mcp/` directory with your binary and use relative paths.
 
 ## 📖 Use Cases
 
-### 1. Data Analysis
+### 1. Automatic Routing (Recommended)
 
 ```
-User: /analysis task="analyze sales trends over the last year"
+User: "Show me top products by revenue last month"
+
+Claude Desktop:
+1. Sees data-related request
+2. Reads hugr://ai/instructions
+3. Learns to use start prompt
+4. Invokes start(task: "Show me top products by revenue last month")
+5. start analyzes → routes to analysis prompt
+6. analysis guides through full workflow
+7. User gets results
 ```
 
-Model receives:
-- Full analysis workflow guide
-- Specific task context
-- Iterative process instructions
-
-### 2. Query Building
+### 2. Data Analysis
 
 ```
-User: /query-building task="get active customers with purchases > $1000"
-```
+User: "Analyze customer churn trends"
 
-Model receives:
-- Query construction guidelines
-- Performance optimization tips
-- Specific requirement to implement
+Claude:
+→ Invokes start prompt
+→ Routes to analysis prompt
+→ Completes iterative analysis workflow
+```
 
 ### 3. Schema Discovery
 
 ```
-User: /discovery task="find all tables in sales module"
+User: "What customer data is available?"
+
+Claude:
+→ Invokes start prompt
+→ Routes to discovery prompt
+→ Uses MCP tools to introspect schema
+→ Reports available tables and fields
 ```
 
-Model receives:
-- Discovery workflow steps
-- MCP tools documentation
-- Specific discovery objective
-
-### 4. Reference Lookup
+### 4. Query Building
 
 ```
-User: What's the module hierarchy structure in Hugr?
-Assistant: Let me check the documentation...
-[Reads hugr://docs/overview]
+User: "Build a query for active users with purchases > $1000"
+
+Claude:
+→ Invokes start prompt
+→ Routes to query-building prompt
+→ Constructs validated GraphQL query
+→ Returns ready-to-use query
 ```
+
+### 5. Reference Lookup
+
+```
+User: "How does module hierarchy work?"
+
+Claude:
+→ Reads hugr://docs/overview
+→ Explains architecture
+```
+
+## 🤖 AI Assistant Integration
+
+### How Claude Desktop Uses This
+
+1. **MCP Server provides:**
+   - Resources (documentation)
+   - Prompts (workflow templates)
+   - Tools (schema introspection, query execution)
+
+2. **Claude Desktop discovers:**
+   - Lists resources → sees `hugr://ai/instructions` with ⭐ marker
+   - Lists prompts → sees `start` prompt as main entry point
+
+3. **User asks data question:**
+   - Claude reads `hugr://ai/instructions`
+   - Learns when/how to use Hugr MCP
+   - Invokes `start` prompt
+   - Follows specialized prompt instructions
+
+4. **Result:**
+   - User gets insights without knowing MCP details
+   - No manual prompt selection needed
+   - Automatic schema discovery
+   - Validated queries
+   - Professional analysis
+
+### Configuration Tips
+
+**Make `ai-instructions` discoverable:**
+- Put it first in `resources/reference.json`
+- Use ⭐ marker in description
+- Mention "START HERE" or "READ FIRST"
+
+**Make `start` prompt obvious:**
+- Put it first in `prompts/reference.json`
+- Use "Main entry point" in description
+- Reference it in other resources
 
 ## 🔍 Testing
 
@@ -310,9 +403,19 @@ curl http://localhost:3000/mcp/prompts/get?name=discovery&task=find%20orders
 
 ## 📊 Statistics
 
-- **Resources:** 4 files, ~12KB
-- **Prompts:** 3 files, ~28KB
-- **Total:** ~40KB (ideal for MCP)
+- **Resources:** 6 files, ~50KB
+  - ai-instructions.md (9.2KB) - AI assistant guide ⭐
+  - index.md (1.9KB) - Navigation
+  - overview.md (3.4KB) - Architecture
+  - data-types.md (10.7KB) - Operators & functions
+  - schema-structure.md (5.9KB) - Type system
+  - query-patterns.md (10.7KB) - Patterns & anti-patterns
+- **Prompts:** 4 files, ~47KB
+  - start.md (4.9KB) - Auto-routing ⭐
+  - discovery.md (13.3KB) - Schema discovery
+  - query-building.md (10.9KB) - Query construction
+  - analysis.md (17.6KB) - Iterative analysis
+- **Total:** ~97KB (compact for comprehensive MCP package)
 - **Languages:** Markdown (docs), JSON (metadata), Go (implementation)
 
 ## 🔗 Links
