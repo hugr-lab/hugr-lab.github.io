@@ -144,54 +144,118 @@ filter: {
 
 ## 🔍 Filtering Through Subqueries (inner)
 
-When aggregating data with joins, use the `inner` argument to filter aggregation results.
+Use the `inner` argument on relation fields to filter parent records by the existence of related data.
 
-### inner: true - Only Include Matching Rows
+### inner: true - Filter Parent by Child Existence
 
-**Without inner (default):**
-All parent rows are included in the result, even if they have no matching joined data (like LEFT JOIN).
+**Without inner (default - LEFT JOIN):**
+Returns all parent records, even if they have no related child records.
 
-**With inner: true:**
-Only parent rows that have matching joined data are included (like INNER JOIN).
+**With inner: true (INNER JOIN):**
+Returns only parent records that have at least one matching child record.
 
-### Example: Customers with Active Orders
+### Example: Many-to-One Relations (orders → customer)
 
 ```graphql
 query {
-  # Get only customers who have active orders
-  customers_aggregation(
-    inner: true  # Only customers with orders
-  ) {
-    _rows_count  # Count of customers WITH orders
+  # All orders with their customers (LEFT JOIN)
+  orders {
+    id
+    total
+    customer {  # May be null
+      id
+      name
+    }
+  }
 
-    # Join with orders
-    orders: _join(fields: ["id"]) {
-      orders_aggregation(
-        fields: ["customer_id"]
-        filter: { status: { eq: "active" } }
-      ) {
-        _rows_count  # Total active orders
-        total {
-          sum
-          avg
-        }
-      }
+  # Only orders that have a customer (INNER JOIN)
+  orders {
+    id
+    total
+    customer(inner: true) {  # Filters orders: only those with customer
+      id
+      name
     }
   }
 }
 ```
 
-**Without inner (default):**
+### Example: One-to-Many Relations (customers → orders)
+
 ```graphql
 query {
-  # Get ALL customers, even those without orders
-  customers_aggregation {
-    _rows_count  # Count of ALL customers
+  # All customers (even without orders)
+  customers {
+    id
+    name
+    orders {  # May be empty array
+      id
+      total
+    }
+  }
 
-    orders: _join(fields: ["id"]) {
-      orders_aggregation(fields: ["customer_id"]) {
-        _rows_count  # Total orders
+  # Only customers who have orders (INNER JOIN)
+  customers {
+    id
+    name
+    orders(
+      inner: true  # Filters customers: only those with orders
+      filter: { status: { eq: "completed" } }
+    ) {
+      id
+      total
+      status
+    }
+  }
+}
+```
+
+### Example: Many-to-Many Relations (products ↔ categories)
+
+```graphql
+query {
+  # Only products that are in at least one category
+  products {
+    id
+    name
+    categories(inner: true) {  # Filters products
+      id
+      name
+    }
+  }
+
+  # Only categories that have at least one product
+  categories {
+    id
+    name
+    products(inner: true) {  # Filters categories
+      id
+      name
+    }
+  }
+}
+```
+
+### Combining inner with Filters
+
+```graphql
+query {
+  # Only customers with high-value completed orders
+  customers {
+    id
+    name
+    orders(
+      inner: true  # Must have orders matching filter
+      filter: {
+        _and: [
+          { status: { eq: "completed" } }
+          { total: { gte: 1000 } }
+        ]
       }
+    ) {
+      id
+      total
+      status
     }
   }
 }
@@ -199,19 +263,19 @@ query {
 
 ### Use Cases for inner: true
 
-1. **Filter by existence of related data:**
-   - Only products with reviews
-   - Only categories with products
-   - Only users with purchases
+1. **Filter by existence:**
+   - Customers with orders
+   - Products in categories
+   - Orders with reviews
 
-2. **Accurate ratio calculations:**
-   - Average order value (only for customers with orders)
-   - Conversion rate (only for visitors with purchases)
-   - Response rate (only for sent emails with responses)
+2. **Exclude orphans:**
+   - Order details without products
+   - Orders without customers
+   - Employees without departments
 
-3. **Avoiding null/zero values:**
-   - Skip empty aggregations
-   - Exclude entities with no related data
+3. **Required relationships:**
+   - Only show records with valid foreign keys
+   - Ensure data integrity in queries
 
 ---
 
