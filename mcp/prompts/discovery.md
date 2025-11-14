@@ -74,11 +74,11 @@ After discovering objects, **MUST verify ALL fields** before using:
 ### Query Execution Tools
 
 **data-validate_graphql_query**
-- Input: GraphQL query, optional variables
+- Input: GraphQL query, optional variables, optional jq_transform
 - Returns: true if query is valid, error if invalid
 - Use: **Validate query correctness BEFORE execution**
-- Checks syntax, field existence, type compatibility
-- **Always validate complex queries before executing!**
+- Checks: GraphQL syntax, field existence, type compatibility, jq compilability
+- **Always validate complex queries and jq transforms before executing!**
 
 **data-inline_graphql_result**
 - Input: GraphQL query, optional variables, optional jq transform

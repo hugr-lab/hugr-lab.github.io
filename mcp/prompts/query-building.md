@@ -85,13 +85,18 @@ query {
 Tool: data-validate_graphql_query
 Input: {
   query: "query { module { data_object(filter: {...}, limit: 100) { fields } } }",
-  variables: {}
+  variables: {},
+  jq_transform: ".data.module.data_object | map({id, name})"  // Optional
 }
 
 Returns: true ✓
   OR
 Error: "Field 'field_name' not found on type 'ObjectType'"
+  OR
+Error: "jq compile error: syntax error near '}'"
 ```
+
+**Validates both GraphQL query AND jq transform!**
 
 **Option 2: Test with limit: 0**
 

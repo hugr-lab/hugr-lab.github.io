@@ -32,13 +32,15 @@ query {
 ```
 
 With jq transform:
-```
+```jq
 .data.objects_bucket_aggregation | map({
   category: .key.category,
   count: .aggregations._rows_count,
   total: .aggregations.value.sum
 })
 ```
+
+**Validate jq with data-validate_graphql_query before executing!**
 
 ## Analysis Principles
 
@@ -148,6 +150,8 @@ Then use **single jq transform** to analyze ALL results:
   }))
 }
 ```
+
+**Important:** Validate complex jq with `data-validate_graphql_query` before executing!
 
 **Result:** Complete analysis in ONE request + ONE jq transform. No Python needed!
 
