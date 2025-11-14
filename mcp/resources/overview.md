@@ -50,7 +50,9 @@ query {
 **⚠️ Some scalar types auto-generate additional fields:**
 - **Timestamp/Date:** time part extraction (`_<field>_part`), bucketing (`bucket: month`)
 - **Geometry:** transformations, measurements (`_<field>_measurement`)
-- **Vector:** distance calculation (`_<field>_distance`)
+- **Vector:** distance calculation (`_<field>_distance`), semantic search (`similarity` argument)
+  - If `@embeddings` directive: `_distance_to_query(query: String!)` for text-to-vector search
+  - Sort by semantic similarity using `order_by: [{ field: "_<vector_field>_distance", direction: ASC }]`
 - **JSON:** struct argument for field extraction
 
 **List/Array types** (`[String]`, `[Int]`, etc.) - support filtering only (`eq`, `contains`, `intersects`), NOT aggregation.
