@@ -72,6 +72,238 @@
 
 8. **Complex Queries First** - Build full nested query, validate with data-validate_graphql_query, then execute
 
+## 🚫 Anti-Patterns: NEVER Do This!
+
+### ❌ WRONG: Two Queries Instead of Relation Filter
+```python
+# DON'T DO THIS!
+# Step 1: Get IDs
+query1 = """
+query {
+  module {
+    customers(filter: { country: { eq: "USA" } }) {
+      id
+    }
+  }
+}
+"""
+customer_ids = [r['id'] for r in execute(query1)]
+
+# Step 2: Filter by IDs
+query2 = f"""
+query {{
+  module {{
+    orders(filter: {{ customer_id: {{ in: {customer_ids} }} }}) {{
+      id total
+    }}
+  }}
+}}
+"""
+```
+
+### ✅ CORRECT: Single Query with Relation Filter
+```graphql
+query {
+  module {
+    orders(
+      filter: {
+        customer: { country: { eq: "USA" } }  # ← Filter through relation!
+      }
+    ) {
+      id
+      total
+      customer { id name country }
+    }
+  }
+}
+```
+
+### ❌ WRONG: Get Values, Then Use _join
+```python
+# DON'T DO THIS!
+# Step 1: Get email addresses
+emails = execute("query { users { email } }")
+
+# Step 2: Use in _join
+query = build_join_query_with_emails(emails)
+```
+
+### ✅ CORRECT: Direct _join from Source
+```graphql
+query {
+  module {
+    users {
+      id
+      email
+      _join(fields: ["email"]) {
+        external_profiles(fields: ["email"]) {
+          platform
+          profile_url
+        }
+      }
+    }
+  }
+}
+```
+
+### ❌ WRONG: Python for Data Transformation
+```python
+# DON'T DO THIS!
+results = execute(query)
+transformed = []
+for item in results:
+    transformed.append({
+        'name': item['customer']['name'],
+        'total': sum(order['amount'] for order in item['orders']),
+        'count': len(item['orders'])
+    })
+```
+
+### ✅ CORRECT: jq Transform on Server
+```graphql
+# Query
+query {
+  module {
+    customers {
+      name
+      orders { amount }
+    }
+  }
+}
+
+# jq transform (server-side!)
+.data.module.customers | map({
+  name: .name,
+  total: (.orders | map(.amount) | add),
+  count: (.orders | length)
+})
+```
+
+## ✅ jq Transformations: Use for ALL Data Processing
+
+**jq executes on the SERVER - no Python needed!**
+
+### Basic jq Operations
+```jq
+# Select fields
+.data.module.objects | map({id, name})
+
+# Filter items
+.data.module.objects | map(select(.amount > 1000))
+
+# Calculate sums
+.data.module.objects | map(.amount) | add
+
+# Group by (using reduce)
+.data.module.objects | group_by(.category) | map({
+  category: .[0].category,
+  total: map(.amount) | add,
+  count: length
+})
+
+# Sort
+.data.module.objects | sort_by(.created_at) | reverse
+
+# Unique values
+.data.module.objects | map(.status) | unique
+```
+
+### Advanced jq with Functions
+```jq
+# Define function and use it
+def total: map(.amount) | add;
+.data.module.customers | map({
+  name: .name,
+  total_spent: (.orders | total)
+})
+
+# Conditional logic
+.data.module.objects | map(
+  if .amount > 1000 then "high"
+  elif .amount > 500 then "medium"
+  else "low"
+  end
+)
+
+# String operations
+.data.module.objects | map({
+  name: .name | ascii_upcase,
+  slug: .name | ascii_downcase | gsub(" "; "-")
+})
+
+# Date/time operations
+.data.module.events | map({
+  date: .created_at | split("T")[0],
+  hour: .created_at | split("T")[1] | split(":")[0]
+})
+
+# Nested transformations
+.data.module.customers | map({
+  name,
+  top_orders: (.orders | sort_by(.amount) | reverse | .[0:5] | map({id, amount}))
+})
+```
+
+### jq for Analysis
+```jq
+# Statistics
+.data.module.orders_bucket_aggregation | {
+  total_groups: length,
+  total_revenue: map(.aggregations.amount.sum) | add,
+  avg_per_group: (map(.aggregations.amount.sum) | add) / length,
+  max_revenue: map(.aggregations.amount.sum) | max,
+  min_revenue: map(.aggregations.amount.sum) | min
+}
+
+# Pivot table
+.data.module.sales | group_by(.region) | map({
+  region: .[0].region,
+  by_product: group_by(.product) | map({
+    product: .[0].product,
+    total: map(.amount) | add
+  })
+})
+```
+
+**IMPORTANT: Validate complex jq with data-validate_graphql_query first!**
+
+## ⚠️ MANDATORY: Validate ALL Queries Before Execution
+
+**NEVER execute a query without validation!**
+
+### Validation Workflow
+```
+1. Build GraphQL query
+2. Add jq transform if needed
+3. ✅ Validate with data-validate_graphql_query
+4. If validation passes → Execute with data-inline_graphql_result
+5. If validation fails → Fix errors and repeat
+```
+
+### Example
+```
+# Step 1: Validate
+Tool: data-validate_graphql_query
+Input: {
+  query: "query { module { objects(filter: {...}) { fields } } }",
+  jq_transform: ".data.module.objects | map({id, name})"
+}
+Result: true ✓  OR  "Error: Field 'xyz' not found"
+
+# Step 2: Execute (only if validation passed!)
+Tool: data-inline_graphql_result
+Input: {
+  query: "...",  # Same query
+  jq_transform: "..."  # Same transform
+}
+```
+
+**Why validate?**
+- Catches field name errors
+- Catches type mismatches
+- Catches jq syntax errors
+- Saves time - fails fast without data execution
+
 ## Module Structure
 
 ### Root Module

@@ -3,11 +3,13 @@
 ## ⚠️ CRITICAL: Read Query Patterns Resource First
 
 **BEFORE building ANY query**, read resource `hugr://docs/patterns` for:
+- **Anti-Patterns** - What NEVER to do (two queries, Python, etc.)
+- **jq Transformations** - How to process data on server (with functions!)
+- **Validation Workflow** - MANDATORY validation before execution
 - Module structure requirements
 - `_rows_count` vs `count`
 - `ASC`/`DESC` (uppercase!)
-- `count(distinct: true)` syntax
-- Common mistakes to avoid
+- Scalar vs Relation filter syntax
 
 ## ⚠️ CRITICAL: Check Search Results for Completeness
 
@@ -84,34 +86,66 @@ query {
 
 ### Step 3: Build Complex Query First
 
-**Think GraphQL, not SQL!**
+**❌ NEVER do this:** Two queries (see Anti-Patterns in `hugr://docs/patterns`)
+**✅ ALWAYS do this:** One query with relation filters or _join
 
-- ❌ Don't: Query IDs first, then query data for those IDs
-- ✅ Do: Use nested filters to get everything in ONE query
+**Bad Approach (DON'T DO THIS!):**
+```
+1. Query customers where country = "USA" → get IDs
+2. Query orders where customer_id IN [IDs]
+```
 
-- ❌ Don't: Multiple simple queries
-- ✅ Do: One complex multi-object query
-
-Example:
+**Good Approach:**
 ```graphql
 query {
   module {
-    # Get counts
-    customers_aggregation { _rows_count }
-
-    # Get recent orders
+    # ✅ Single query with relation filter
     orders(
       filter: {
-        customer: {
-          country: { eq: "USA" }
-          status: { eq: "active" }
+        customer: { country: { eq: "USA" } }  # ← Filter through relation!
+      }
+    ) {
+      id
+      total
+      customer { name country }
+    }
+  }
+}
+```
+
+**Or use _join for ad-hoc joins:**
+```graphql
+query {
+  module {
+    table_a {
+      id
+      join_field
+      _join(fields: ["join_field"]) {
+        table_b(fields: ["matching_field"]) {
+          id
+          data
         }
       }
+    }
+  }
+}
+```
+
+**Multi-object queries in ONE request:**
+```graphql
+query {
+  module {
+    # Count records
+    customers_aggregation { _rows_count }
+
+    # Get recent orders with filters
+    orders(
+      filter: { customer: { status: { eq: "active" } } }
       order_by: [{ field: "created_at", direction: DESC }]
       limit: 10
     ) { id customer { name } }
 
-    # Get revenue by month
+    # Aggregate by month
     orders_bucket_aggregation {
       key { month: created_at(bucket: month) }
       aggregations { total { sum } }
@@ -120,18 +154,18 @@ query {
 }
 ```
 
-### Step 4: Validate Query
+### Step 4: VALIDATE Query (MANDATORY!)
 
-**ALWAYS validate before execution!**
+**🚫 NEVER execute without validating first!**
 
-**Option 1: Use data-validate_graphql_query (Recommended)**
+**Use data-validate_graphql_query - REQUIRED, not optional!**
 
 ```
 Tool: data-validate_graphql_query
 Input: {
   query: "query { module { data_object(filter: {...}, limit: 100) { fields } } }",
   variables: {},
-  jq_transform: ".data.module.data_object | map({id, name})"  // Optional
+  jq_transform: ".data.module.data_object | map({id, name})"  // If using jq
 }
 
 Returns: true ✓
@@ -141,32 +175,67 @@ Error: "Field 'field_name' not found on type 'ObjectType'"
 Error: "jq compile error: syntax error near '}'"
 ```
 
-**Validates both GraphQL query AND jq transform!**
+**Validates BOTH GraphQL query AND jq transform!**
 
-**Option 2: Test with limit: 0**
+**Why validation is mandatory:**
+- ✅ Catches field name errors before execution
+- ✅ Catches type mismatches immediately
+- ✅ Validates jq syntax errors
+- ✅ Saves time - fails fast without fetching data
+- ✅ No wasted API calls
 
-```graphql
-# Test query structure without fetching data
-query {
-  module {
-    data_object(
-      filter: { complex_filter_here }
-      order_by: [{ field: "field", direction: DESC }]
-      limit: 0  # ← No data returned, validates structure
-    ) {
-      id
-      fields
-      relations { ... }
-    }
-  }
+**Workflow:**
+```
+1. Build query + jq transform
+2. ✅ VALIDATE with data-validate_graphql_query
+3. If passes → Execute with data-inline_graphql_result (Step 5)
+4. If fails → Fix errors and go back to step 2
+```
+
+### Step 5: Execute Query and Process with jq
+
+**Execute with jq transform for data processing:**
+
+```
+Tool: data-inline_graphql_result
+Input: {
+  query: "query { module { objects { id name amount } } }",
+  jq_transform: ".data.module.objects | map({id, name, amount})"
 }
 ```
 
-**Best practice:** Use data-validate_graphql_query first, then execute with real data.
+**Use jq for ALL data transformations (see `hugr://docs/patterns` for examples):**
 
-### Step 4: Execute and Get Results
+```jq
+# Basic transformations
+.data.module.objects | map({id, name})
 
-Use `data-inline_graphql_result` with optional jq transform.
+# Filtering
+.data.module.objects | map(select(.amount > 1000))
+
+# Calculations
+.data.module.objects | map({
+  id,
+  name,
+  total: (.items | map(.price) | add)
+})
+
+# Grouping
+.data.module.objects | group_by(.category) | map({
+  category: .[0].category,
+  total: map(.amount) | add,
+  count: length
+})
+
+# Statistics
+.data.module.orders_bucket_aggregation | {
+  total: map(.aggregations.amount.sum) | add,
+  average: (map(.aggregations.amount.sum) | add) / length
+}
+```
+
+**❌ NEVER use Python/Pandas for these operations!**
+**✅ ALWAYS use jq - it runs on the server!**
 
 ## Construction Principles
 

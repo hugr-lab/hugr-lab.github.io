@@ -73,18 +73,26 @@ After discovering objects, **MUST verify ALL fields** before using:
 
 ### Query Execution Tools
 
-**data-validate_graphql_query**
+**data-validate_graphql_query** (MANDATORY!)
 - Input: GraphQL query, optional variables, optional jq_transform
 - Returns: true if query is valid, error if invalid
-- Use: **Validate query correctness BEFORE execution**
+- Use: **REQUIRED validation before EVERY query execution!**
 - Checks: GraphQL syntax, field existence, type compatibility, jq compilability
-- **Always validate complex queries and jq transforms before executing!**
+- **🚫 NEVER execute a query without validating first!**
 
 **data-inline_graphql_result**
-- Input: GraphQL query, optional variables, optional jq transform
+- Input: GraphQL query, optional variables, optional jq_transform
 - Returns: Query result as inline JSON (size-limited)
-- Use: Execute queries directly after schema discovery
-- Supports jq transforms for result processing
+- Use: Execute queries ONLY after validation passes
+- **✅ ALWAYS include jq_transform for data processing - NO Python!**
+
+**Workflow:**
+```
+1. Build query + jq transform
+2. ✅ Validate with data-validate_graphql_query
+3. If valid → Execute with data-inline_graphql_result
+4. If invalid → Fix errors and repeat step 2
+```
 
 ## ⚠️ CRITICAL: Working with Search Results and Pagination
 

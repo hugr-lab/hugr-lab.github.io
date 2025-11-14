@@ -85,11 +85,18 @@ schema-type_fields(
 
 ## Analysis Principles
 
-1. **Server-side Aggregation** - Use database, not client-side processing
-2. **GraphQL Multi-Object Queries** - Get data from multiple objects in ONE request
-3. **jq Transforms** - Process results on server with jq, not Python
-4. **Avoid Data Fetching** - Use aggregations, don't fetch raw data for counting
-5. **Iterative Discovery** - Use discovery-data_object_field_values for exploration
+**READ `hugr://docs/patterns` first for:**
+- 🚫 Anti-Patterns (two queries, Python, etc.)
+- ✅ jq Transformations (with functions and examples)
+- ⚠️ Validation workflow (mandatory!)
+
+**Core principles:**
+
+1. **Server-side Aggregation** - Use GraphQL aggregations, NOT Python/Pandas
+2. **Single Complex Queries** - One query with relation filters, NOT two queries
+3. **jq for ALL Processing** - Transformations, calculations, analysis - all in jq
+4. **Validate First** - ALWAYS use data-validate_graphql_query before executing
+5. **Use _join** - For ad-hoc joins instead of two queries
 
 ## Iterative Analysis Process
 
@@ -108,10 +115,10 @@ Data analysis is an **iterative cycle**, not a single query:
 - Use `discovery-data_object_field_values` to explore field distributions
 
 **2. Query Execution Phase**
-- Validate with `data-validate_graphql_query` first (complex queries)
-- Execute with `data-inline_graphql_result`
-- Apply jq transforms to extract relevant data
-- Keep results small (size-limited)
+- ✅ **ALWAYS** validate with `data-validate_graphql_query` first (MANDATORY!)
+- Build jq transform for data processing
+- Execute with `data-inline_graphql_result` + jq_transform
+- ❌ NEVER use Python/Pandas for processing
 
 **3. Analysis Phase**
 - Examine results
@@ -192,7 +199,21 @@ Then use **single jq transform** to analyze ALL results:
 }
 ```
 
-**Important:** Validate complex jq with `data-validate_graphql_query` before executing!
+**MANDATORY:** ALWAYS validate with `data-validate_graphql_query` first!
+
+```
+# Step 1: VALIDATE
+Tool: data-validate_graphql_query
+Input: {
+  query: "...",
+  jq_transform: "{ summary: {...}, recent_orders: [...], monthly_revenue: [...] }"
+}
+Result: true ✓
+
+# Step 2: EXECUTE (only after validation passes!)
+Tool: data-inline_graphql_result
+Input: { query: "...", jq_transform: "..." }
+```
 
 **Result:** Complete analysis in ONE request + ONE jq transform. No Python needed!
 
