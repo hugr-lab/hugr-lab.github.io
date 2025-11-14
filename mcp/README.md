@@ -9,6 +9,10 @@ mcp/
 ├── README.md              # This file
 ├── index.md               # Detailed implementation guide
 ├── example_server.go      # Complete Go implementation example
+├── .claude/               # Claude Desktop skills
+│   ├── README.md          # Skills documentation
+│   └── skills/
+│       └── hugr.md        # Hugr Data Assistant skill
 ├── resources/             # Static reference documentation
 │   ├── reference.json     # Resource metadata (7 resources)
 │   ├── ai-instructions.md # ⭐ AI assistant guide (9.2KB)
@@ -425,7 +429,7 @@ curl http://localhost:3000/mcp/prompts/get?name=discovery&task=find%20orders
 
 For a simplified user experience, use the **Hugr skill** in Claude Desktop:
 
-**Location:** `../.claude/skills/hugr.md`
+**Location:** `.claude/skills/hugr.md`
 
 **Usage:**
 ```
@@ -449,7 +453,7 @@ User → /hugr skill → Hugr MCP Server → start/discovery/analysis prompts �
 
 The skill provides user-facing interface while MCP prompts provide detailed workflows.
 
-See `../.claude/README.md` for skill documentation.
+See `.claude/README.md` for skill documentation.
 
 ## 🔗 Links
 
@@ -457,7 +461,7 @@ See `../.claude/README.md` for skill documentation.
 - [MCP Specification](https://modelcontextprotocol.io)
 - [mcp-go Library](https://github.com/mark3labs/mcp-go)
 - [Implementation Guide](./index.md)
-- [Claude Desktop Skills](../.claude/README.md)
+- [Claude Desktop Skills](.claude/README.md)
 
 ## 📝 License
 
