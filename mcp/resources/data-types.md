@@ -187,9 +187,9 @@ location: {
 ### List/Array Fields ([String], [Int], etc.)
 ```graphql
 tags: {
-  eq: "value"                 # Contains specific value
-  contains: ["val1", "val2"]  # Contains another list
-  intersects: ["val1", "val2"]# Intersects with list
+  eq: ["val1", "val2"]        # Exact match of array (strict equality)
+  contains: ["val1", "val2"]  # Contains all specified values
+  intersects: ["val1", "val2"]# Has any of specified values
   is_null: false              # Is/is not null
 }
 ```
