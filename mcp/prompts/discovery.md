@@ -2,31 +2,18 @@
 
 ## Core Principle
 
-**NEVER assume schema exists. ALWAYS discover AND VERIFY first.**
+**Lazy Introspection** - Discover incrementally, only what's needed at each step.
+
+1. Start with high-level search
+2. Drill down progressively
+3. Stop when you have enough information
+4. Don't introspect everything upfront
+
+**NEVER assume schema exists. ALWAYS discover AND VERIFY as needed.**
 
 Schema is dynamic - names, structures vary by deployment. What exists in one Hugr instance may not exist in another.
 
-## ⚠️ CRITICAL: Always Verify Fields
-
-After discovering objects, **MUST verify ALL fields** before using:
-
-1. **Object fields** → `schema-type_fields(type_name: "ObjectName")`
-2. **Filter fields** → `schema-type_fields(type_name: "ObjectName_filter")`
-3. **Filter operators** → `schema-type_fields(type_name: "FieldType_filter_input")`
-4. **Aggregations** → `schema-type_fields(type_name: "ObjectName_aggregations")`
-5. **Enum values** → `schema-enum_values(type_name: "EnumTypeName")`
-
-**Never assume:**
-- Field names (even common ones like "id", "name")
-- Filter operators (even "eq", "in")
-- Aggregation functions (even "sum", "avg")
-- Enum values (even "ASC", "DESC")
-
-!**READ the `hugr://docs/data-types` documentation for the scalar data types to understand their filter operators and aggregation functions.**
-
-**Always introspect to confirm!**
-
-## MCP Tools
+## MCP Tools Reference
 
 ### Discovery Tools
 
@@ -54,14 +41,14 @@ After discovering objects, **MUST verify ALL fields** before using:
 - Input: Data object name, field name, optional filters
 - Returns: Distinct values list, optional statistics (min/max/avg/count)
 - Use: Understand data distribution, validate field values, get categorical options
-- Can filter data before sampling values
 
 ### Schema Tools
 
 **schema-type_fields**
-- Input: Type name, optional pagination/ranking
+- Input: Type name, optional pagination/ranking/relevance_query
 - Returns: Fields with types, descriptions, arguments
-- Use: **CRITICAL** - introspect all types for fields, filters, aggregations
+- Use: **CRITICAL** - introspect types for fields, filters, aggregations
+- **Use relevance_query to find specific fields instead of fetching all!**
 
 **schema-type_info**
 - Input: Type name
@@ -79,7 +66,6 @@ After discovering objects, **MUST verify ALL fields** before using:
 - Input: GraphQL query, optional variables, optional jq_transform
 - Returns: true if query is valid, error if invalid
 - Use: **REQUIRED validation before EVERY query execution!**
-- Checks: GraphQL syntax, field existence, type compatibility, jq compilability
 - **🚫 NEVER execute a query without validating first!**
 
 **data-inline_graphql_result**
@@ -118,19 +104,7 @@ All discovery and introspection tools return results in this format:
    - All discovery tools: Use `query` parameter to search by description/name
    - Example: Instead of fetching all 200 fields, search for relevant ones with `relevance_query: "customer address"`
 
-3. **Pagination example for schema-type_fields:**
-   ```
-   Call 1: schema-type_fields(type_name: "orders", limit: 20, offset: 0)
-   Returns: {total: 50, returned: 20, items: [...]}
-
-   Call 2: schema-type_fields(type_name: "orders", limit: 20, offset: 20)
-   Returns: {total: 50, returned: 20, items: [...]}
-
-   Call 3: schema-type_fields(type_name: "orders", limit: 20, offset: 40)
-   Returns: {total: 50, returned: 10, items: [...]}
-   ```
-
-4. **Search example instead of pagination:**
+3. **Prefer relevance search over pagination:**
    ```
    # ❌ Bad: Fetch all 200 fields with pagination
    schema-type_fields(type_name: "orders", limit: 100, offset: 0)
@@ -144,417 +118,561 @@ All discovery and introspection tools return results in this format:
 - `schema-type_fields`: `limit`, `offset`, `relevance_query`, `top_k`
 - `discovery-search_*`: `top_k` (default 5, max 50), `query`, `min_score`
 
-## Discovery Strategy
+## Lazy Introspection Strategy
 
-### Step 1: Find Modules
-**Tool:** `discovery-search_modules`
-**Input:** Natural language describing domain (e.g., "customer data", "sales")
+### Step 1: Find Data Object
+**Goal:** Locate the table/view you need
 
-### Step 2: Find Data Objects
-**Tool:** `discovery-search_module_data_objects`
-**Input:** Module name from Step 1, optional search query
-**Check:** `type` field - "table" or "view"
-
-### Step 3: Introspect Type Structure
-**Tool:** `schema-type_fields`
-**Input:** Type name (try object name, then with prefix if needed)
-**Critical:** Look for:
-- Regular fields and types
-- Relation fields (array types)
-- Aggregation fields (`_aggregation`, `_bucket_aggregation`)
-- Special fields (`_join`, `_spatial`)
-- Cube measurements (if `@cube` table)
-
-### Step 4: Validate Filters
-**Tool:** `schema-type_fields`
-**Input:** `<object>_filter` type
-**Check:** Available filter fields
-
-Then check operators:
-**Input:** Field-specific filter type (e.g., `String_filter_input`)
-**Check:** Available operators
-
-### Step 5: Check Aggregations
-**Tool:** `schema-type_fields`
-**Input:** `<object>_aggregations` type
-**Check:** Available aggregation functions per field
-
-For bucket aggregations:
-**Input:** `<object>_bucket_aggregation_key` type
-**Check:** Available grouping fields
-
-### Step 6: Explore Values
-**Tool:** `discovery-data_object_field_values`
-**Input:** Data object name, field name
-**Use:** Understand data distribution, get valid values
-
-### Step 7: Discover Functions
-**Tool:** `discovery-search_module_functions`
-**Input:** Module name, optional search query, `include_sub_modules` flag
-**Returns:** Functions with names, signatures, return types
-
-**Function Types:**
-1. **Query Functions** - Read-only computations
-   - Called via `query { function { <name>(...) } }`
-   - Can be in nested modules: `query { function { services { weather { current(...) } } } }`
-
-2. **Mutation Functions** - Data modifications
-   - Called via `mutation { function { <name>(...) } }`
-   - Use `only_mutations: true` parameter to filter
-
-3. **Function Fields** - Embedded in data objects
-   - Appear as regular fields on objects (discovered via `schema-type_fields`)
-   - Examples: `order.shipping_cost`, `customer.tier`, `product.recommendations`
-
-**After discovering a function:**
-
-1. **Check signature** - `schema-type_fields(type_name: "Function")` or `schema-type_fields(type_name: "MutationFunction")`
-   - Verify parameter types and names
-   - Check return type
-
-2. **If function is in module:**
-   ```graphql
-   query {
-     function {
-       services {           # Module path
-         weather {          # Sub-module
-           current_weather(lat: 40.7, lon: -74.0) {
-             temperature
-           }
-         }
-       }
-     }
-   }
-   ```
-
-3. **If table function (returns array):**
-   - Can filter: `filter: {...}`
-   - Can sort: `order_by: [{field: "...", direction: DESC}]`
-   - Can paginate: `limit`, `offset`
-   - Can aggregate: `<function>_aggregation`, `<function>_bucket_aggregation`
-
-4. **If function field on data object:**
-   - May require query-time arguments
-   - Example: `price_converted(to_currency: "EUR")`
-
-**Discovery example:**
+**1.1 Search for module:**
 ```
-1. discovery-search_module_functions(module_name: "services", query: "weather")
-   Returns: [{name: "current_weather", module: "services.weather", ...}]
-
-2. schema-type_fields(type_name: "Function")
-   Find: current_weather(lat: Float!, lon: Float!): WeatherData
-
-3. Build query using module path:
-   query {
-     function {
-       services {
-         weather {
-           current_weather(lat: 40.7, lon: -74.0) {
-             temperature
-             humidity
-           }
-         }
-       }
-     }
-   }
+discovery-search_modules(query: "sales data")
+→ Returns: [{name: "sales", description: "..."}, ...]
 ```
 
-## Workflow Examples
-
-### Example 1: Find and Query Data
-
-**Task:** Query active records
-
-**Steps:**
-1. `discovery-search_modules` with query "main data"
-   → Returns: [{name: "main"}, {name: "analytics"}]
-
-2. `discovery-search_module_data_objects` on module "main"
-   → Returns: [{name: "records", module: "main", type: "table"}]
-   → ⚠️ NOTE the `module` field!
-
-3. `schema-type_fields` on "records"
-   → Fields: id, status, created_at, ...
-
-4. `schema-type_fields` on "records_filter"
-   → Has: status field
-
-5. `schema-type_fields` on "String_filter_input"
-   → Operators: eq, in, like, ...  (NOT any_of!)
-
-6. Build query using `module` from step 2:
-   ```graphql
-   query {
-     main {           ← From module field
-       records(       ← From name field
-         filter: { status: { eq: "active" } }  ← Using operator from step 5
-       ) { id status created_at }
-     }
-   }
-   ```
-
-### Example 2: Aggregation Analysis
-
-**Task:** Group by category, aggregate metrics
-
-**Steps:**
-1-2. Discover module and data object (as Example 1)
-
-3. `schema-type_fields` on "data_object"
-   → Look for `_bucket_aggregation` field
-
-4. `schema-type_fields` on "data_object_aggregations"
-   → See available aggregation functions per field
-
-5. `schema-type_fields` on "data_object_bucket_aggregation_key"
-   → See groupable fields
-
-6. Build bucket aggregation query
-
-### Example 3: Cube Table
-
-**Task:** Query cube with measurements
-
-**Steps:**
-1-2. Discover module and cube table
-
-3. `schema-type_fields` on cube type
-   → Identify which fields accept `measurement_func` argument
-   → These are `@measurement` fields
-
-4. `schema-type_fields` on field types to see available `measurement_func` values
-
-5. Build cube query with dimensions and measurements
-
-### Example 4: Function Discovery and Calling
-
-**Task:** Call function to get recommendations
-
-**Steps:**
-1. `discovery-search_module_functions` with query "recommendations"
-   → Returns: [{name: "get_recommendations", module: "analytics", return_type: "[Product]", is_table: true}]
-
-2. `schema-type_fields` on "Function"
-   → Find: get_recommendations(customer_id: Int!, limit: Int): [Product]
-
-3. Check if table function (is_table: true)
-   → Yes! Can use filter, order_by, limit, aggregation
-
-4. Build query:
-   ```graphql
-   query {
-     function {
-       analytics {
-         get_recommendations(
-           customer_id: 123
-           limit: 10
-         ) {
-           id
-           name
-           price
-           score
-         }
-       }
-     }
-   }
-   ```
-
-5. Or with filtering (if table function):
-   ```graphql
-   query {
-     function {
-       analytics {
-         get_recommendations(customer_id: 123) {
-           # Can use standard query arguments on table functions
-           filter: { price: { lte: 100 } }
-           order_by: [{ field: "score", direction: DESC }]
-           limit: 5
-         }
-       }
-     }
-   }
-   ```
-
-**For function fields on data objects:**
-
-1. `schema-type_fields` on data object (e.g., "orders")
-   → Find: shipping_cost: Float (with arguments if needed)
-
-2. If function field has arguments, call with them:
-   ```graphql
-   query {
-     orders {
-       id
-       total
-       # Function field - automatically calculated per order
-       shipping_cost
-     }
-   }
-   ```
-
-3. If function field requires query arguments:
-   ```graphql
-   query {
-     products {
-       id
-       price
-       currency
-       # Function field with query-time argument
-       price_converted(to_currency: "EUR")
-     }
-   }
-   ```
-
-## Common Mistakes
-
-### ❌ Assuming Module Names
+**1.2 Search for data object in module:**
 ```
-# Wrong
-query { sales { ... } }
-
-# Right
-1. discovery-search_modules(query="sales")
-2. Use discovered module name
+discovery-search_module_data_objects(module_name: "sales", query: "orders")
+→ Returns: [{name: "orders", module: "sales", type: "table"}, ...]
 ```
 
-### ❌ Assuming Type Names
-```
-# Wrong
-schema-type_fields(type_name="customers")
+**Result:** Object name: `orders`, Module: `sales`, Type: `table`
 
-# Right
-1. Try "customers"
-2. If fails, try with prefix
-3. Check discovery response for hints
-```
+**✅ If found:** Proceed to Step 2
+**❌ If NOT found:** Proceed to Step 1.3
 
-### ❌ Guessing Operators
-```
-# Wrong
-filter: { name: { equals: "value" } }
+---
 
-# Right
-1. schema-type_fields(type_name="String_filter_input")
-2. Use discovered: { eq: "value" }
-```
+**1.3 If object not found - check module type fields:**
 
-### ❌ Not Introspecting Aggregations
-```
-# Wrong - assuming functions exist
-aggregations { field { sum avg min max } }
+Sometimes data is accessible through module fields, not as data objects.
 
-# Right
-1. schema-type_fields(type_name="object_aggregations")
-2. Use only available functions for each field
+```
+# Module itself has a GraphQL type - introspect it
+schema-type_fields(type_name: "sales")  # or sales_Query
+→ Returns: List of query fields available on this module
+
+# Example result:
+{
+  "items": [
+    {name: "orders", type: "[orders]", args: [{name: "filter", ...}]},
+    {name: "customers", type: "[customers]", args: [...]},
+    {name: "revenue_report", type: "RevenueReport", args: [...]}
+  ]
+}
 ```
 
-### ❌ Skipping Table Type Check
+**This tells you:**
+- What queries are available on this module
+- What types they return
+- What arguments they accept
+
+**Result:** Found query field on module that returns the data you need
+
+---
+
+### Step 2: Introspect Object Type (Lazy!)
+
+**Goal:** Understand object structure - BUT only introspect what you need
+
+**2.1 If you need specific fields - use relevance search:**
 ```
-# Wrong - trying mutation on view
-mutation { insert_view_object(...) }
+# ❌ Don't fetch all 200 fields
+schema-type_fields(type_name: "orders", limit: 200)
 
-# Right
-1. discovery-search_module_data_objects
-2. Check type: "view" or "table"
-3. Only tables support mutations
+# ✅ Search for what you need
+schema-type_fields(
+  type_name: "orders",
+  relevance_query: "customer shipping address",
+  top_k: 10
+)
+→ Returns: Only fields related to customer/shipping/address
 ```
 
-## Validation Checklist
+**2.2 If you need overview - check type info first:**
+```
+schema-type_info(type_name: "orders")
+→ Returns: Type metadata, description, total field count
+```
 
-Before constructing query:
-- [ ] Module name discovered
+**2.3 Then fetch relevant fields:**
+```
+schema-type_fields(type_name: "orders", limit: 20)
+→ Returns: First 20 fields with types and arguments
+```
+
+**Look for:**
+- **Scalar fields:** Regular columns (id, name, total, created_at)
+- **Relation fields:** Foreign keys returning other objects (customer, items)
+- **Aggregation fields:** `_aggregation`, `_bucket_aggregation`
+- **Special fields:** `_join`, `_spatial`
+- **Function fields:** Fields with arguments (may be computed functions)
+
+**Result:** You now know:
+- Field names and types
+- Which fields are relations
+- Which fields have arguments (important!)
+- Available aggregation fields
+
+**✅ If this is enough:** Proceed to build query
+**🔍 If need to drill deeper:** Proceed to Step 3
+
+---
+
+### Step 3: Introspect Arguments and Related Types (Conditional)
+
+**Only do this step if:**
+- You need to filter/aggregate (→ check filter/aggregation types)
+- You need to query relations (→ check related object types)
+- You found function fields with args (→ check argument types)
+
+**3.1 Check query arguments (filter, order_by, limit):**
+
+If the object query accepts arguments, you can introspect them:
+
+```
+# Check what arguments the query accepts
+schema-type_fields(type_name: "Query", relevance_query: "orders")
+# or
+schema-type_fields(type_name: "sales_Query", relevance_query: "orders")
+
+→ Look for orders field and its arguments:
+  {
+    name: "orders",
+    args: [
+      {name: "filter", type: "orders_list_filter"},
+      {name: "order_by", type: "[OrderByField!]"},
+      {name: "limit", type: "Int"},
+      ...
+    ]
+  }
+```
+
+Now you know what arguments are available!
+
+**3.2 If you need filtering - check filter type:**
+
+**Use relevance search for specific filters:**
+```
+# Find filter fields related to customer
+schema-type_fields(
+  type_name: "orders_list_filter",
+  relevance_query: "customer status",
+  top_k: 10
+)
+→ Returns: status, customer_id, customer (relation filter), etc.
+```
+
+**3.3 If you need aggregation - check aggregation type:**
+
+```
+schema-type_fields(type_name: "orders_aggregations", top_k: 20)
+→ Returns: Available aggregation functions per field
+```
+
+**3.4 Check related object type (only if needed):**
+
+If you found a relation field `customer: customers` and need to query it:
+
+```
+schema-type_fields(
+  type_name: "customers",
+  relevance_query: "address contact",
+  top_k: 10
+)
+→ Returns: Fields on customer object
+```
+
+**Result:** You now know:
+- What arguments the query accepts
+- What filters are available
+- What aggregations you can perform
+- What fields exist on related objects
+
+**✅ If this is enough:** Proceed to build query
+**🔍 If need specific operators:** Proceed to Step 4
+
+---
+
+### Step 4: Drill Into Field Types (Only When Needed)
+
+**Only do this step if you need to know:**
+- What operators a filter field supports
+- What values an enum accepts
+- What nested fields exist on a complex type
+
+**4.1 Check filter operators for specific field type:**
+
+```
+# What operators does String field support?
+schema-type_fields(type_name: "String_filter_input")
+→ Returns: eq, in, like, ilike, regex, is_null
+
+# What operators does Int field support?
+schema-type_fields(type_name: "Int_filter_input")
+→ Returns: eq, in, gt, gte, lt, lte, is_null
+```
+
+**4.2 Check enum values:**
+
+```
+schema-enum_values(type_name: "OrderDirection")
+→ Returns: ASC, DESC
+```
+
+**4.3 For function fields - check signature:**
+
+If you found a function field with arguments:
+
+```
+# Example: price_converted field with arguments
+schema-type_fields(type_name: "products", relevance_query: "price_converted")
+→ Returns:
+  {
+    name: "price_converted",
+    type: "Float",
+    args: [{name: "to_currency", type: "String!", ...}]
+  }
+```
+
+Now you know exactly what arguments to provide!
+
+**Result:** You have complete information to build the query correctly
+
+---
+
+### Step 5: Explore Data Values (Optional)
+
+**Only if you need to:**
+- Understand what values exist in the data
+- Get valid options for a categorical field
+- Validate filter values
+
+```
+discovery-data_object_field_values(
+  data_object_name: "orders",
+  field_name: "status"
+)
+→ Returns: ["pending", "processing", "completed", "cancelled"]
+```
+
+**Use with filters:**
+```
+discovery-data_object_field_values(
+  data_object_name: "orders",
+  field_name: "total",
+  filters: {status: {eq: "completed"}},
+  get_stats: true
+)
+→ Returns: min, max, avg, count for completed orders
+```
+
+---
+
+## Function Discovery (Separate Workflow)
+
+**When to use:** User asks to call a function, not query a table
+
+**Step 1: Find function:**
+```
+discovery-search_module_functions(
+  module_name: "analytics",
+  query: "recommendations",
+  include_sub_modules: true
+)
+→ Returns:
+  [{
+    name: "get_recommendations",
+    module: "analytics.ml",
+    return_type: "[Product]",
+    is_table: true
+  }]
+```
+
+**Step 2: Check function signature:**
+```
+schema-type_fields(type_name: "Function", relevance_query: "get_recommendations")
+→ Returns:
+  {
+    name: "get_recommendations",
+    type: "[Product]",
+    args: [
+      {name: "customer_id", type: "Int!"},
+      {name: "limit", type: "Int"}
+    ]
+  }
+```
+
+**Step 3: Build function call:**
+```graphql
+query {
+  function {
+    analytics {           # From module path
+      ml {                # Sub-module
+        get_recommendations(
+          customer_id: 123
+          limit: 10
+        ) {
+          id
+          name
+          price
+        }
+      }
+    }
+  }
+}
+```
+
+**For table functions:** Can use filter, order_by, limit, aggregation (like regular data objects)
+
+**For mutation functions:** Use `only_mutations: true` in search, call via `mutation { function { ... } }`
+
+---
+
+## Lazy Introspection Decision Tree
+
+```
+User asks to query "orders"
+  ↓
+Step 1: Find object
+  ├─ discovery-search_modules(query: "orders")
+  └─ discovery-search_module_data_objects(module: "...", query: "orders")
+  ↓
+  Found?
+  ├─ YES → Continue to Step 2
+  └─ NO → Check module type fields
+       └─ schema-type_fields(type_name: "ModuleName")
+       └─ Found query field? YES → Use that
+  ↓
+Step 2: Introspect object (lazy!)
+  └─ Need specific fields?
+      ├─ YES → schema-type_fields(type: "orders", relevance_query: "...", top_k: 10)
+      └─ NO → schema-type_fields(type: "orders", limit: 20)
+  ↓
+  Enough info to build query?
+  ├─ YES → Build query, STOP here
+  └─ NO → Continue to Step 3
+  ↓
+Step 3: Check arguments and relations (conditional)
+  └─ Need filtering?
+      └─ schema-type_fields(type: "orders_list_filter", relevance_query: "...")
+  └─ Need aggregation?
+      └─ schema-type_fields(type: "orders_aggregations")
+  └─ Need to query relation?
+      └─ schema-type_fields(type: "RelatedObjectType", relevance_query: "...")
+  ↓
+  Enough info to build query?
+  ├─ YES → Build query, STOP here
+  └─ NO → Continue to Step 4
+  ↓
+Step 4: Drill into field types (only if needed)
+  └─ Need operator details?
+      └─ schema-type_fields(type: "String_filter_input")
+  └─ Need enum values?
+      └─ schema-enum_values(type: "EnumName")
+  └─ Need function argument details?
+      └─ Check args from Step 2/3 results
+  ↓
+  Build query
+```
+
+**Key principle:** STOP introspecting as soon as you have enough information!
+
+---
+
+## Common Patterns
+
+### Pattern 1: Simple Query (Minimal Introspection)
+
+**User:** "Show me all orders"
+
+**Discovery:**
+1. Find module + object → `sales.orders`
+2. Introspect object → `id, total, status, created_at, ...`
+3. **STOP** - enough to build query!
+
+**Query:**
+```graphql
+query {
+  sales {
+    orders {
+      id
+      total
+      status
+      created_at
+    }
+  }
+}
+```
+
+**Introspection calls:** 2 (module search + object introspection)
+
+---
+
+### Pattern 2: Filtered Query (Conditional Introspection)
+
+**User:** "Show me completed orders"
+
+**Discovery:**
+1. Find module + object → `sales.orders`
+2. Introspect object → has `status` field
+3. **Need filtering** → Introspect `orders_list_filter`
+4. Check `status` filter → has `eq` operator
+5. **STOP** - enough to build query!
+
+**Query:**
+```graphql
+query {
+  sales {
+    orders(filter: { status: { eq: "completed" } }) {
+      id
+      total
+    }
+  }
+}
+```
+
+**Introspection calls:** 3 (module + object + filter)
+
+---
+
+### Pattern 3: Relation Query (Drill Down)
+
+**User:** "Show me orders with customer name"
+
+**Discovery:**
+1. Find module + object → `sales.orders`
+2. Introspect object → has `customer` relation field
+3. **Need customer fields** → Introspect `customers` type
+4. **STOP** - enough to build query!
+
+**Query:**
+```graphql
+query {
+  sales {
+    orders {
+      id
+      total
+      customer {
+        id
+        name
+      }
+    }
+  }
+}
+```
+
+**Introspection calls:** 3 (module + orders + customers)
+
+---
+
+### Pattern 4: Aggregation Query
+
+**User:** "What's the total revenue by status?"
+
+**Discovery:**
+1. Find module + object → `sales.orders`
+2. Introspect object → has `_bucket_aggregation` field
+3. **Need aggregation details** → Introspect `orders_bucket_aggregation_key` (for grouping)
+4. **Need aggregation functions** → Introspect `orders_aggregations` (for sum/avg)
+5. **STOP** - enough to build query!
+
+**Query:**
+```graphql
+query {
+  sales {
+    orders_bucket_aggregation {
+      key {
+        status
+      }
+      aggregations {
+        _rows_count
+        total {
+          sum
+        }
+      }
+    }
+  }
+}
+```
+
+**Introspection calls:** 4 (module + object + key + aggregations)
+
+---
+
+## Validation Before Query Building
+
+**Before constructing query, confirm:**
+- [ ] Module name discovered (from discovery results)
 - [ ] Data object name discovered
-- [ ] Type introspected with `schema-type_fields`
-- [ ] Filter operators validated
-- [ ] Aggregation functions checked
-- [ ] Relation fields confirmed
-- [ ] Arguments understood
+- [ ] Object type introspected (at least basic fields)
+- [ ] If filtering: filter type introspected
+- [ ] If aggregating: aggregation type introspected
+- [ ] If querying relations: related types introspected
 
-## Critical: Always Introspect
+**Don't introspect:**
+- ❌ Filter operators unless you're unsure which to use
+- ❌ All possible fields unless user needs comprehensive list
+- ❌ Related types unless query includes them
+- ❌ Enum values unless validating against them
 
-**Don't rely on assumptions or documentation examples.**
-
-Use `schema-type_fields` on:
-- Object types - see fields, relations
-- Filter types - see operators
-- Aggregation types - see functions
-- Key types - see groupable fields
-- Input types - see mutation arguments
-
-Schema varies by deployment. Introspection is the source of truth.
+---
 
 ## Response Pattern
 
-When discovering:
+**When discovering (be concise):**
+
 ```
 Discovering schema...
 
-1. Searching modules: [query]
-   Tool: discovery-search_modules
-   Found: [list with descriptions]
+1. Module: sales
+   - Found via discovery-search_modules
 
-2. Searching data objects in [module]
-   Tool: discovery-search_module_data_objects
-   Found: [name] (type: table/view, module: [path])
+2. Data object: orders (table)
+   - Found via discovery-search_module_data_objects
+   - Module path: sales
 
-3. Verifying object fields
-   Tool: schema-type_fields(type_name: "[ObjectName]")
-   Available fields: [field: type, field: type, ...]
-   Relations: [relation_field: [RelationType], ...]
-   Special fields: _aggregation, _bucket_aggregation, _join, etc.
+3. Key fields (from schema-type_fields):
+   - id: Int
+   - total: Float
+   - status: String
+   - created_at: Timestamp
+   - customer: customers (relation)
 
-4. Verifying filter capabilities
-   Tool: schema-type_fields(type_name: "[ObjectName]_filter")
-   Filter fields: [list]
+4. Filter available: status.eq
+   - From orders_list_filter type
 
-   Tool: schema-type_fields(type_name: "[FieldType]_filter_input")
-   Operators for [field]: eq, in, gt, gte, lt, lte, like, ...
-
-5. Verifying aggregation functions
-   Tool: schema-type_fields(type_name: "[ObjectName]_aggregations")
-   Available per field:
-   - numeric_field: sum, avg, min, max, count
-   - string_field: count, string_agg, list
-   - _rows_count (always available)
-
-6. Verifying enum values (if needed)
-   Tool: schema-enum_values(type_name: "OrderDirection")
-   Values: ASC, DESC
-
-✓ Schema verified and ready to build query!
-
-Query prerequisites confirmed:
-- Module: [name]
-- Object: [name] (type: [table/view])
-- Fields: [verified list]
-- Filters: [verified operators]
-- Aggregations: [verified functions]
+✓ Ready to build query
 ```
 
-If not found:
+**If not found:**
+
 ```
-Could not find [element].
+Could not find "orders" data object.
 
-What was searched:
-- Tool: [tool name]
-- Parameters: [params]
-- Result: [empty/not found]
+Searched:
+- discovery-search_module_data_objects(module: "sales", query: "orders")
+- Result: No matches
 
-Available alternatives: [what was found]
+Checking module type fields:
+- schema-type_fields(type_name: "sales")
+- Available queries: customers, revenue_summary, daily_stats
 
-Suggestion: [alternative approach or clarification needed]
+Suggestion: Did you mean "revenue_summary"?
 ```
 
-After discovery, BEFORE building query:
-```
-✓ All fields verified via schema-type_fields
-✓ Filter operators confirmed
-✓ Aggregation functions confirmed
-✓ Module structure identified
+**After discovery, before query:**
 
-Ready to proceed to query building with verified schema.
 ```
+✓ Schema verified:
+  - Module: sales
+  - Object: orders (table)
+  - Filter: status.eq available
+  - Fields confirmed
+
+Proceeding to build query...
+```
+
+---
 
 ## 🚫 Output Rules
 
@@ -563,41 +681,27 @@ Ready to proceed to query building with verified schema.
 - ✅ Everything in chat as plain text
 
 **Be Concise:**
-- Report discovered schema concisely
-- 3-5 key findings max
+- Report discovered schema in 3-5 key points
+- Don't dump entire field lists
 - User will ask for detail if needed
 
 **No Recommendations by Default:**
 - ❌ Don't suggest what to query
-- ❌ Don't suggest next steps
 - ✅ Just report what was found
 
-## Response Format
+---
 
-**Default: Concise Text in Chat**
+## Critical: Lazy = Efficient
 
-✅ **GOOD:**
-```
-Schema Discovery Results:
+**The goal is NOT to introspect everything.**
 
-Module: sales.analytics
-Data Objects:
-- orders (table) - 15 fields
-- customers (table) - 8 fields
-- revenue (view, parameterized) - 5 fields
+The goal is to introspect **just enough** to answer the user's question.
 
-Key Relations:
-- orders.customer → customers
-- orders.items (one-to-many)
+- Simple query → 2-3 introspection calls
+- Complex query → 4-5 introspection calls
+- Very complex query → 6+ introspection calls
 
-Next: Use schema-type_fields to see field details
-```
-
-❌ **BAD:**
-```
-I've created discovery_report.md with full schema details (20 pages)
-and schema_queries.sql with example queries.
-```
+**Use relevance_query to find specific fields instead of paginating through hundreds!**
 
 ---
 
@@ -607,10 +711,12 @@ and schema_queries.sql with example queries.
 **Objective:** {{.task}}
 
 **Instructions:**
-1. Follow the discovery workflow above
-2. Use MCP tools to find and introspect the schema
-3. Report what you discover
-4. Build the query only after confirming schema structure
+1. Follow the lazy introspection workflow above
+2. Start broad, drill down as needed
+3. Stop when you have enough information
+4. Use relevance_query to find specific fields efficiently
+5. Report what you discover concisely
+6. Build the query only after confirming schema structure
 
-Remember: NEVER assume schema - always discover first!
+Remember: NEVER assume schema - discover incrementally!
 {{end}}
