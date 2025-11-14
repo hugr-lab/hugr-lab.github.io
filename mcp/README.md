@@ -421,12 +421,43 @@ curl http://localhost:3000/mcp/prompts/get?name=discovery&task=find%20orders
 - **Total:** ~118KB (compact for comprehensive MCP package)
 - **Languages:** Markdown (docs), JSON (metadata), Go (implementation)
 
+## 🎨 Claude Desktop Skills
+
+For a simplified user experience, use the **Hugr skill** in Claude Desktop:
+
+**Location:** `../.claude/skills/hugr.md`
+
+**Usage:**
+```
+# Invoke skill
+/hugr
+
+# With task
+/hugr "Show me revenue by product category"
+```
+
+**Benefits:**
+- Natural language interface
+- Auto-routing to MCP prompts
+- User-friendly examples
+- Integrated workflow
+
+**Skill vs MCP Prompts:**
+```
+User → /hugr skill → Hugr MCP Server → start/discovery/analysis prompts → Tools
+```
+
+The skill provides user-facing interface while MCP prompts provide detailed workflows.
+
+See `../.claude/README.md` for skill documentation.
+
 ## 🔗 Links
 
 - [Hugr Documentation](https://github.com/hugr-lab/hugr)
 - [MCP Specification](https://modelcontextprotocol.io)
 - [mcp-go Library](https://github.com/mark3labs/mcp-go)
 - [Implementation Guide](./index.md)
+- [Claude Desktop Skills](../.claude/README.md)
 
 ## 📝 License
 
