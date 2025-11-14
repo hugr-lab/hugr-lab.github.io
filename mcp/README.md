@@ -10,22 +10,21 @@ mcp/
 ├── index.md               # Detailed implementation guide
 ├── example_server.go      # Complete Go implementation example
 ├── resources/             # Static reference documentation
-│   ├── reference.json     # Resource metadata (6 resources)
+│   ├── reference.json     # Resource metadata (5 resources)
 │   ├── ai-instructions.md # ⭐ AI assistant guide (9.2KB)
-│   ├── index.md           # Documentation index (1.9KB)
 │   ├── overview.md        # Hugr architecture (3.4KB)
-│   ├── data-types.md      # Filter operators (10.7KB)
+│   ├── data-types.md      # Operators, functions, errors (16.8KB)
 │   ├── schema-structure.md# Type system (5.9KB)
 │   └── query-patterns.md  # GraphQL patterns (10.7KB)
 └── prompts/               # Interactive workflow templates
     ├── reference.json     # Prompt metadata (4 prompts)
     ├── start.md           # ⭐ Auto-routing (4.9KB)
     ├── discovery.md       # Schema discovery (13.3KB)
-    ├── query-building.md  # Query construction (10.9KB)
-    └── analysis.md        # Iterative analysis (17.6KB)
+    ├── query-building.md  # Query construction (10.7KB)
+    └── analysis.md        # Iterative analysis (16.1KB)
 ```
 
-**Total size:** ~97KB
+**Total size:** ~91KB
 
 ## 🚀 Quick Start
 
@@ -88,9 +87,8 @@ Resources provide **reference material** for LLMs to understand Hugr.
 | URI | Name | Description | Size |
 |-----|------|-------------|------|
 | `hugr://ai/instructions` | **AI Instructions** ⭐ | **How to work with Hugr MCP** (for AI assistants) | 9.2KB |
-| `hugr://docs/index` | Documentation Index | Navigation guide | 1.9KB |
-| `hugr://docs/overview` | Hugr Overview | Architecture, modules, RLS | 2.9KB |
-| `hugr://docs/data-types` | Data Types | Filter operators, aggregations | 10.7KB |
+| `hugr://docs/overview` | Hugr Overview | Architecture, modules, RLS | 3.4KB |
+| `hugr://docs/data-types` | Data Types | Filter operators, aggregations, errors | 16.8KB |
 | `hugr://docs/schema` | Schema Structure | Types, introspection, filters | 5.9KB |
 | `hugr://docs/patterns` | Query Patterns | GraphQL examples, anti-patterns | 10.7KB |
 
@@ -403,19 +401,18 @@ curl http://localhost:3000/mcp/prompts/get?name=discovery&task=find%20orders
 
 ## 📊 Statistics
 
-- **Resources:** 6 files, ~50KB
+- **Resources:** 5 files, ~46KB
   - ai-instructions.md (9.2KB) - AI assistant guide ⭐
-  - index.md (1.9KB) - Navigation
   - overview.md (3.4KB) - Architecture
-  - data-types.md (10.7KB) - Operators & functions
+  - data-types.md (16.8KB) - Operators, functions & error reference
   - schema-structure.md (5.9KB) - Type system
   - query-patterns.md (10.7KB) - Patterns & anti-patterns
-- **Prompts:** 4 files, ~47KB
+- **Prompts:** 4 files, ~45KB
   - start.md (4.9KB) - Auto-routing ⭐
   - discovery.md (13.3KB) - Schema discovery
-  - query-building.md (10.9KB) - Query construction
-  - analysis.md (17.6KB) - Iterative analysis
-- **Total:** ~97KB (compact for comprehensive MCP package)
+  - query-building.md (10.7KB) - Query construction
+  - analysis.md (16.1KB) - Iterative analysis
+- **Total:** ~91KB (compact for comprehensive MCP package)
 - **Languages:** Markdown (docs), JSON (metadata), Go (implementation)
 
 ## 🔗 Links

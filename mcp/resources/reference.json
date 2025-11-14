@@ -4,11 +4,6 @@
     "description": "⭐ START HERE ⭐ Complete guide for AI assistants on when and how to use Hugr MCP. Automatic trigger detection, decision tree, workflow patterns, and critical rules. Read this first when user asks about data!",
     "uri": "hugr://ai/instructions"
   },
-  "index.md": {
-    "name": "Documentation Index",
-    "description": "Navigation guide for all Hugr MCP resources and prompts. Overview of available documentation, tools, and key principles.",
-    "uri": "hugr://docs/index"
-  },
   "overview.md": {
     "name": "Hugr Overview",
     "description": "Architecture overview: Data Sources → Modules → Objects/Functions. Module hierarchy (core.sales.analytics), auto-generated queries, special table types (Cube, Hypertable), and row-level security (RLS) considerations.",
