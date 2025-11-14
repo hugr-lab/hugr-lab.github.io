@@ -1,0 +1,30 @@
+# Compiled binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+hugr-mcp-server
+example_server
+example_embedded
+
+# Go build cache
+*.test
+*.out
+
+# Go modules cache (not needed for examples)
+go.sum
+go.mod
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
