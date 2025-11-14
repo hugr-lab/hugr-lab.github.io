@@ -47,19 +47,24 @@ query {
 }
 ```
 
-**⚠️ Some scalar types auto-generate additional fields:**
-- **Timestamp/Date:** time part extraction (`_<field>_part`), bucketing (`bucket: month`)
+**⚠️ Some scalar types auto-generate additional fields and arguments:**
+- **Timestamp/Date:** time part extraction (`_<field>_part`), bucketing (`bucket` argument)
 - **Geometry:** transformations, measurements (`_<field>_measurement`)
-- **Vector:** distance calculation (`_<field>_distance`), semantic search (`similarity` argument)
-  - If `@embeddings` directive: `_distance_to_query(query: String!)` for text-to-vector search
-  - Sort by semantic similarity using `order_by: [{ field: "_<vector_field>_distance", direction: ASC }]`
-- **JSON:** struct argument for field extraction
+- **JSON:** struct argument for extracting specific fields from JSON
 
-**List/Array types** (`[String]`, `[Int]`, etc.) - support filtering only (`eq`, `contains`, `intersects`), NOT aggregation.
+**Other special arguments that may be auto-generated:**
+- `similarity` - for vector/semantic search (check data object query arguments)
+- Spatial arguments for geometry fields
+- Custom arguments based on data type and schema configuration
 
-**These vary by database type, extensions, and configuration.**
+**List/Array types** (`[String]`, `[Int]`, etc.) - support filtering only, NOT aggregation.
 
-**→ ALWAYS use `schema-type_fields` to discover actual available fields and arguments!**
+**All auto-generated fields and arguments vary by:**
+- Database type and extensions
+- Schema configuration
+- Data type capabilities
+
+**→ ALWAYS check `schema-type_fields` to see what's actually available - don't assume!**
 
 #### 2. JSON Fields
 Store and query structured data. Support path expressions for filtering and aggregation.
