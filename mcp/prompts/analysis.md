@@ -145,17 +145,10 @@ Task: "Build query for [analysis type] grouped by [dimensions] filtered by [cond
 - Validate with `data-validate_graphql_query`
 
 **⚠️ IF QUERY VALIDATION FAILS:**
-Read `hugr://docs/data-types` section **"Common Validation Errors & Fixes"** to understand:
-- Why field/operator doesn't exist
-- Correct syntax for `order_by` in bucket_aggregation
-- POSIX regex vs Perl regex
-- When to use `in` vs `any_of`
 
-**Common mistakes to avoid:**
-- Using `not_ilike`, `not_like` (don't exist, use `_not: { field: { ilike } }`)
-- Wrong aggregation sort: `{ field: "total.sum" }` → Should be `{ field: "aggregations.total.sum" }`
-- Perl regex like `(?!` → Use POSIX ERE only
-- Using `any_of` on scalars → Use `in` instead
+Read `hugr://docs/data-types` → section **"Common Validation Errors & Fixes"**
+
+Has real error examples, causes, and fixes for all common mistakes.
 
 **⚠️ NEW: Query Accumulation Strategy**
 

@@ -264,46 +264,14 @@ date_range: {
 
 **⚠️ USE THESE FOR ONE-TO-MANY AND MANY-TO-MANY RELATIONS!**
 
-### any_of - At least one matches
-```graphql
-filter: {
-  orders: {
-    any_of: {
-      status: { eq: "pending" }
-      total: { gt: 1000 }
-    }
-  }
-}
-```
-Finds customers who have AT LEAST ONE order that is pending OR has total > 1000.
-
-### all_of - All must match
-```graphql
-filter: {
-  orders: {
-    all_of: {
-      status: { eq: "completed" }
-      total: { gte: 100 }
-    }
-  }
-}
-```
-Finds customers where ALL their orders are completed AND total >= 100.
-
-### none_of - None can match
-```graphql
-filter: {
-  orders: {
-    none_of: {
-      status: { eq: "cancelled" }
-    }
-  }
-}
-```
-Finds customers who have NO cancelled orders.
+- `any_of: {...}` - At least one related record matches condition
+- `all_of: {...}` - ALL related records match condition
+- `none_of: {...}` - NO related records match condition
 
 **❌ NEVER use any_of/all_of/none_of for scalar fields!**
 **✅ ONLY use for relation fields (one-to-many, many-to-many)**
+
+**Examples:** See `hugr://docs/patterns` → "Relation Filters" section
 
 ## Boolean Logic
 
@@ -511,25 +479,7 @@ filter: {
 }
 ```
 
-### Deep Nested Relations
-```graphql
-filter: {
-  orders: {
-    any_of: {
-      items: {
-        any_of: {
-          product: {
-            category: { eq: "electronics" }
-            price: { gt: 500 }
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-Finds customers who have at least one order containing at least one item of an electronic product over $500.
+**More examples:** See `hugr://docs/patterns` → "Relation Filters" section
 
 ## Key Rules
 
