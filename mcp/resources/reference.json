@@ -9,6 +9,11 @@
     "description": "Architecture overview: Data Sources → Modules → Objects/Functions. Module hierarchy (core.sales.analytics), auto-generated queries, special table types (Cube, Hypertable), and row-level security (RLS) considerations.",
     "uri": "hugr://docs/overview"
   },
+  "data-types.md": {
+    "name": "Data Types and Operations",
+    "description": "Complete reference: filter operators by data type (String, Int, Boolean, Timestamp, JSON, Geometry), list operators (any_of/all_of/none_of for relations), aggregation functions by type, boolean logic (_and/_or/_not), distinct_on, sorting enums (ASC/DESC), and common filter patterns.",
+    "uri": "hugr://docs/data-types"
+  },
   "schema-structure.md": {
     "name": "Schema Structure",
     "description": "Type system, introspection strategy (CRITICAL: always introspect), filter operators by type, aggregation system, cube tables with @measurement fields, H3 clustering, and semantic search capabilities.",
