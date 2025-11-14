@@ -47,178 +47,126 @@ query {
 }
 ```
 
+**⚠️ Some scalar types auto-generate additional fields:**
+- **Timestamp/Date:** time part extraction (`_<field>_part`), bucketing (`bucket: month`)
+- **Geometry:** spatial transformations, measurements (PostGIS)
+- **Array:** element access, manipulation functions
+
+**These vary by database type, extensions, and configuration.**
+
+**→ ALWAYS use `schema-type_fields` to discover actual available fields!**
+
 #### 2. JSON Fields
-Store and query structured data with path expressions:
+Store and query structured data. Support path expressions for filtering and aggregation.
 
-```graphql
-# Query JSON field
-query {
-  events {
-    metadata  # JSON - returns full object
-  }
-}
+**Can:** Extract nested values, filter by JSON path, aggregate JSON fields.
 
-# Filter by JSON path
-events(filter: {
-  metadata: { path: "$.user.role", eq: "admin" }
-})
-
-# Aggregate JSON values
-events_aggregation {
-  metadata {
-    sum(path: "$.amount")
-    list(path: "$.tags", distinct: true)
-  }
-}
-```
+**→ Use `schema-type_fields` to see JSON field capabilities in your schema!**
 
 #### 3. Nested Object Fields
-Custom types embedded in data:
+Custom GraphQL types embedded in data. Query nested fields directly.
 
-```graphql
-query {
-  customers {
-    id
-    name
-    address {      # Nested object
-      street
-      city
-      country
-    }
-  }
-}
-```
+**→ Use `schema-type_fields` on the object type to see nested structure!**
 
 #### 4. Subquery Fields (Relations)
-Foreign key relationships returning related objects:
+Foreign key relationships returning related objects.
 
-**Many-to-one** (single object):
-```graphql
-orders {
-  customer { id name }  # Returns single customer
-}
-```
+**Types:**
+- **Many-to-one:** Returns single object (e.g., `order.customer`)
+- **One-to-many:** Returns array (e.g., `customer.orders`)
+- **Many-to-many:** Returns array through junction table
 
-**One-to-many** (array):
-```graphql
-customers {
-  orders(              # Returns array of orders
-    filter: { status: { eq: "pending" } }
-    limit: 10
-  ) { id total }
-}
-```
+**Support:** Filtering, sorting, pagination on related data.
 
-**Many-to-many** (through junction):
-```graphql
-products {
-  categories { id name }  # Returns array
-}
-```
+**→ Use `schema-type_fields` to discover relations and their types!**
 
 #### 5. Aggregation Fields
-Statistics on relation fields:
+Computed statistics on relation fields.
 
-```graphql
-customers {
-  # Single row aggregation
-  orders_aggregation {
-    _rows_count
-    total { sum avg }
-  }
+**Types:**
+- `<relation>_aggregation` - Overall statistics
+- `<relation>_bucket_aggregation` - Grouped statistics (GROUP BY)
 
-  # Bucket aggregation (GROUP BY)
-  orders_bucket_aggregation {
-    key { status }
-    aggregations {
-      _rows_count
-      total { sum }
-    }
-  }
-}
-```
+**→ See `hugr://docs/aggregations` for details. Use `schema-type_fields` to discover available aggregation functions!**
 
 #### 6. Function Call Fields
-Execute functions per row:
+Execute functions per row - embedded in data objects.
 
-```graphql
-orders {
-  shipping_cost  # Scalar function - returns single value
-  tier {         # Object-returning function - returns object
-    level
-  }
-  recommendations(limit: 5) {  # Table function - returns ARRAY of objects
-    filter: { price: { lte: 100 } }
-  }
-  price_converted(to_currency: "EUR")  # With query arguments
-}
-```
+**Types:**
+- **Scalar functions** - Return single value
+- **Object-returning functions** - Return structured object
+- **Table functions** - Return array of objects (can filter/sort/aggregate)
 
-**Function types:**
-- **Scalar** - Returns single value (Int, String, etc.)
-- **Object** - Returns single object with fields
-- **Table** - Returns array of objects (can filter/sort/aggregate)
+**⚠️ CRITICAL: Function fields can have arguments!**
+
+Arguments can be:
+- **Mapped from row data** (auto-filled)
+- **Required at query time** (must provide)
+- **Optional** (have defaults)
+
+**→ ALWAYS use `schema-type_fields` to check field signature and discover arguments!**
 
 #### 7. Dynamic Fields
-Ad-hoc queries:
+Ad-hoc query capabilities:
+- **_join** - Query-time joins (when no predefined relation exists)
+- **_spatial** - Spatial joins for geographic data
 
-```graphql
-# _join - query-time joins
-customers {
-  _join(fields: ["email"]) {
-    external_data(fields: ["user_email"]) {
-      points
-    }
-  }
-}
+**→ See `hugr://docs/filters` and `hugr://docs/patterns` for usage!**
 
-# _spatial - spatial joins
-stores {
-  _spatial(field: "location", type: DWITHIN, buffer: 5000) {
-    customers(field: "address") { id }
-  }
-}
+---
+
+## ⚠️ MANDATORY: Introspection Before Queries
+
+**NEVER assume schema - ALWAYS introspect first!**
+
+### Discovery Workflow:
+
+**1. Find data object:**
+```
+discovery-search_module_data_objects(module_name: "...", query: "...")
+→ Returns: name, module, type
 ```
 
-**Example object with all field types:**
-```graphql
-query {
-  orders {
-    # Regular fields
-    id
-    total
-    created_at
-
-    # Many-to-one relation
-    customer {
-      id
-      name
-    }
-
-    # One-to-many relation
-    order_items {
-      product { name }
-      quantity
-    }
-
-    # Aggregation on relation
-    order_items_aggregation {
-      _rows_count
-      quantity { sum }
-    }
-
-    # Dynamic join
-    _join(fields: ["customer_id"]) {
-      loyalty_points(fields: ["customer_id"]) {
-        points
-      }
-    }
-
-    # Function field (if defined)
-    shipping_cost  # Calculated per order
-  }
-}
+**2. Introspect ALL fields:**
 ```
+schema-type_fields(type_name: "object_name")
+→ For EACH field check:
+  - Field name (exact spelling)
+  - Field type (scalar, relation, function, nested object, etc.)
+  - Arguments (if any) - CRITICAL for function fields!
+  - Required vs optional (Type! vs Type)
+  - Return type
+```
+
+**3. For function fields - check signature:**
+```
+schema-type_fields shows: price_converted(to_currency: String!): Float
+                          ↑ field name  ↑ argument       ↑ return type
+```
+
+**4. For filter operators:**
+```
+schema-type_fields(type_name: "object_filter")
+schema-type_fields(type_name: "ScalarType_filter_input")
+→ See EXACT available operators
+```
+
+**5. Build query using discovered information**
+
+### Why Introspection is Mandatory:
+
+Schema varies by:
+- Deployment configuration
+- Database type (PostgreSQL, MySQL, DuckDB)
+- Extensions (PostGIS, TimescaleDB, etc.)
+- User permissions (RLS)
+- Schema version
+
+**Auto-generated fields** (timestamps, geometry) vary by database and extensions.
+**Function field arguments** vary by function definition.
+**Relations** vary by schema configuration.
+
+**→ Use discovery tools + `schema-type_fields` for EVERY query!**
 
 ### Module Hierarchy
 

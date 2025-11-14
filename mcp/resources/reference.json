@@ -9,7 +9,7 @@
   {
     "filename": "overview.md",
     "name": "Hugr Overview",
-    "description": "Architecture overview: Data Sources → Modules → Objects/Functions. Module hierarchy (core.sales.analytics), auto-generated queries, special table types (Cube, Hypertable), and row-level security (RLS) considerations.",
+    "description": "Architecture: Data Sources → Modules → Objects/Functions. 7 field types: scalar (with auto-generated fields for timestamps/geometry), JSON, nested objects, relations (subqueries), aggregations, function calls (can have arguments!), dynamic (_join/_spatial). Module hierarchy, special tables (Cube, Hypertable), RLS. MANDATORY introspection workflow: discovery → schema-type_fields → check signatures/arguments → build query. Schema varies by deployment/database/extensions - NEVER assume!",
     "uri": "hugr://docs/overview",
     "priority": 2
   },
