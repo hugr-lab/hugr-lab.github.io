@@ -9,6 +9,22 @@
 - `count(distinct: true)` syntax
 - Common mistakes to avoid
 
+## ⚠️ CRITICAL: Check Search Results for Completeness
+
+When using introspection tools, **ALWAYS check if you received all results:**
+
+```json
+Result format: { "total": 50, "returned": 20, "items": [...] }
+```
+
+**If `returned` < `total`** → You're missing results!
+
+- Use pagination (`offset`/`limit`) to get remaining items
+- Or use search (`relevance_query`) to find specific fields
+- See discovery prompt for detailed examples
+
+**Don't assume a field doesn't exist just because it's not in the first 20 results!**
+
 ## Construction Workflow
 
 ### Step 1: Verify ALL Fields with schema-type_fields

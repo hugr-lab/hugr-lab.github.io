@@ -52,6 +52,31 @@ Example:
    → See: available aggregation functions per field
 ```
 
+### Result Pagination and Search
+
+All introspection tools return: `{total, returned, items}`
+
+**Always check `total` vs `returned`:**
+- If `returned` < `total` → More results available
+- Use `limit`/`offset` for pagination
+- Use `relevance_query` for semantic search
+
+**Examples:**
+```
+# Pagination: Get all fields
+schema-type_fields(type_name: "orders", limit: 50, offset: 0)
+schema-type_fields(type_name: "orders", limit: 50, offset: 50)
+
+# Search: Find specific fields
+schema-type_fields(
+  type_name: "orders",
+  relevance_query: "customer shipping",
+  top_k: 10
+)
+```
+
+**Key: Don't assume field doesn't exist - check `total` first!**
+
 ## Filter System
 
 ### Filter Operators by Type

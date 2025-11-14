@@ -86,6 +86,54 @@ After discovering objects, **MUST verify ALL fields** before using:
 - Use: Execute queries directly after schema discovery
 - Supports jq transforms for result processing
 
+## ⚠️ CRITICAL: Working with Search Results and Pagination
+
+All discovery and introspection tools return results in this format:
+```json
+{
+  "total": 50,      // Total items matching criteria
+  "returned": 20,   // Items returned in THIS response
+  "items": [...]    // The actual items
+}
+```
+
+**ALWAYS check `total` vs `returned`:**
+
+1. **If `returned` < `total`** → More results available!
+   - For `schema-type_fields`: Use `offset` and `limit` parameters to get remaining items
+   - For discovery tools: Increase `top_k` parameter (max 50) or refine `query` to get more relevant results
+
+2. **Use search parameters to find relevant items:**
+   - `schema-type_fields`: Use `relevance_query` parameter for natural-language search
+   - All discovery tools: Use `query` parameter to search by description/name
+   - Example: Instead of fetching all 200 fields, search for relevant ones with `relevance_query: "customer address"`
+
+3. **Pagination example for schema-type_fields:**
+   ```
+   Call 1: schema-type_fields(type_name: "orders", limit: 20, offset: 0)
+   Returns: {total: 50, returned: 20, items: [...]}
+
+   Call 2: schema-type_fields(type_name: "orders", limit: 20, offset: 20)
+   Returns: {total: 50, returned: 20, items: [...]}
+
+   Call 3: schema-type_fields(type_name: "orders", limit: 20, offset: 40)
+   Returns: {total: 50, returned: 10, items: [...]}
+   ```
+
+4. **Search example instead of pagination:**
+   ```
+   # ❌ Bad: Fetch all 200 fields with pagination
+   schema-type_fields(type_name: "orders", limit: 100, offset: 0)
+   schema-type_fields(type_name: "orders", limit: 100, offset: 100)
+
+   # ✅ Good: Search for relevant fields
+   schema-type_fields(type_name: "orders", relevance_query: "customer information", top_k: 10)
+   ```
+
+**Key Parameters:**
+- `schema-type_fields`: `limit`, `offset`, `relevance_query`, `top_k`
+- `discovery-search_*`: `top_k` (default 5, max 50), `query`, `min_score`
+
 ## Discovery Strategy
 
 ### Step 1: Find Modules

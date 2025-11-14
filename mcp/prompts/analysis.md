@@ -42,6 +42,30 @@ With jq transform:
 
 **Validate jq with data-validate_graphql_query before executing!**
 
+## ⚠️ CRITICAL: Check Search Results for Completeness
+
+When discovering schema for analysis, **ALWAYS verify you have all relevant fields:**
+
+```json
+Result format: { "total": 50, "returned": 20, "items": [...] }
+```
+
+**If `returned` < `total`** → More fields/objects available!
+
+- Use `relevance_query` to search for analysis-relevant fields (e.g., "metrics", "totals", "counts")
+- Use pagination if you need to see all available fields
+- Don't miss important aggregation functions or measurement fields
+
+**Example:**
+```
+# Search for metrics fields in a large type
+schema-type_fields(
+  type_name: "sales_aggregations",
+  relevance_query: "revenue profit margin",
+  top_k: 15
+)
+```
+
 ## Analysis Principles
 
 1. **Server-side Aggregation** - Use database, not client-side processing
