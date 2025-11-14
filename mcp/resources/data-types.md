@@ -110,7 +110,6 @@ customers {
 ```graphql
 name: {
   eq: "exact match"           # Equal to
-  ne: "not this"              # Not equal to
   in: ["option1", "option2"]  # In list
   like: "%pattern%"           # Pattern match (% = wildcard)
   ilike: "%CASE%"             # Case-insensitive pattern
@@ -123,7 +122,6 @@ name: {
 ```graphql
 age: {
   eq: 25                      # Equal to
-  ne: 30                      # Not equal to
   in: [25, 30, 35]            # In list
   gt: 18                      # Greater than
   gte: 18                     # Greater than or equal
@@ -141,7 +139,7 @@ active: {
 }
 ```
 
-### Timestamp/Date Fields
+### Date/Timestamp/Time Fields
 ```graphql
 created_at: {
   eq: "2024-01-01T00:00:00Z"  # Equal to
@@ -153,13 +151,25 @@ created_at: {
 }
 ```
 
+### Interval Fields
+```graphql
+duration: {
+  eq: "5 days"                # Equal to (quantity unit format)
+  gt: "2 hours"               # Greater than
+  gte: "30 minutes"           # Greater than or equal
+  lt: "1 week"                # Less than
+  lte: "3 months"             # Less than or equal
+  is_null: false              # Is/is not null
+}
+```
+
 ### JSON Fields
 ```graphql
 metadata: {
   eq: {"key": "value"}        # Equal to
-  contains: {"key": "value"}  # Contains key-value
-  has: ["key1", "key2"]       # Has keys
+  has: "key1"                 # Has key
   has_all: ["key1", "key2"]   # Has all keys
+  contains: {"key": "value"}  # Contains (like PostgreSQL @>)
   is_null: false              # Is/is not null
 }
 ```
@@ -167,10 +177,37 @@ metadata: {
 ### Geometry Fields
 ```graphql
 location: {
-  eq: "POINT(0 0)"            # Equal to
+  eq: "POINT(0 0)"            # Equal to (WKT or GeoJSON)
   intersects: "POLYGON(...)"  # Intersects
   contains: "POINT(0 0)"      # Contains
   is_null: false              # Is/is not null
+}
+```
+
+### List/Array Fields ([String], [Int], etc.)
+```graphql
+tags: {
+  eq: "value"                 # Contains specific value
+  contains: ["val1", "val2"]  # Contains another list
+  intersects: ["val1", "val2"]# Intersects with list
+  is_null: false              # Is/is not null
+}
+```
+
+### Range Fields (IntRange, TimestampRange, BigIntRange)
+```graphql
+date_range: {
+  eq: "[2024-01-01, 2024-12-31]"     # Equal to
+  contains: "2024-06-15"             # Contains value
+  intersects: "[2024-06-01, 2024-07-01]"  # Intersects range
+  includes: "[2024-06-01, 2024-06-30]"    # Includes range
+  upper: "2024-12-31"                # Upper bound equals
+  lower: "2024-01-01"                # Lower bound equals
+  upper_inclusive: true              # Upper bound included
+  lower_inclusive: true              # Lower bound included
+  upper_inf: false                   # Upper bound unbounded
+  lower_inf: false                   # Lower bound unbounded
+  is_null: false                     # Is/is not null
 }
 ```
 
@@ -262,10 +299,10 @@ field_name {
   avg                     # Average value
   min                     # Minimum value
   max                     # Maximum value
-  stddev                  # Standard deviation
-  variance                # Variance
   list                    # Array of all values
   list(distinct: true)    # Array of unique values
+  any                     # Any non-null value
+  last                    # Last non-null value
 }
 ```
 
@@ -274,11 +311,11 @@ field_name {
 field_name {
   count                   # Count non-null values
   count(distinct: true)   # Count distinct values
-  min                     # Alphabetically first
-  max                     # Alphabetically last
   string_agg(separator: ", ")  # Concatenate with separator
   list                    # Array of all values
   list(distinct: true)    # Array of unique values
+  any                     # Any non-null value
+  last                    # Last non-null value
 }
 ```
 
@@ -289,6 +326,9 @@ field_name {
   bool_and                # Logical AND of all values
   bool_or                 # Logical OR of all values
   list                    # Array of all values
+  list(distinct: true)    # Array of unique values
+  any                     # Any non-null value
+  last                    # Last non-null value
 }
 ```
 
@@ -299,6 +339,9 @@ field_name {
   min                     # Earliest date/time
   max                     # Latest date/time
   list                    # Array of all values
+  list(distinct: true)    # Array of unique values
+  any                     # Any non-null value
+  last                    # Last non-null value
 }
 ```
 
