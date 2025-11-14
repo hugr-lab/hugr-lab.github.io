@@ -120,7 +120,7 @@ field {
 }
 ```
 
-### JSON/JSONB Fields
+### JSON Fields
 
 ```graphql
 metadata {

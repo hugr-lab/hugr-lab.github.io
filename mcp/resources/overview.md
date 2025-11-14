@@ -33,7 +33,7 @@ All organized in hierarchical modules accessed through single GraphQL schema.
 Data objects contain different field types. **ALWAYS use `schema-type_fields` to discover exact field types!**
 
 #### 1. Scalar Fields
-Database columns with primitive types: String, Int, Float, Boolean, Timestamp, UUID, Geometry, etc.
+Database columns with primitive types: String, Int, Float, Boolean, Timestamp, Date, Geometry, JSON, etc.
 
 ```graphql
 query {
