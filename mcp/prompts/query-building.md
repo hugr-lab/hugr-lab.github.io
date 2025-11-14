@@ -658,6 +658,27 @@ Next step: Execute with data-inline_graphql_result (+ optional jq transform).
 ```
 
 
+## Response Format
+
+**Default: Text Response**
+
+- Present query and explanation as **plain text in chat**
+- No MD/HTML files unless explicitly requested
+- Keep explanations concise
+
+**DO NOT include by default:**
+- Performance recommendations (unless asked)
+- Optimization suggestions (unless asked)
+- Alternative approaches (unless asked)
+- File outputs
+
+**Focus on:**
+- The query itself
+- Brief explanation of what it does
+- Validation results
+
+User can ask for more if needed.
+
 ---
 
 {{#if task}}

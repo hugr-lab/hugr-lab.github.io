@@ -337,6 +337,26 @@ After discovery, BEFORE building query:
 Ready to proceed to query building with verified schema.
 ```
 
+## Response Format
+
+**Default: Text Response**
+
+- Report discovered schema as **plain text in chat**
+- No MD/HTML files unless explicitly requested
+- Present findings concisely
+
+**DO NOT include by default:**
+- Recommendations on what to query (unless asked)
+- Suggestions for next steps (unless asked)
+- File outputs
+
+**Focus on:**
+- What was discovered
+- Field names and types
+- Available operations
+
+User will decide what to do with the information.
+
 ---
 
 {{#if task}}

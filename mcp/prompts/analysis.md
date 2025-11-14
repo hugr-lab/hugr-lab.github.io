@@ -793,6 +793,47 @@ Iteration 3: Detail investigation (if needed)
 ```
 
 
+## Response Format
+
+**Default: Text Response in Chat**
+
+- Provide analysis results as **plain text directly in the conversation**
+- No MD/HTML files unless explicitly requested
+- Keep token usage reasonable - focus on key insights
+
+**Structure:**
+```
+Analysis Results:
+
+[Present data insights concisely]
+
+Key Findings:
+- [Finding 1]
+- [Finding 2]
+- [Finding 3]
+
+[End here unless recommendations explicitly requested]
+```
+
+**Only if user asks:**
+- Recommendations/conclusions
+- Interactive HTML reports
+- Markdown files
+- Detailed reports
+
+**Remember:** User can always ask for more detail or different format after seeing initial results.
+
+## Recommendations and Conclusions
+
+**DO NOT provide recommendations or conclusions by default!**
+
+Only include if user explicitly asks:
+- "What do you recommend?"
+- "Give me conclusions"
+- "What should I do next?"
+
+Otherwise, just present the data and findings.
+
 ---
 
 {{#if task}}

@@ -34,9 +34,28 @@
    field { value_count }             # ❌ Wrong (doesn't exist)
    ```
 
-5. **Verify Fields** - ALWAYS check field existence with `schema-type_fields` before using
+5. **Relation Filters** - Use `any_of`, `all_of`, `none_of` (NOT `_any`):
+   ```graphql
+   filter: { items: { any_of: { status: { eq: "active" } } } }  # ✅ Correct
+   filter: { items: { _any: { status: { eq: "active" } } } }    # ❌ Wrong
+   ```
 
-6. **Complex Queries First** - Build full query, validate with `limit: 0`, then execute
+6. **Large Queries Are OK** - Use `max_result_size` parameter, NOT Python loops:
+   ```graphql
+   # ✅ Correct: Single large query with increased max_result_size
+   Tool: data-inline_graphql_result
+   Input: {
+     query: "...",
+     max_result_size: 50000  # bytes, default 1000, max 5000000
+   }
+
+   # ❌ Wrong: Multiple queries + Python to combine
+   Python loops fetching data in chunks
+   ```
+
+7. **Verify Fields** - ALWAYS check field existence with `schema-type_fields` before using
+
+8. **Complex Queries First** - Build full query, validate, then execute
 
 ## Module Structure
 
@@ -129,27 +148,72 @@ data_object_aggregation(
 ```
 
 ### Bucket Aggregation (GROUP BY)
+
+**CRITICAL Structure:**
+```
+object_bucket_aggregation {
+  key { ...grouping_fields... }       # What to GROUP BY
+  aggregations { ...metrics... }      # What to CALCULATE for each group
+}
+```
+
+**Basic Example:**
 ```graphql
-data_object_bucket_aggregation(
-  filter: { ... }
+orders_bucket_aggregation(
+  filter: { status: { eq: "completed" } }
   order_by: [{ field: "aggregations.total.sum", direction: DESC }]  # ✅ DESC uppercase
   limit: 10
 ) {
   key {
-    group_field
-    related_object {
-      category_field
-    }
+    # GROUP BY these fields
+    customer_id
+    product_category
   }
   aggregations {
-    _rows_count  # ✅ Use _rows_count
-    value_field {
+    # CALCULATE these metrics for each group
+    _rows_count  # ✅ Count rows in group
+    total {
+      sum      # Sum of 'total' field
+      avg      # Average
+    }
+    quantity {
       sum
-      avg
       count(distinct: true)  # ✅ Distinct values
     }
   }
 }
+```
+
+**Grouping by Related Object Fields:**
+```graphql
+orders_bucket_aggregation {
+  key {
+    # Group by fields from related object
+    customer {
+      country
+      tier
+    }
+    # Can also include direct fields
+    status
+  }
+  aggregations {
+    _rows_count
+    total { sum avg }
+  }
+}
+```
+
+**Common Mistake:**
+```graphql
+# ❌ Wrong: aggregations inside key
+key {
+  customer_id
+  aggregations { _rows_count }  # Wrong place!
+}
+
+# ✅ Correct: aggregations is separate
+key { customer_id }
+aggregations { _rows_count }
 ```
 
 ### Time Series
