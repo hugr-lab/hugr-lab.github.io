@@ -273,37 +273,32 @@ date_range: {
 
 **Examples:** See `hugr://docs/patterns` → "Relation Filters" section
 
-## Boolean Logic
+## Boolean Logic (_and / _or / _not)
 
-### _and - All conditions must match
+**⚠️ CRITICAL:** Boolean logic operators work ONLY at filter object level, NOT on scalar fields!
+
 ```graphql
+# ✅ CORRECT - at filter object level
 filter: {
-  _and: [
-    { status: { eq: "active" } }
-    { age: { gte: 18 } }
-    { country: { eq: "USA" } }
-  ]
+  _and: [ {...}, {...} ]
+  _or: [ {...}, {...} ]
+  _not: {...}
+}
+
+# ❌ WRONG - on scalar field (StringFilter has no _and/_or/_not)
+filter: {
+  name: { _not: { like: "%test%" } }  # NO!
 }
 ```
 
-### _or - At least one condition matches
-```graphql
-filter: {
-  _or: [
-    { priority: { eq: "high" } }
-    { urgent: { eq: true } }
-  ]
-}
-```
+**For complete filtering guide:** Read `hugr://docs/filters`
 
-### _not - Negate condition
-```graphql
-filter: {
-  _not: {
-    status: { eq: "deleted" }
-  }
-}
-```
+Covers:
+- Filter object vs scalar fields
+- When to use `_and/_or/_not` (object level only)
+- All scalar operators by type
+- Relation operators (any_of/all_of/none_of)
+- Common mistakes (contains, _some, boolean logic on scalars)
 
 ## Aggregation Functions by Type
 

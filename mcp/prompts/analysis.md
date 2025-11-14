@@ -18,10 +18,11 @@
 ## 📚 Required Reading Before Analysis
 
 **Read these resources/prompts first:**
-1. **`hugr://docs/patterns`** - Anti-patterns, jq examples, validation workflow
-2. **`hugr://docs/data-types`** - Aggregation functions, filter operators
-3. **Use `discovery` prompt** - For schema discovery with relevance search
-4. **Use `query-building` prompt** - For constructing validated queries
+1. **`hugr://docs/filters`** - Filter construction (object vs scalar, boolean logic)
+2. **`hugr://docs/patterns`** - Anti-patterns, jq examples, validation workflow
+3. **`hugr://docs/data-types`** - Aggregation functions, operator reference
+4. **Use `discovery` prompt** - For schema discovery with relevance search
+5. **Use `query-building` prompt** - For constructing validated queries
 
 ## Core Analysis Principles
 

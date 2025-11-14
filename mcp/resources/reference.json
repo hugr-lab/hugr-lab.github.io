@@ -14,24 +14,31 @@
     "priority": 2
   },
   {
+    "filename": "filter-guide.md",
+    "name": "Filter Construction Guide",
+    "description": "Complete filtering guide: filter object vs scalar fields, boolean logic (_and/_or/_not at object level ONLY), scalar operators by type, relation operators (any_of/all_of/none_of), common mistakes (contains doesn't exist, _some is Prisma not Hugr, boolean logic on scalars).",
+    "uri": "hugr://docs/filters",
+    "priority": 3
+  },
+  {
     "filename": "data-types.md",
     "name": "Data Types and Operations",
-    "description": "Field types explained (table fields vs subqueries/relations/aggregations), filter operators by data type (String, Int, Boolean, Timestamp, JSON, Geometry), list operators (any_of/all_of/none_of for relations), aggregation functions by type, boolean logic (_and/_or/_not), distinct_on, sorting enums (ASC/DESC), and common filter patterns.",
+    "description": "Operator quick reference by type, aggregation functions, sorting, distinct_on, and comprehensive error documentation with real validation error examples and fixes.",
     "uri": "hugr://docs/data-types",
-    "priority": 3
+    "priority": 4
   },
   {
     "filename": "schema-structure.md",
     "name": "Schema Structure",
     "description": "Type system, introspection strategy (CRITICAL: always introspect), filter operators by type, aggregation system, cube tables with @measurement fields, H3 clustering, and semantic search capabilities.",
     "uri": "hugr://docs/schema",
-    "priority": 4
+    "priority": 5
   },
   {
     "filename": "query-patterns.md",
     "name": "Query Patterns",
     "description": "Decision tree for choosing the right approach. PRIORITY #1: Relation filters (any_of/all_of/none_of, deep nesting). Use _join only when no relation exists. distinct_on for unique values. Anti-patterns (two queries, Python). jq transformations. Mandatory validation workflow.",
     "uri": "hugr://docs/patterns",
-    "priority": 5
+    "priority": 6
   }
 ]

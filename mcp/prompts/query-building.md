@@ -1,18 +1,26 @@
 # Query Building
 
-## ⚠️ CRITICAL: Read Query Patterns Resource First
+## ⚠️ CRITICAL: Read These Resources First
 
-**BEFORE building ANY query**, read resource `hugr://docs/patterns` for:
-- **Anti-Patterns** - What NEVER to do (two queries, Python, etc.)
-- **jq Transformations** - How to process data on server (with functions!)
-- **Decision Tree** - Step-by-step query type selection
-- **Relation Filters** - PRIORITY #1 for filtering by related data
-- **distinct_on** - Getting unique combinations
-- **Validation Workflow** - MANDATORY validation before execution
+**BEFORE building ANY query:**
 
-**Filter operators and aggregation functions:** Read `hugr://docs/data-types`
+1. **`hugr://docs/filters`** - MUST READ for filtering:
+   - Filter object vs scalar fields
+   - Boolean logic (_and/_or/_not at OBJECT level only)
+   - Scalar operators by type (what exists, what doesn't)
+   - Relation operators (any_of/all_of/none_of)
+   - Common mistakes (contains, _some, _not on scalars)
 
-**Schema understanding:** Read `hugr://docs/schema` for type system
+2. **`hugr://docs/patterns`** - Query patterns and anti-patterns:
+   - Decision Tree for query type selection
+   - Relation filter examples (deep nesting)
+   - jq transformations
+   - Anti-patterns (two queries, Python, etc.)
+
+3. **`hugr://docs/data-types`** - Operator reference:
+   - Quick reference by type
+   - Aggregation functions
+   - Error documentation
 
 ## ⚠️ CRITICAL: Check Search Results for Completeness
 
