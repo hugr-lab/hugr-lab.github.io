@@ -499,15 +499,15 @@ I've prepared three files:
 
 ---
 
-{{#if task}}
+{{if .task}}
 ## Current Analysis Task
 
-**Objective:** {{task}}
+**Objective:** {{.task}}
 
 **Approach:**
 
 **Step 1:** Invoke `discovery` prompt
-- Task: "{{task}}"
+- Task: "{{.task}}"
 - Let discovery prompt handle schema exploration
 - Identify ALL potential data objects needed for complete analysis
 
@@ -557,4 +557,4 @@ Question 3: "Revenue by month?" → Build query → COMBINE ALL 3
 - This is iterative - each step may reveal new questions
 - Use query accumulation when possible for efficiency
 - Don't accumulate if you need results to proceed
-{{/if}}
+{{end}}

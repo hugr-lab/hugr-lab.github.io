@@ -359,10 +359,10 @@ I've created three files:
 
 ---
 
-{{#if task}}
+{{if .task}}
 ## Current Task
 
-**Query Requirement:** {{task}}
+**Query Requirement:** {{.task}}
 
 **Instructions:**
 1. Read `hugr://docs/patterns` Decision Tree
@@ -375,4 +375,4 @@ I've created three files:
 - `hugr://docs/patterns` - Query patterns and anti-patterns
 - `hugr://docs/data-types` - Filter operators and aggregation functions
 - `hugr://docs/schema` - Type system understanding
-{{/if}}
+{{end}}

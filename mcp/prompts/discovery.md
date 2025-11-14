@@ -450,10 +450,10 @@ and schema_queries.sql with example queries.
 
 ---
 
-{{#if task}}
+{{if .task}}
 ## Current Task
 
-**Objective:** {{task}}
+**Objective:** {{.task}}
 
 **Instructions:**
 1. Follow the discovery workflow above
@@ -462,4 +462,4 @@ and schema_queries.sql with example queries.
 4. Build the query only after confirming schema structure
 
 Remember: NEVER assume schema - always discover first!
-{{/if}}
+{{end}}
