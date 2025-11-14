@@ -5,11 +5,14 @@
 **BEFORE building ANY query**, read resource `hugr://docs/patterns` for:
 - **Anti-Patterns** - What NEVER to do (two queries, Python, etc.)
 - **jq Transformations** - How to process data on server (with functions!)
+- **Decision Tree** - Step-by-step query type selection
+- **Relation Filters** - PRIORITY #1 for filtering by related data
+- **distinct_on** - Getting unique combinations
 - **Validation Workflow** - MANDATORY validation before execution
-- Module structure requirements
-- `_rows_count` vs `count`
-- `ASC`/`DESC` (uppercase!)
-- Scalar vs Relation filter syntax
+
+**Filter operators and aggregation functions:** Read `hugr://docs/data-types`
+
+**Schema understanding:** Read `hugr://docs/schema` for type system
 
 ## ⚠️ CRITICAL: Check Search Results for Completeness
 
@@ -23,7 +26,7 @@ Result format: { "total": 50, "returned": 20, "items": [...] }
 
 - Use pagination (`offset`/`limit`) to get remaining items
 - Or use search (`relevance_query`) to find specific fields
-- See discovery prompt for detailed examples
+- See `discovery` prompt for detailed examples
 
 **Don't assume a field doesn't exist just because it's not in the first 20 results!**
 
@@ -62,97 +65,48 @@ query {
 
 2. For SCALAR field filters - CHECK OPERATORS:
    schema-type_fields(type_name: "String_filter_input")
-   → Returns: {items: [{name: "eq"}, {name: "in"}, {name: "like"}, ...]}
-   → Use ONLY what exists: eq, in, like, ilike, regex
+   → Use ONLY what exists: eq, in, like, ilike, regex, is_null
    → ❌ NEVER use any_of for scalar fields!
 
-   schema-type_fields(type_name: "Int_filter_input")
-   → Returns operators: eq, in, gt, gte, lt, lte
+   See hugr://docs/data-types for complete operator reference.
 
 3. For RELATION field filters:
    schema-type_fields(type_name: "orders_filter")
    → Check if relation field exists and its type
-   → Many-to-one: direct access
+   → Many-to-one: direct access to related object fields
    → One-to-many: any_of/all_of/none_of
+
+   See hugr://docs/patterns Decision Tree for relation filter guidance.
 
 4. For aggregations:
    schema-type_fields(type_name: "orders_aggregations")
    → Get exact available functions per field
+
+   See hugr://docs/data-types Aggregation Functions section.
 
 5. For enums:
    schema-enum_values(type_name: "OrderDirection")
    → Confirm values (ASC/DESC uppercase!)
 ```
 
-### Step 3: Build Complex Query First
+### Step 3: Choose Query Type and Build
 
-**❌ NEVER do this:** Two queries (see Anti-Patterns in `hugr://docs/patterns`)
-**✅ ALWAYS do this:** One query with relation filters or _join
+**Read `hugr://docs/patterns` Decision Tree to choose:**
 
-**Bad Approach (DON'T DO THIS!):**
-```
-1. Query customers where country = "USA" → get IDs
-2. Query orders where customer_id IN [IDs]
-```
+- **Need to filter by related data?** → Use Relation Filters (PRIORITY #1)
+- **Need to join unrelated objects?** → Use `_join`
+- **Need unique values?** → Use `distinct_on`
+- **Need grouped analysis?** → Use `_bucket_aggregation`
+- **Need overall stats?** → Use `_aggregation`
 
-**Good Approach:**
-```graphql
-query {
-  module {
-    # ✅ Single query with relation filter
-    orders(
-      filter: {
-        customer: { country: { eq: "USA" } }  # ← Filter through relation!
-      }
-    ) {
-      id
-      total
-      customer { name country }
-    }
-  }
-}
-```
+**❌ NEVER do:** Two queries - see Anti-Patterns in `hugr://docs/patterns`
+**✅ ALWAYS do:** One complex query with relation filters or `_join`
 
-**Or use _join for ad-hoc joins:**
-```graphql
-query {
-  module {
-    table_a {
-      id
-      join_field
-      _join(fields: ["join_field"]) {
-        table_b(fields: ["matching_field"]) {
-          id
-          data
-        }
-      }
-    }
-  }
-}
-```
-
-**Multi-object queries in ONE request:**
-```graphql
-query {
-  module {
-    # Count records
-    customers_aggregation { _rows_count }
-
-    # Get recent orders with filters
-    orders(
-      filter: { customer: { status: { eq: "active" } } }
-      order_by: [{ field: "created_at", direction: DESC }]
-      limit: 10
-    ) { id customer { name } }
-
-    # Aggregate by month
-    orders_bucket_aggregation {
-      key { month: created_at(bucket: month) }
-      aggregations { total { sum } }
-    }
-  }
-}
-```
+**Examples in `hugr://docs/patterns`:**
+- Relation Filters section
+- Dynamic Joins (_join) section
+- distinct_on Patterns section
+- Multi-object queries section
 
 ### Step 4: VALIDATE Query (MANDATORY!)
 
@@ -163,26 +117,19 @@ query {
 ```
 Tool: data-validate_graphql_query
 Input: {
-  query: "query { module { data_object(filter: {...}, limit: 100) { fields } } }",
+  query: "query { module { data_object(filter: {...}) { fields } } }",
   variables: {},
-  jq_transform: ".data.module.data_object | map({id, name})"  // If using jq
+  jq_transform: ".data.module.data_object | map({id, name})"
 }
 
 Returns: true ✓
   OR
 Error: "Field 'field_name' not found on type 'ObjectType'"
   OR
-Error: "jq compile error: syntax error near '}'"
+Error: "jq compile error: syntax error"
 ```
 
 **Validates BOTH GraphQL query AND jq transform!**
-
-**Why validation is mandatory:**
-- ✅ Catches field name errors before execution
-- ✅ Catches type mismatches immediately
-- ✅ Validates jq syntax errors
-- ✅ Saves time - fails fast without fetching data
-- ✅ No wasted API calls
 
 **Workflow:**
 ```
@@ -199,511 +146,101 @@ Error: "jq compile error: syntax error near '}'"
 ```
 Tool: data-inline_graphql_result
 Input: {
-  query: "query { module { objects { id name amount } } }",
-  jq_transform: ".data.module.objects | map({id, name, amount})"
+  query: "query { module { objects { id name } } }",
+  jq_transform: ".data.module.objects | map({id, name})"
 }
 ```
 
-**Use jq for ALL data transformations (see `hugr://docs/patterns` for examples):**
+**For jq transformation examples, see `hugr://docs/patterns` jq section:**
+- Basic transformations
+- Filtering and selection
+- Calculations and formulas
+- Grouping and aggregation
+- Statistics
+- Complex transformations
 
-```jq
-# Basic transformations
-.data.module.objects | map({id, name})
-
-# Filtering
-.data.module.objects | map(select(.amount > 1000))
-
-# Calculations
-.data.module.objects | map({
-  id,
-  name,
-  total: (.items | map(.price) | add)
-})
-
-# Grouping
-.data.module.objects | group_by(.category) | map({
-  category: .[0].category,
-  total: map(.amount) | add,
-  count: length
-})
-
-# Statistics
-.data.module.orders_bucket_aggregation | {
-  total: map(.aggregations.amount.sum) | add,
-  average: (map(.aggregations.amount.sum) | add) / length
-}
-```
-
-**❌ NEVER use Python/Pandas for these operations!**
+**❌ NEVER use Python/Pandas for data processing!**
 **✅ ALWAYS use jq - it runs on the server!**
 
 ## Construction Principles
 
-1. **Verify Fields** - ALWAYS use schema-type_fields before using ANY field
-2. **Complex First** - Build complete query, validate with limit: 0
-3. **Nested Filters** - Use deep filtering instead of multiple queries
-4. **Module Structure** - Wrap in correct module hierarchy
-5. **Check CRITICAL Rules** - _rows_count, ASC/DESC, count(distinct: true)
-6. **Filter Early** - Apply filters at highest level possible
+1. **Verify Fields** - ALWAYS use `schema-type_fields` before using ANY field
+2. **Read Decision Tree** - Follow `hugr://docs/patterns` Decision Tree
+3. **Complex First** - Build complete query with relation filters vs multiple queries
+4. **Module Structure** - Wrap in correct module hierarchy from discovery
+5. **Check Data Types** - Read `hugr://docs/data-types` for operators/functions
+6. **MANDATORY Validation** - Use `data-validate_graphql_query` before execution
 7. **Always Limit** - Protect against large result sets
-8. **Prefer Aggregations** - Use server-side aggregations
+8. **jq Processing** - Use jq transforms, NOT Python
 
 ## Query Type Selection
 
-Based on requirements, choose:
+**See `hugr://docs/patterns` for detailed examples of each type:**
 
-**Data Query** - List records
-```graphql
-object(filter, order_by, limit) { fields }
-```
-
-**Primary Key Query** - Single record
-```graphql
-object_by_pk(id: value) { fields }
-```
-
-**Single Aggregation** - Overall stats
-```graphql
-object_aggregation(filter) {
-  _rows_count
-  field { sum avg }
-}
-```
-
-**Bucket Aggregation** - Grouped analysis
-```graphql
-object_bucket_aggregation(filter, limit) {
-  key { group_fields }
-  aggregations { metrics }
-}
-```
+**Data Query** - List records with filter/sort/limit
+**Primary Key Query** - Single record by PK (`object_by_pk`)
+**Single Aggregation** - Overall stats (`object_aggregation`)
+**Bucket Aggregation** - Grouped analysis (`object_bucket_aggregation`)
+**Multi-Object Query** - Multiple objects in ONE request
+**Relation Query** - Nested subqueries with filters
+**Dynamic Join** - Ad-hoc joins with `_join`
+**Spatial Query** - Geometry-based filtering with `_spatial`
 
 ## Filter Construction
 
-### Simple Conditions
+**For complete filter syntax, see `hugr://docs/patterns` Relation Filters section.**
+
+### Scalar Fields
 ```graphql
 filter: {
-  field: { eq: "value" }
+  field: { eq: "value" }  # ← Check operators with schema-type_fields
 }
 ```
 
-### Multiple Conditions (AND)
-```graphql
-filter: {
-  field1: { eq: "value1" }
-  field2: { gte: 100 }
-}
-```
+**Available operators depend on field type - see `hugr://docs/data-types`**
 
-### OR Logic
-```graphql
-filter: {
-  _or: [
-    { field: { eq: "value1" } }
-    { field: { eq: "value2" } }
-  ]
-}
-```
+### Relation Fields
 
-### Relation Filters
+**See `hugr://docs/patterns` for detailed relation filter examples.**
+
 ```graphql
-# One-to-one/Many-to-one
+# Many-to-one (direct access)
 filter: {
-  related_object: {
-    field: { eq: "value" }
-  }
+  customer: { country: { eq: "USA" } }
 }
 
-# One-to-many/Many-to-many
+# One-to-many (use any_of/all_of/none_of)
 filter: {
-  related_objects: {
-    any_of: { field: { eq: "value" } }
+  orders: {
+    any_of: { status: { eq: "pending" } }
   }
 }
 ```
 
-### Operator Selection
-Use most efficient operator:
-1. `eq`, `in` - Best (indexed)
-2. `gt`, `gte`, `lt`, `lte` - Good (range queries)
-3. `like` with prefix - OK (`"prefix%"`)
-4. `like` with wildcards - Slower (`"%pattern%"`)
-5. `ilike` - Case-insensitive (slower)
-6. `regex` - Slowest
+## Sorting and Pagination
 
-## Sorting
+**For detailed sorting/pagination patterns, see official docs:**
+- `docs/5-graphql/1-queries/4-sorting-pagination.md`
 
-### Basic Sort
-```graphql
-order_by: [
-  { field: "field_name", direction: DESC }
-]
-```
-
-### Multi-Field Sort
-```graphql
-order_by: [
-  { field: "priority", direction: DESC }
-  { field: "created_at", direction: ASC }
-]
-```
-
-### Sort Aggregations
-```graphql
-# For bucket aggregations
-order_by: [
-  { field: "aggregations.total.sum", direction: DESC }
-]
-```
-
-**Important:** Sorted fields must be selected in query.
-
-## Pagination
-
-### Root Level
-```graphql
-object(
-  limit: 100
-  offset: 0
-) { ... }
-```
-
-### Nested Level
-```graphql
-parent(limit: 10) {
-  children(
-    nested_limit: 5
-    nested_offset: 0
-  ) { ... }
-}
-```
-
-**Key Difference:**
-- `limit` - Applied before join
-- `nested_limit` - Applied after join (per parent)
-
-## Field Selection
-
-Select minimal required fields:
-
-```graphql
-# ✅ Good
-{
-  id
-  name
-  status
-}
-
-# ❌ Bad - unnecessary fields
-{
-  id
-  name
-  status
-  created_at
-  updated_at
-  metadata
-  notes
-  ...
-}
-```
+**Key points:**
+- `order_by: [{ field: "name", direction: ASC }]` (UPPERCASE!)
+- `limit`/`offset` for root-level pagination
+- `nested_limit`/`nested_offset` for subquery pagination
+- Sorted fields must be selected in query
 
 ## Building Aggregations
 
-### Overall Statistics
-```graphql
-object_aggregation(
-  filter: { date_field: { gte: "2024-01-01" } }
-) {
-  _rows_count
-  numeric_field {
-    sum
-    avg
-    min
-    max
-  }
-  date_field {
-    min
-    max
-  }
-}
+**For complete aggregation patterns, see `hugr://docs/patterns`:**
+- Single-row aggregation section
+- Bucket aggregation section
+- Time-based aggregation section
+
+**Always verify available functions:**
+```
+schema-type_fields(type_name: "object_aggregations")
 ```
 
-### Grouped Analysis
-```graphql
-object_bucket_aggregation(
-  filter: { ... }
-  order_by: [{ field: "aggregations.value.sum", direction: DESC }]
-  limit: 10
-) {
-  key {
-    category_field
-    related { dimension_field }
-  }
-  aggregations {
-    _rows_count
-    value { sum avg }
-  }
-}
-```
-
-### Time Series
-```graphql
-object_bucket_aggregation {
-  key {
-    time_bucket: timestamp_field(bucket: day)
-  }
-  aggregations {
-    _rows_count
-    metric { sum }
-  }
-}
-```
-
-## Building Joins
-
-### Relations (Predefined)
-```graphql
-parent {
-  id
-  # Subquery with filter and limit
-  children(
-    filter: { status: { eq: "active" } }
-    nested_limit: 5
-  ) {
-    id
-    value
-  }
-}
-```
-
-### Dynamic Joins
-```graphql
-source_object {
-  id
-  join_field
-
-  _join(fields: ["join_field"]) {
-    target_object(
-      fields: ["matching_field"]
-      filter: { ... }
-      limit: 100
-    ) {
-      id
-      data
-    }
-  }
-}
-```
-
-### Join Aggregations
-```graphql
-parent {
-  id
-  _join(fields: ["id"]) {
-    child_aggregation(fields: ["parent_id"]) {
-      _rows_count
-      value { sum }
-    }
-  }
-}
-```
-
-## Validation Before Execution
-
-Check:
-- [ ] All type names discovered
-- [ ] All field names exist in schema
-- [ ] Filter operators are valid for field types
-- [ ] Sort fields are selected in query
-- [ ] Limit is applied (unless by_pk query)
-- [ ] Module path is correct
-- [ ] Nested queries have nested_limit
-
-## Common Patterns
-
-### Recent Records
-```graphql
-object(
-  order_by: [{ field: "created_at", direction: DESC }]
-  limit: 10
-) {
-  id
-  created_at
-  ...
-}
-```
-
-### Search
-```graphql
-object(
-  filter: {
-    _or: [
-      { field1: { ilike: "%search%" } }
-      { field2: { ilike: "%search%" } }
-    ]
-  }
-  limit: 20
-) { ... }
-```
-
-### Top N
-```graphql
-object_bucket_aggregation(
-  order_by: [{ field: "aggregations.metric.sum", direction: DESC }]
-  limit: 10
-) {
-  key { dimension }
-  aggregations { metric { sum } }
-}
-```
-
-### Date Range
-```graphql
-filter: {
-  date_field: {
-    gte: "2024-01-01T00:00:00Z"
-    lt: "2024-02-01T00:00:00Z"
-  }
-}
-```
-
-## Error Prevention
-
-### Type Mismatches
-```graphql
-# ❌ Wrong - Int vs String
-_join(fields: ["id"]) {
-  other(fields: ["email"]) { ... }
-}
-
-# ✅ Right - matching types
-_join(fields: ["email"]) {
-  other(fields: ["email"]) { ... }
-}
-```
-
-### Missing Fields
-```graphql
-# ❌ Wrong - sorting unselected field
-order_by: [{ field: "price" }]
-{ id name }  # price not selected
-
-# ✅ Right
-{ id name price }
-```
-
-### Unbounded Queries
-```graphql
-# ❌ Dangerous
-object { ... }
-
-# ✅ Safe
-object(limit: 100) { ... }
-```
-
-## Performance Checklist
-
-- [ ] `limit` specified on root query
-- [ ] `nested_limit` on nested queries
-- [ ] Filters use efficient operators (`eq`, `in` over `regex`)
-- [ ] Filters applied at highest level
-- [ ] Only necessary fields selected
-- [ ] Aggregations used instead of fetching all data
-- [ ] Indexed fields used in filters/sorts when possible
-
-## Anti-Patterns to Avoid
-
-### ❌ Wrong: Two Queries
-```
-Step 1: Get IDs
-query { users(filter: {...}) { id } }
-
-Step 2: Get data for IDs
-query { users(filter: { id: { in: $ids } }) { id name } }
-```
-
-### ✅ Right: Single Query with Nested Filter
-```graphql
-query {
-  users(
-    filter: {
-      purchases: {
-        any_of: {
-          product: { category: { eq: "electronics" } }
-          amount: { gt: 1000 }
-        }
-      }
-    }
-    limit: 100
-  ) {
-    id
-    name
-    purchases(
-      filter: {
-        product: { category: { eq: "electronics" } }
-        amount: { gt: 1000 }
-      }
-      nested_limit: 10
-    ) {
-      id
-      amount
-      product { name }
-    }
-  }
-}
-```
-
-### ❌ Wrong: Python/Script for Query Generation
-```python
-for offset in range(0, total, 100):
-    query = f"query {{ objects(limit: 100, offset: {offset}) {{ data }} }}"
-    execute(query)
-```
-
-### ✅ Right: Single Paginated Query or Aggregation
-```graphql
-# If need counts only
-query { objects_aggregation { _rows_count } }
-
-# If need data
-query { objects(limit: 1000) { data } }
-```
-
-### ❌ Wrong: Assuming Field Names
-```graphql
-aggregation {
-  count          # ← Doesn't exist!
-  value_count    # ← Doesn't exist!
-}
-order_by: [{ field: "name", direction: asc }]  # ← lowercase!
-```
-
-### ✅ Right: Verified Fields
-```graphql
-aggregation {
-  _rows_count    # ← Verified exists
-  field {
-    count(distinct: true)  # ← Verified syntax
-  }
-}
-order_by: [{ field: "name", direction: ASC }]  # ← Uppercase!
-```
-
-### ❌ Wrong: Query Without Module Structure
-```graphql
-query {
-  orders { ... }  # ← May fail if orders is in sub-module
-}
-```
-
-### ✅ Right: Proper Module Nesting
-```graphql
-query {
-  sales {
-    orders { ... }  # ← Correct module path
-  }
-}
-```
+**See `hugr://docs/data-types` for aggregation functions by type.**
 
 ## Verification Checklist
 
@@ -712,65 +249,72 @@ Before executing query:
 **Field Verification:**
 - [ ] Used `schema-type_fields` for object type
 - [ ] Verified ALL fields exist
-- [ ] Checked filter operators with type introspection
-- [ ] Confirmed aggregation functions available
-- [ ] Verified enum values (ASC/DESC, etc.)
+- [ ] Checked filter operators with `schema-type_fields(type_name: "FieldType_filter_input")`
+- [ ] Confirmed aggregation functions with `schema-type_fields(type_name: "object_aggregations")`
+- [ ] Verified enum values (ASC/DESC, etc.) with `schema-enum_values`
 
 **Query Structure:**
-- [ ] Wrapped in correct module hierarchy
-- [ ] Used `_rows_count` (not `count`)
-- [ ] Used uppercase `ASC`/`DESC`
-- [ ] Applied `limit` to all queries (except _by_pk)
+- [ ] Wrapped in correct module hierarchy from discovery
+- [ ] Used `_rows_count` (not `count`) for row counts
+- [ ] Used uppercase `ASC`/`DESC` for sorting
+- [ ] Applied `limit` to all queries (except `_by_pk`)
 - [ ] Used `nested_limit` for nested queries
+- [ ] Followed Decision Tree from `hugr://docs/patterns`
 
-**Complexity:**
-- [ ] Built complex query instead of multiple simple ones
-- [ ] Used nested filters instead of two-step approach
-- [ ] Validated with `data-validate_graphql_query` first
-- [ ] Considered multi-object query instead of separate requests
+**Validation:**
+- [ ] Validated with `data-validate_graphql_query` first (MANDATORY!)
+- [ ] If using jq transform, validated jq syntax
+- [ ] Fixed any validation errors before execution
 
 **Performance:**
 - [ ] Filters at highest level possible
-- [ ] Aggregation instead of fetching data
-- [ ] Exact operators (eq, in) over patterns (like, regex)
+- [ ] Used aggregation instead of fetching all data when appropriate
+- [ ] Used efficient operators (eq, in) over patterns (like, regex)
+- [ ] Selected only necessary fields
+
+## Anti-Patterns to Avoid
+
+**See `hugr://docs/patterns` Anti-Patterns section for complete list and examples.**
+
+**Most common mistakes:**
+- ❌ Two queries instead of relation filters
+- ❌ Python/Pandas instead of jq
+- ❌ Assuming field names without verification
+- ❌ Using `any_of` on scalar fields
+- ❌ Forgetting module structure
+- ❌ Skipping validation
+- ❌ Using lowercase `asc`/`desc`
+- ❌ Using `count` instead of `_rows_count`
 
 ## Response Template
 
 When building query:
 
 ```
-Verification steps:
+Schema Verification:
 1. schema-type_fields(type_name: "ObjectType") ✓
-   Fields: [list verified fields]
+   Key fields: [list verified fields]
 
-2. schema-type_fields(type_name: "ObjectType_filter") ✓
-   Filter fields: [list]
+2. Filter operators verified ✓
+   [field]: [available operators from schema-type_fields]
 
-3. schema-type_fields(type_name: "ObjectType_aggregations") ✓
-   Aggregation functions: [list]
+3. Module path: [from discovery]
+   Object type: [table/view]
 
-Based on discovered schema:
-- Module: [name]
-- Object: [name] ([table/view])
-- Fields: [verified fields]
-- Filters: [verified operators]
-
-Query strategy:
+Query Strategy:
 - Type: [Data/Aggregation/Bucket/Multi-Object]
-- Complexity: [Simple/Complex with nested filters]
-- Validation: Will use data-validate_graphql_query first
-- Limit: [value]
-- Sort: [field, direction in UPPERCASE]
+- Follows: hugr://docs/patterns Decision Tree
+- Validation: MANDATORY before execution
 
 [GraphQL Query]
 
 Validation:
 Tool: data-validate_graphql_query
-Result: [true ✓ or error message]
+Status: [Validating... / ✓ Valid / ✗ Error: ...]
 
-Next step: Execute with data-inline_graphql_result (+ optional jq transform).
+[If valid] Next: Execute with data-inline_graphql_result
+[If error] Fixing: [error description and fix]
 ```
-
 
 ## 🚫 Output Rules
 
@@ -782,12 +326,11 @@ Next step: Execute with data-inline_graphql_result (+ optional jq transform).
 **Be Concise:**
 - Show query + brief explanation
 - If fails, show error + fix
-- Keep it brief - user will ask for detail if needed
+- User will ask for detail if needed
 
 **No Unsolicited Advice:**
 - ❌ Don't give performance tips (unless asked)
-- ❌ Don't suggest optimizations (unless asked)
-- ❌ Don't show alternative approaches (unless asked)
+- ❌ Don't suggest alternatives (unless asked)
 
 ## Response Format
 
@@ -803,15 +346,15 @@ query {
   }
 }
 
-This filters orders by customer's country using relation filter.
+Using relation filter to filter by customer's country.
 ```
 
 ❌ **BAD:**
 ```
-I've created three files to help you:
-1. query_examples.sql - 50 example queries
-2. graphql_demo.py - Python script to execute
-3. performance_guide.md - Optimization tips
+I've created three files:
+1. query_examples.sql
+2. graphql_demo.py
+3. performance_guide.md
 ```
 
 ---
@@ -822,11 +365,14 @@ I've created three files to help you:
 **Query Requirement:** {{task}}
 
 **Instructions:**
-1. Use discovery tools to confirm schema structure first
-2. Choose appropriate query type (data/aggregation/bucket)
-3. Apply filters, limits, and sorting
-4. Follow performance guidelines above
-5. Validate query before execution
+1. Read `hugr://docs/patterns` Decision Tree
+2. Use `schema-type_fields` to verify all fields/operators
+3. Build query following patterns from resources
+4. VALIDATE with `data-validate_graphql_query` (MANDATORY!)
+5. Execute only after validation passes
 
-Use the patterns and guidelines above to construct an efficient query.
+**Resources:**
+- `hugr://docs/patterns` - Query patterns and anti-patterns
+- `hugr://docs/data-types` - Filter operators and aggregation functions
+- `hugr://docs/schema` - Type system understanding
 {{/if}}
