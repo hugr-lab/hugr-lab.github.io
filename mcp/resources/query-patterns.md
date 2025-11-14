@@ -34,10 +34,14 @@
    field { value_count }             # ❌ Wrong (doesn't exist)
    ```
 
-5. **Relation Filters** - Use `any_of`, `all_of`, `none_of` (NOT `_any`):
+5. **Relation Filters** - Syntax depends on relation type:
    ```graphql
-   filter: { items: { any_of: { status: { eq: "active" } } } }  # ✅ Correct
-   filter: { items: { _any: { status: { eq: "active" } } } }    # ❌ Wrong
+   # Many-to-one: Direct field access
+   filter: { customer: { country: { eq: "USA" } } }  # ✅ Correct
+
+   # One-to-many: Use any_of, all_of, none_of
+   filter: { orders: { any_of: { status: { eq: "active" } } } }  # ✅ Correct
+   filter: { orders: { _any: { status: { eq: "active" } } } }    # ❌ Wrong - no _any
    ```
 
 6. **Large Queries Are OK** - Use `max_result_size` parameter, NOT Python loops:
@@ -182,6 +186,9 @@ orders_bucket_aggregation(
     }
   }
 }
+
+# ⚠️ IMPORTANT: Available aggregation functions vary by field!
+# Always verify with: schema-type_fields(type_name: "orders_aggregations")
 ```
 
 **Grouping by Related Object Fields:**
