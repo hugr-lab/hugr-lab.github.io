@@ -49,12 +49,15 @@ query {
 
 **⚠️ Some scalar types auto-generate additional fields:**
 - **Timestamp/Date:** time part extraction (`_<field>_part`), bucketing (`bucket: month`)
-- **Geometry:** spatial transformations, measurements (PostGIS)
-- **Array:** element access, manipulation functions
+- **Geometry:** transformations, measurements (`_<field>_measurement`)
+- **Vector:** distance calculation (`_<field>_distance`)
+- **JSON:** struct argument for field extraction
+
+**List/Array types** (`[String]`, `[Int]`, etc.) - support filtering only (`eq`, `contains`, `intersects`), NOT aggregation.
 
 **These vary by database type, extensions, and configuration.**
 
-**→ ALWAYS use `schema-type_fields` to discover actual available fields!**
+**→ ALWAYS use `schema-type_fields` to discover actual available fields and arguments!**
 
 #### 2. JSON Fields
 Store and query structured data. Support path expressions for filtering and aggregation.
