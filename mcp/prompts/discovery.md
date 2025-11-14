@@ -80,17 +80,21 @@ schema-type_fields(type_name: "sales", relevance_query: "orders")
 ```
 
 **Look for arguments:**
-- `filter` - what type? (e.g., `orders_list_filter`)
+- `filter` - what type? (e.g., `orders_filter` for top-level, `orders_list_filter` for relations)
 - `order_by` - what type?
 - `limit`, `offset` - pagination
 - `distinct_on` - unique values
 - Other custom arguments
 
+**⚠️ Filter type naming:**
+- Top-level query: `orders_filter`
+- Relation filter (o2m): `orders_list_filter` (used in `customers_filter { orders: orders_list_filter }`)
+
 **Result needed:**
 ```
 Query field: orders
 Arguments:
-  - filter: orders_list_filter
+  - filter: orders_filter (top-level)
   - order_by: [OrderByField]
   - limit: Int
   - offset: Int
@@ -140,9 +144,9 @@ Fields:
 
 ### Step 4: Introspect Filter Arguments (Nested Structure)
 
-**4.1 Check filter type:**
+**4.1 Check filter type (top-level):**
 ```
-schema-type_fields(type_name: "orders_list_filter", top_k: 20)
+schema-type_fields(type_name: "orders_filter", top_k: 20)
 ```
 
 **4.2 For each filter field - check nested structure:**
@@ -155,15 +159,24 @@ status: String_filter_input
 ```
 
 **Relation fields (filter through relations):**
+
+For **many-to-one** (customer):
 ```
-customer: customers_list_filter
-→ schema-type_fields(type_name: "customers_list_filter", relevance_query: "name country", top_k: 10)
+customer: customers_filter
+→ schema-type_fields(type_name: "customers_filter", relevance_query: "name country", top_k: 10)
 → Result: name, email, country, ...
+```
+
+For **one-to-many** (items):
+```
+items: orders_items_list_filter
+→ Uses list filter type (any_of, all_of, none_of)
+→ schema-type_fields(type_name: "orders_items_list_filter")
 ```
 
 **Result needed (nested via dot notation):**
 ```
-filter: orders_list_filter
+filter: orders_filter (top-level)
   Scalar filters:
     - status: String_filter_input
       → eq, in, like, ilike, regex, is_null
@@ -173,15 +186,18 @@ filter: orders_list_filter
       → eq, gt, gte, lt, lte, is_null
 
   Relation filters:
-    - customer: customers_list_filter
+    - customer: customers_filter (m2o - direct access)
       → name: String_filter_input (eq, like, ...)
       → country: String_filter_input
       → email: String_filter_input
 
+    - items: order_items_list_filter (o2m - list operators)
+      → any_of, all_of, none_of
+
   Boolean logic:
-    - _and: [orders_list_filter]
-    - _or: [orders_list_filter]
-    - _not: orders_list_filter
+    - _and: [orders_filter]
+    - _or: [orders_filter]
+    - _not: orders_filter
 ```
 
 ---
@@ -280,7 +296,7 @@ Query field: orders
 Type: table
 
 Arguments:
-  - filter: orders_list_filter
+  - filter: orders_filter
   - order_by: [OrderByField]
   - limit: Int
   - offset: Int
@@ -308,17 +324,21 @@ Ready for query building.
 Module: sales
 Query: orders(filter: ..., limit: ...)
 
-filter: orders_list_filter
+filter: orders_filter
   status: String_filter_input
     → eq, in, like, ilike, regex, is_null
 
   total: Float_filter_input
     → eq, in, gt, gte, lt, lte, is_null
 
-  customer: customers_list_filter (nested)
+  customer: customers_filter (m2o - nested)
     → name: String_filter_input
     → country: String_filter_input
     → vip: Boolean_filter_input
+
+  items: order_items_list_filter (o2m - list operators)
+    → any_of, all_of, none_of
+    → Nested: quantity, price, product
 
   _and/_or/_not: boolean logic available
 
@@ -353,8 +373,39 @@ Fields:
 
 Filters available:
   - Direct: status, total, created_at
-  - Through customer: customer.name, customer.country
-  - Through items: items.any_of { ... }
+  - Through customer (m2o): customer.name, customer.country
+  - Through items (o2m): items.any_of { ... }
+
+Ready for query building.
+```
+
+**Example: customers query with orders list filter (o2m):**
+
+```
+✓ Schema structure for customers with orders filter
+
+Module: sales
+Query field: customers
+Type: table
+
+Arguments:
+  - filter: customers_filter
+
+filter: customers_filter
+  name: String_filter_input
+    → eq, in, like, ilike
+
+  country: String_filter_input
+    → eq, in
+
+  orders: orders_list_filter (o2m - filter by related orders)
+    → any_of, all_of, none_of
+    → Nested: status, total, created_at
+    → Example: orders.any_of { status.eq("completed"), total.gte(1000) }
+
+Fields:
+  - id, name, email, country
+  - orders: [orders] (o2m relation)
 
 Ready for query building.
 ```
