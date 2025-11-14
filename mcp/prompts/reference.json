@@ -1,4 +1,15 @@
 {
+  "start.md": {
+    "name": "start",
+    "description": "Main entry point - automatically routes user requests to specialized prompts (analysis, discovery, query-building). Use this when you're unsure which prompt to invoke, or want automatic task classification.",
+    "arguments": [
+      {
+        "name": "task",
+        "description": "User's request in natural language (e.g., 'show me top products', 'what tables are available', 'build a query for customers'). Router will classify and route to appropriate prompt.",
+        "required": false
+      }
+    ]
+  },
   "discovery.md": {
     "name": "discovery",
     "description": "Schema discovery and introspection workflow. Find modules, data objects, fields, and understand schema structure through MCP tools. NEVER assume schema - always discover first.",

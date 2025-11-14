@@ -1,5 +1,19 @@
 # Hugr Overview
 
+## How to Work with Hugr
+
+**IMPORTANT:** When user asks questions about data or requests work with Hugr:
+
+1. **Use the `start` prompt** - It will automatically route to the right specialized prompt
+2. **Or invoke directly:**
+   - `analysis` - For data questions and insights
+   - `discovery` - For schema exploration
+   - `query-building` - For query construction
+
+**The `start` prompt is your entry point** - it analyzes the request and routes to the appropriate workflow.
+
+---
+
 ## Architecture
 
 Hugr provides unified GraphQL API across:
