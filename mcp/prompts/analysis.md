@@ -1,31 +1,47 @@
 # Data Analysis
 
-## ⚠️ CRITICAL: No Python for Analysis
+## 🚫 ABSOLUTE RULE: NO PYTHON/PANDAS/DUCKDB!
 
-**Use GraphQL + jq, NOT Python scripts!**
+**NEVER suggest or use:**
+- ❌ Python scripts for data fetching
+- ❌ Pandas for aggregations
+- ❌ DuckDB for analysis
+- ❌ Multiple query loops
+- ❌ Client-side data processing
 
-### ❌ Wrong: Python for Analysis
+**ALWAYS use:**
+- ✅ GraphQL aggregations (`_bucket_aggregation`, `_aggregation`)
+- ✅ Server-side jq transforms
+- ✅ Single complex queries with nested filters
+- ✅ `max_result_size` for large results
+
+### ❌ WRONG: Python/Pandas/DuckDB
 ```python
-# Fetching data
+# DON'T DO THIS!
 results = []
 for i in range(10):
     query = f"query {{ objects(limit: 100, offset: {i*100}) {{ data }} }}"
     results.append(execute(query))
 
-# Analyzing
 import pandas as pd
 df = pd.DataFrame(results)
 df.groupby('category').agg({'value': 'sum'})
+
+# OR THIS:
+import duckdb
+duckdb.query("SELECT category, SUM(value) FROM data GROUP BY category")
 ```
 
-### ✅ Right: GraphQL Aggregation + jq
+### ✅ CORRECT: GraphQL Aggregation + jq
 ```graphql
 query {
-  objects_bucket_aggregation {
-    key { category }
-    aggregations {
-      _rows_count
-      value { sum }
+  module {  # ← Use module from discovery!
+    objects_bucket_aggregation {
+      key { category }
+      aggregations {
+        _rows_count
+        value { sum avg min max }
+      }
     }
   }
 }
@@ -33,14 +49,15 @@ query {
 
 With jq transform:
 ```jq
-.data.objects_bucket_aggregation | map({
+.data.module.objects_bucket_aggregation | map({
   category: .key.category,
   count: .aggregations._rows_count,
-  total: .aggregations.value.sum
+  total: .aggregations.value.sum,
+  average: .aggregations.value.avg
 })
 ```
 
-**Validate jq with data-validate_graphql_query before executing!**
+**Validate with data-validate_graphql_query before executing!**
 
 ## ⚠️ CRITICAL: Check Search Results for Completeness
 

@@ -186,10 +186,11 @@ For bucket aggregations:
 
 **Steps:**
 1. `discovery-search_modules` with query "main data"
-   → Returns: ["main", "analytics"]
+   → Returns: [{name: "main"}, {name: "analytics"}]
 
-2. `discovery-search_module_data_objects` on "main"
-   → Returns: [{name: "records", type: "table"}]
+2. `discovery-search_module_data_objects` on module "main"
+   → Returns: [{name: "records", module: "main", type: "table"}]
+   → ⚠️ NOTE the `module` field!
 
 3. `schema-type_fields` on "records"
    → Fields: id, status, created_at, ...
@@ -197,10 +198,19 @@ For bucket aggregations:
 4. `schema-type_fields` on "records_filter"
    → Has: status field
 
-5. `schema-type_fields` on "String_filter_input" (or whatever status type filter is)
-   → Operators: eq, in, like, ...
+5. `schema-type_fields` on "String_filter_input"
+   → Operators: eq, in, like, ...  (NOT any_of!)
 
-6. Build query with discovered schema
+6. Build query using `module` from step 2:
+   ```graphql
+   query {
+     main {           ← From module field
+       records(       ← From name field
+         filter: { status: { eq: "active" } }  ← Using operator from step 5
+       ) { id status created_at }
+     }
+   }
+   ```
 
 ### Example 2: Aggregation Analysis
 

@@ -27,33 +27,62 @@ Result format: { "total": 50, "returned": 20, "items": [...] }
 
 ## Construction Workflow
 
-### Step 1: Verify ALL Fields with schema-type_fields
+### Step 1: Get Module Path from Discovery
 
-**NEVER assume fields exist!**
+**Discovery returns `module` field - ALWAYS USE IT!**
 
 ```
-For EACH field you want to use:
-1. schema-type_fields(type_name: "ObjectType")
-   → Verify field exists and get its type
+Example: discovery-search_module_data_objects returns:
+{
+  name: "orders",
+  module: "sales.analytics",  ← Use this full path!
+  type: "table"
+}
 
-2. If using filters:
-   schema-type_fields(type_name: "ObjectType_filter")
-   → Verify filter field exists
+Build query with full module nesting:
+query {
+  sales {           ← From module path
+    analytics {     ← From module path
+      orders { ... }
+    }
+  }
+}
+```
 
-3. For filter operators:
-   schema-type_fields(type_name: "FieldType_filter_input")
-   → Get available operators (eq, in, gt, etc.)
+### Step 2: Verify ALL Fields and Operators
 
-4. If using aggregations:
-   schema-type_fields(type_name: "ObjectType_aggregations")
-   → Get available functions (sum, avg, count, etc.)
+**CRITICAL: Check EVERY field and operator before using!**
 
-5. For sorting enum values:
+```
+1. Verify object fields:
+   schema-type_fields(type_name: "orders")
+   → Check field exists and get its exact type
+
+2. For SCALAR field filters - CHECK OPERATORS:
+   schema-type_fields(type_name: "String_filter_input")
+   → Returns: {items: [{name: "eq"}, {name: "in"}, {name: "like"}, ...]}
+   → Use ONLY what exists: eq, in, like, ilike, regex
+   → ❌ NEVER use any_of for scalar fields!
+
+   schema-type_fields(type_name: "Int_filter_input")
+   → Returns operators: eq, in, gt, gte, lt, lte
+
+3. For RELATION field filters:
+   schema-type_fields(type_name: "orders_filter")
+   → Check if relation field exists and its type
+   → Many-to-one: direct access
+   → One-to-many: any_of/all_of/none_of
+
+4. For aggregations:
+   schema-type_fields(type_name: "orders_aggregations")
+   → Get exact available functions per field
+
+5. For enums:
    schema-enum_values(type_name: "OrderDirection")
-   → Confirm ASC/DESC values
+   → Confirm values (ASC/DESC uppercase!)
 ```
 
-### Step 2: Build Complex Query First
+### Step 3: Build Complex Query First
 
 **Think GraphQL, not SQL!**
 
@@ -91,7 +120,7 @@ query {
 }
 ```
 
-### Step 3: Validate Query
+### Step 4: Validate Query
 
 **ALWAYS validate before execution!**
 

@@ -2,64 +2,75 @@
 
 ## ⚠️ CRITICAL Rules
 
-**Before building any query:**
+**RULE #0: ❌ NEVER USE PYTHON/PANDAS/DUCKDB FOR ANALYSIS!**
+**Use ONLY GraphQL aggregations + jq transforms!**
 
-1. **Module Structure** - ALL queries must be wrapped in module structure:
+1. **Use Module from Discovery** - Discovery returns `module` field, USE IT:
    ```graphql
-   query {
-     module_name {
-       data_object { ... }
-     }
-   }
-   ```
-   Root module objects can be at query root. Sub-module objects MUST be nested.
+   # discovery-search_module_data_objects returns:
+   # {name: "orders", module: "sales.analytics", ...}
 
-2. **Row Count** - Use `_rows_count` (NOT `count`):
-   ```graphql
-   aggregation { _rows_count }  # ✅ Correct
-   aggregation { count }         # ❌ Wrong
+   query { sales { analytics { orders { id } } } }  # ✅ Use full module path from discovery
+   query { orders { id } }                          # ❌ Wrong - missing module!
    ```
 
-3. **Sort Direction** - Use UPPERCASE enums:
+2. **ALWAYS Verify Filter Operators** - Check `schema-type_fields` on filter input types:
    ```graphql
-   order_by: [{ field: "name", direction: ASC }]  # ✅ Correct
-   order_by: [{ field: "name", direction: asc }]  # ❌ Wrong
-   # Valid values: ASC, DESC (uppercase!)
+   # For SCALAR fields - check available operators first:
+   schema-type_fields(type_name: "String_filter_input")
+   # Returns: {items: [{name: "eq"}, {name: "in"}, {name: "like"}, ...]}
+
+   # Then use ONLY operators that exist:
+   filter: { name: { in: ["A", "B"] } }     # ✅ Correct - "in" exists for String
+   filter: { name: { any_of: [...] } }      # ❌ WRONG - any_of is NOT for scalars!
    ```
 
-4. **Distinct Count** - Use `count(distinct: true)`:
+3. **Scalar vs Relation Filters** - COMPLETELY DIFFERENT syntax:
+   ```graphql
+   # SCALAR FIELDS (String, Int, Boolean, etc.) - use field operators:
+   filter: { status: { eq: "active" } }               # ✅ String with eq operator
+   filter: { status: { in: ["active", "pending"] } }  # ✅ String with in operator
+   filter: { price: { gt: 100, lt: 500 } }            # ✅ Numeric with gt/lt operators
+   filter: { name: { like: "%test%" } }               # ✅ String with like operator
+
+   # ❌ NEVER use any_of/all_of/none_of for scalar fields!
+   filter: { status: { any_of: ["active"] } }         # ❌ WRONG!
+
+   # RELATION FIELDS - different syntax based on cardinality:
+   # Many-to-one: Direct access to related object fields
+   filter: { customer: { country: { eq: "USA" } } }   # ✅ Direct field access
+
+   # One-to-many/Many-to-many: Use any_of, all_of, none_of
+   filter: { items: { any_of: { product_id: { eq: 123 } } } }  # ✅ Use any_of for relation
+   ```
+
+4. **Row Count** - Use `_rows_count` (NOT `count`):
+   ```graphql
+   aggregations { _rows_count }  # ✅ Correct
+   aggregations { count }        # ❌ Wrong (doesn't exist)
+   ```
+
+5. **Sort Direction** - Use UPPERCASE `ASC`/`DESC`:
+   ```graphql
+   order_by: [{ field: "name", direction: ASC }]   # ✅ Correct
+   order_by: [{ field: "name", direction: asc }]   # ❌ Wrong (lowercase)
+   ```
+
+6. **Distinct Count** - Use `count(distinct: true)`:
    ```graphql
    field { count(distinct: true) }  # ✅ Correct
    field { distinct_count }          # ❌ Wrong (doesn't exist)
-   field { value_count }             # ❌ Wrong (doesn't exist)
    ```
 
-5. **Relation Filters** - Syntax depends on relation type:
+7. **Large Queries OK** - Use `max_result_size`, NOT Python:
    ```graphql
-   # Many-to-one: Direct field access
-   filter: { customer: { country: { eq: "USA" } } }  # ✅ Correct
+   # ✅ Single large GraphQL query
+   data-inline_graphql_result(query: "...", max_result_size: 50000)
 
-   # One-to-many: Use any_of, all_of, none_of
-   filter: { orders: { any_of: { status: { eq: "active" } } } }  # ✅ Correct
-   filter: { orders: { _any: { status: { eq: "active" } } } }    # ❌ Wrong - no _any
+   # ❌ Python/Pandas/DuckDB loops
    ```
 
-6. **Large Queries Are OK** - Use `max_result_size` parameter, NOT Python loops:
-   ```graphql
-   # ✅ Correct: Single large query with increased max_result_size
-   Tool: data-inline_graphql_result
-   Input: {
-     query: "...",
-     max_result_size: 50000  # bytes, default 1000, max 5000000
-   }
-
-   # ❌ Wrong: Multiple queries + Python to combine
-   Python loops fetching data in chunks
-   ```
-
-7. **Verify Fields** - ALWAYS check field existence with `schema-type_fields` before using
-
-8. **Complex Queries First** - Build full query, validate, then execute
+8. **Complex Queries First** - Build full nested query, validate with data-validate_graphql_query, then execute
 
 ## Module Structure
 
