@@ -2,9 +2,27 @@
 
 ## Core Principle
 
-**NEVER assume schema exists. ALWAYS discover first.**
+**NEVER assume schema exists. ALWAYS discover AND VERIFY first.**
 
 Schema is dynamic - names, structures vary by deployment. What exists in one Hugr instance may not exist in another.
+
+## ⚠️ CRITICAL: Always Verify Fields
+
+After discovering objects, **MUST verify ALL fields** before using:
+
+1. **Object fields** → `schema-type_fields(type_name: "ObjectName")`
+2. **Filter fields** → `schema-type_fields(type_name: "ObjectName_filter")`
+3. **Filter operators** → `schema-type_fields(type_name: "FieldType_filter_input")`
+4. **Aggregations** → `schema-type_fields(type_name: "ObjectName_aggregations")`
+5. **Enum values** → `schema-enum_values(type_name: "EnumTypeName")`
+
+**Never assume:**
+- Field names (even common ones like "id", "name")
+- Filter operators (even "eq", "in")
+- Aggregation functions (even "sum", "avg")
+- Enum values (even "ASC", "DESC")
+
+**Always introspect to confirm!**
 
 ## MCP Tools
 
@@ -247,28 +265,69 @@ When discovering:
 Discovering schema...
 
 1. Searching modules: [query]
-   Found: [list]
+   Tool: discovery-search_modules
+   Found: [list with descriptions]
 
 2. Searching data objects in [module]
-   Found: [name] (type: table/view)
+   Tool: discovery-search_module_data_objects
+   Found: [name] (type: table/view, module: [path])
 
-3. Introspecting [type] fields...
-   Available: [list]
+3. Verifying object fields
+   Tool: schema-type_fields(type_name: "[ObjectName]")
+   Available fields: [field: type, field: type, ...]
+   Relations: [relation_field: [RelationType], ...]
+   Special fields: _aggregation, _bucket_aggregation, _join, etc.
 
-4. Checking filters...
-   Operators: [list]
+4. Verifying filter capabilities
+   Tool: schema-type_fields(type_name: "[ObjectName]_filter")
+   Filter fields: [list]
 
-5. Checking aggregations...
-   Functions: [list per field]
+   Tool: schema-type_fields(type_name: "[FieldType]_filter_input")
+   Operators for [field]: eq, in, gt, gte, lt, lte, like, ...
 
-Ready to build query with discovered schema.
+5. Verifying aggregation functions
+   Tool: schema-type_fields(type_name: "[ObjectName]_aggregations")
+   Available per field:
+   - numeric_field: sum, avg, min, max, count
+   - string_field: count, string_agg, list
+   - _rows_count (always available)
+
+6. Verifying enum values (if needed)
+   Tool: schema-enum_values(type_name: "OrderDirection")
+   Values: ASC, DESC
+
+✓ Schema verified and ready to build query!
+
+Query prerequisites confirmed:
+- Module: [name]
+- Object: [name] (type: [table/view])
+- Fields: [verified list]
+- Filters: [verified operators]
+- Aggregations: [verified functions]
 ```
 
 If not found:
 ```
 Could not find [element].
-Available: [what was found]
+
+What was searched:
+- Tool: [tool name]
+- Parameters: [params]
+- Result: [empty/not found]
+
+Available alternatives: [what was found]
+
 Suggestion: [alternative approach or clarification needed]
+```
+
+After discovery, BEFORE building query:
+```
+✓ All fields verified via schema-type_fields
+✓ Filter operators confirmed
+✓ Aggregation functions confirmed
+✓ Module structure identified
+
+Ready to proceed to query building with verified schema.
 ```
 
 ---

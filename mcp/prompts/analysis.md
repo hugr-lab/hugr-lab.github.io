@@ -1,8 +1,52 @@
 # Data Analysis
 
-## Analysis Principle
+## ⚠️ CRITICAL: No Python for Analysis
 
-**Analyze server-side** - Use database aggregations, not application-side processing.
+**Use GraphQL + jq, NOT Python scripts!**
+
+### ❌ Wrong: Python for Analysis
+```python
+# Fetching data
+results = []
+for i in range(10):
+    query = f"query {{ objects(limit: 100, offset: {i*100}) {{ data }} }}"
+    results.append(execute(query))
+
+# Analyzing
+import pandas as pd
+df = pd.DataFrame(results)
+df.groupby('category').agg({'value': 'sum'})
+```
+
+### ✅ Right: GraphQL Aggregation + jq
+```graphql
+query {
+  objects_bucket_aggregation {
+    key { category }
+    aggregations {
+      _rows_count
+      value { sum }
+    }
+  }
+}
+```
+
+With jq transform:
+```
+.data.objects_bucket_aggregation | map({
+  category: .key.category,
+  count: .aggregations._rows_count,
+  total: .aggregations.value.sum
+})
+```
+
+## Analysis Principles
+
+1. **Server-side Aggregation** - Use database, not client-side processing
+2. **GraphQL Multi-Object Queries** - Get data from multiple objects in ONE request
+3. **jq Transforms** - Process results on server with jq, not Python
+4. **Avoid Data Fetching** - Use aggregations, don't fetch raw data for counting
+5. **Iterative Discovery** - Use discovery-data_object_field_values for exploration
 
 ## Iterative Analysis Process
 
@@ -36,9 +80,79 @@ Data analysis is an **iterative cycle**, not a single query:
 - Add dimensions or change grouping
 - Repeat cycle
 
+### Multi-Object Queries (GraphQL Power!)
+
+**Get data from multiple objects in ONE request:**
+
+```graphql
+query {
+  module {
+    # Count records
+    customers_aggregation {
+      _rows_count
+    }
+
+    # Get recent activity
+    orders(
+      filter: { status: { eq: "pending" } }
+      order_by: [{ field: "created_at", direction: DESC }]
+      limit: 10
+    ) {
+      id
+      total
+      customer { name }
+    }
+
+    # Revenue by month
+    revenue_bucket_aggregation {
+      key {
+        month: created_at(bucket: month)
+      }
+      aggregations {
+        total { sum }
+        _rows_count
+      }
+    }
+
+    # Product stats
+    products_aggregation(
+      filter: { in_stock: { eq: true } }
+    ) {
+      _rows_count
+      price { avg min max }
+    }
+  }
+}
+```
+
+Then use **single jq transform** to analyze ALL results:
+
+```jq
+{
+  summary: {
+    total_customers: .data.module.customers_aggregation._rows_count,
+    pending_orders: (.data.module.orders | length),
+    products_in_stock: .data.module.products_aggregation._rows_count,
+    avg_product_price: .data.module.products_aggregation.price.avg
+  },
+  recent_orders: (.data.module.orders | map({
+    id,
+    total,
+    customer: .customer.name
+  })),
+  monthly_revenue: (.data.module.revenue_bucket_aggregation | map({
+    month: .key.month,
+    revenue: .aggregations.total.sum,
+    count: .aggregations._rows_count
+  }))
+}
+```
+
+**Result:** Complete analysis in ONE request + ONE jq transform. No Python needed!
+
 ### Chain Multiple Queries
 
-For complex analysis, execute a chain of queries:
+For complex analysis requiring iteration, chain queries:
 
 ```
 Query 1: Get overall statistics
@@ -612,35 +726,65 @@ bucket: month  # For multi-year
 When performing analysis:
 
 ```
-Analysis plan (iteration N):
-- Question: [specific question to answer]
-- Tool: data-inline_graphql_result / discovery-data_object_field_values
-- Type: [Overall/Grouped/Time Series/Field Exploration]
-- Metrics: [count, sum, avg, etc.]
-- Grouping: [dimensions if applicable]
+Analysis strategy:
+- Approach: [Multi-object query / Iterative chain / Field exploration]
+- Why: [Justification for approach]
+
+Query plan:
+- Type: [Multi-object/Aggregation/Bucket/Field Values]
+- Objects: [List objects to query in single request]
+- Metrics: [_rows_count, sum, avg, etc.]
+- Grouping: [dimensions if bucket aggregation]
 - Filters: [conditions]
-- jq transform: [if needed to extract specific data]
+- jq transform: [HOW to extract and reshape data]
 
-[Query or Tool Call]
+[GraphQL Query with multiple objects if applicable]
 
-Expected output: [description]
-Next steps: [what to investigate based on results]
+jq transform:
+[jq script to analyze results - NO Python!]
+
+Expected insights: [what this will reveal]
+Next iteration: [if needed, what to investigate based on results]
+```
+
+**For multi-object analysis:**
+```
+Single query retrieving:
+1. customers_aggregation → total count
+2. orders (filtered + sorted) → recent activity
+3. revenue_bucket_aggregation → trends
+4. products_aggregation → inventory stats
+
+jq transform analyzes ALL results to produce:
+- Summary statistics
+- Trend identification
+- Key insights
+- Recommendations for next iteration (if needed)
+
+✓ No Python needed - pure GraphQL + jq!
 ```
 
 **For iterative analysis:**
 ```
-Iteration 1: Overview
-- Execute: object_aggregation
+Iteration 1: Multi-object overview
+- Tool: data-inline_graphql_result
+- Query: [Multi-object GraphQL]
+- jq: [Transform to summary]
 - Result: [summary]
 - Finding: [key insight]
 
-Iteration 2: Drill down
+Iteration 2: Drill down (if needed)
 - Based on: [previous finding]
-- Execute: object_bucket_aggregation / discovery-data_object_field_values
+- Tool: discovery-data_object_field_values OR bucket_aggregation
+- jq: [Extract specific dimension]
 - Result: [summary]
 - Finding: [key insight]
 
-Iteration 3: ...
+Iteration 3: Detail investigation (if needed)
+- Query: [Focused data query]
+- jq: [Extract samples/outliers]
+- Result: [specific records]
+- Conclusion: [final insight]
 ```
 
 

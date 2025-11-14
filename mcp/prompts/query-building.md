@@ -1,12 +1,113 @@
 # Query Building
 
+## ⚠️ CRITICAL: Read Query Patterns Resource First
+
+**BEFORE building ANY query**, read resource `hugr://docs/patterns` for:
+- Module structure requirements
+- `_rows_count` vs `count`
+- `ASC`/`DESC` (uppercase!)
+- `count(distinct: true)` syntax
+- Common mistakes to avoid
+
+## Construction Workflow
+
+### Step 1: Verify ALL Fields with schema-type_fields
+
+**NEVER assume fields exist!**
+
+```
+For EACH field you want to use:
+1. schema-type_fields(type_name: "ObjectType")
+   → Verify field exists and get its type
+
+2. If using filters:
+   schema-type_fields(type_name: "ObjectType_filter")
+   → Verify filter field exists
+
+3. For filter operators:
+   schema-type_fields(type_name: "FieldType_filter_input")
+   → Get available operators (eq, in, gt, etc.)
+
+4. If using aggregations:
+   schema-type_fields(type_name: "ObjectType_aggregations")
+   → Get available functions (sum, avg, count, etc.)
+
+5. For sorting enum values:
+   schema-enum_values(type_name: "OrderDirection")
+   → Confirm ASC/DESC values
+```
+
+### Step 2: Build Complex Query First
+
+**Think GraphQL, not SQL!**
+
+- ❌ Don't: Query IDs first, then query data for those IDs
+- ✅ Do: Use nested filters to get everything in ONE query
+
+- ❌ Don't: Multiple simple queries
+- ✅ Do: One complex multi-object query
+
+Example:
+```graphql
+query {
+  module {
+    # Get counts
+    customers_aggregation { _rows_count }
+
+    # Get recent orders
+    orders(
+      filter: {
+        customer: {
+          country: { eq: "USA" }
+          status: { eq: "active" }
+        }
+      }
+      order_by: [{ field: "created_at", direction: DESC }]
+      limit: 10
+    ) { id customer { name } }
+
+    # Get revenue by month
+    orders_bucket_aggregation {
+      key { month: created_at(bucket: month) }
+      aggregations { total { sum } }
+    }
+  }
+}
+```
+
+### Step 3: Validate with limit: 0
+
+Before executing with real data:
+
+```graphql
+# Test query structure without fetching data
+data_object(
+  filter: { complex_filter_here }
+  order_by: [{ field: "field", direction: DESC }]
+  limit: 0  # ← No data, just validates structure
+) {
+  id
+  fields
+  relations { ... }
+}
+```
+
+If successful → change `limit: 0` to `limit: 100` and execute.
+
+### Step 4: Execute and Get Results
+
+Use `data-inline_graphql_result` with optional jq transform.
+
 ## Construction Principles
 
-1. **Discover First** - Use discovery tools before building
-2. **Filter Early** - Apply filters at highest level possible
-3. **Always Limit** - Protect against large result sets
-4. **Validate Fields** - Confirm all field names exist
-5. **Prefer Aggregations** - Use aggregations vs fetching all data
+1. **Verify Fields** - ALWAYS use schema-type_fields before using ANY field
+2. **Complex First** - Build complete query, validate with limit: 0
+3. **Nested Filters** - Use deep filtering instead of multiple queries
+4. **Module Structure** - Wrap in correct module hierarchy
+5. **Check CRITICAL Rules** - _rows_count, ASC/DESC, count(distinct: true)
+6. **Filter Early** - Apply filters at highest level possible
+7. **Always Limit** - Protect against large result sets
+8. **Prefer Aggregations** - Use server-side aggregations
 
 ## Query Type Selection
 
@@ -371,23 +472,160 @@ object(limit: 100) { ... }
 - [ ] Aggregations used instead of fetching all data
 - [ ] Indexed fields used in filters/sorts when possible
 
+## Anti-Patterns to Avoid
+
+### ❌ Wrong: Two Queries
+```
+Step 1: Get IDs
+query { users(filter: {...}) { id } }
+
+Step 2: Get data for IDs
+query { users(filter: { id: { in: $ids } }) { id name } }
+```
+
+### ✅ Right: Single Query with Nested Filter
+```graphql
+query {
+  users(
+    filter: {
+      purchases: {
+        any_of: {
+          product: { category: { eq: "electronics" } }
+          amount: { gt: 1000 }
+        }
+      }
+    }
+    limit: 100
+  ) {
+    id
+    name
+    purchases(
+      filter: {
+        product: { category: { eq: "electronics" } }
+        amount: { gt: 1000 }
+      }
+      nested_limit: 10
+    ) {
+      id
+      amount
+      product { name }
+    }
+  }
+}
+```
+
+### ❌ Wrong: Python/Script for Query Generation
+```python
+for offset in range(0, total, 100):
+    query = f"query {{ objects(limit: 100, offset: {offset}) {{ data }} }}"
+    execute(query)
+```
+
+### ✅ Right: Single Paginated Query or Aggregation
+```graphql
+# If need counts only
+query { objects_aggregation { _rows_count } }
+
+# If need data
+query { objects(limit: 1000) { data } }
+```
+
+### ❌ Wrong: Assuming Field Names
+```graphql
+aggregation {
+  count          # ← Doesn't exist!
+  value_count    # ← Doesn't exist!
+}
+order_by: [{ field: "name", direction: asc }]  # ← lowercase!
+```
+
+### ✅ Right: Verified Fields
+```graphql
+aggregation {
+  _rows_count    # ← Verified exists
+  field {
+    count(distinct: true)  # ← Verified syntax
+  }
+}
+order_by: [{ field: "name", direction: ASC }]  # ← Uppercase!
+```
+
+### ❌ Wrong: Query Without Module Structure
+```graphql
+query {
+  orders { ... }  # ← May fail if orders is in sub-module
+}
+```
+
+### ✅ Right: Proper Module Nesting
+```graphql
+query {
+  sales {
+    orders { ... }  # ← Correct module path
+  }
+}
+```
+
+## Verification Checklist
+
+Before executing query:
+
+**Field Verification:**
+- [ ] Used `schema-type_fields` for object type
+- [ ] Verified ALL fields exist
+- [ ] Checked filter operators with type introspection
+- [ ] Confirmed aggregation functions available
+- [ ] Verified enum values (ASC/DESC, etc.)
+
+**Query Structure:**
+- [ ] Wrapped in correct module hierarchy
+- [ ] Used `_rows_count` (not `count`)
+- [ ] Used uppercase `ASC`/`DESC`
+- [ ] Applied `limit` to all queries (except _by_pk)
+- [ ] Used `nested_limit` for nested queries
+
+**Complexity:**
+- [ ] Built complex query instead of multiple simple ones
+- [ ] Used nested filters instead of two-step approach
+- [ ] Validated with `limit: 0` first
+- [ ] Considered multi-object query instead of separate requests
+
+**Performance:**
+- [ ] Filters at highest level possible
+- [ ] Aggregation instead of fetching data
+- [ ] Exact operators (eq, in) over patterns (like, regex)
+
 ## Response Template
 
 When building query:
 
 ```
+Verification steps:
+1. schema-type_fields(type_name: "ObjectType") ✓
+   Fields: [list verified fields]
+
+2. schema-type_fields(type_name: "ObjectType_filter") ✓
+   Filter fields: [list]
+
+3. schema-type_fields(type_name: "ObjectType_aggregations") ✓
+   Aggregation functions: [list]
+
 Based on discovered schema:
 - Module: [name]
 - Object: [name] ([table/view])
-- Fields: [relevant fields]
-- Filters: [filter strategy]
+- Fields: [verified fields]
+- Filters: [verified operators]
 
 Query strategy:
-- Type: [Data/Aggregation/Bucket]
+- Type: [Data/Aggregation/Bucket/Multi-Object]
+- Complexity: [Simple/Complex with nested filters]
+- Validation: [Will test with limit: 0 first]
 - Limit: [value]
-- Sort: [field and direction]
+- Sort: [field, direction in UPPERCASE]
 
 [GraphQL Query]
+
+Next step: Execute with limit: 0 to validate structure.
 ```
 
 
