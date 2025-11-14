@@ -13,818 +13,261 @@
 - ✅ GraphQL aggregations (`_bucket_aggregation`, `_aggregation`)
 - ✅ Server-side jq transforms
 - ✅ Single complex queries with nested filters
-- ✅ `max_result_size` for large results
+- ✅ Relation filters instead of multiple queries
 
-### ❌ WRONG: Python/Pandas/DuckDB
-Do not use Python/Pandas/DuckDB for analysis, if:
+## 📚 Required Reading Before Analysis
 
-- You can use GraphQL aggregations instead
-- You can use jq transforms instead
-- You can perform aggregations/grouping/filtering in GraphQL by references or joined data
-- You can join the data using `_join` in GraphQL
+**Read these resources/prompts first:**
+1. **`hugr://docs/patterns`** - Anti-patterns, jq examples, validation workflow
+2. **`hugr://docs/data-types`** - Aggregation functions, filter operators
+3. **Use `discovery` prompt** - For schema discovery with relevance search
+4. **Use `query-building` prompt** - For constructing validated queries
 
+## Core Analysis Principles
 
-### ✅ CORRECT: GraphQL Aggregation + jq
-```graphql
-query {
-  module {  # ← Use module from discovery!
-    objects_bucket_aggregation {
-      key { category }
-      aggregations {
-        _rows_count
-        value { sum avg min max }
-      }
-    }
-  }
-}
-```
-
-With jq transform:
-```jq
-.data.module.objects_bucket_aggregation | map({
-  category: .key.category,
-  count: .aggregations._rows_count,
-  total: .aggregations.value.sum,
-  average: .aggregations.value.avg
-})
-```
-
-**Validate with data-validate_graphql_query before executing!**
-
-## ⚠️ CRITICAL: Check Search Results for Completeness
-
-When discovering schema for analysis, **ALWAYS verify you have all relevant fields:**
-
-```json
-Result format: { "total": 50, "returned": 20, "items": [...] }
-```
-
-**If `returned` < `total`** → More fields/objects available!
-
-- Use `relevance_query` to search for analysis-relevant fields (e.g., "metrics", "totals", "counts")
-- Use pagination if you need to see all available fields
-- Don't miss important aggregation functions or measurement fields
-
-**Example:**
-```
-# Search for metrics fields in a large type
-schema-type_fields(
-  type_name: "sales_aggregations",
-  relevance_query: "revenue profit margin",
-  top_k: 15
-)
-```
-
-## Analysis Principles
-
-**READ `hugr://docs/patterns` first for:**
-- 🚫 Anti-Patterns (two queries, Python, etc.)
-- ✅ jq Transformations (with functions and examples)
-- ⚠️ Validation workflow (mandatory!)
-
-**Core principles:**
-
-1. **Server-side Aggregation** - Use GraphQL aggregations, NOT Python/Pandas
-2. **Single Complex Queries** - One query with relation filters instead of multiple queries or with a numer of queries in one graphql request
-3. **jq for ALL Processing** - Transformations, calculations, analysis - all in jq
-4. **Validate First** - ALWAYS use data-validate_graphql_query before executing
-5. **Subqueries** - Use subquery GraphQL type fields (for references or joined data) defined in the schema for filtering/selecting or grouping instead of multiple queries
-5. **Use _join** - For ad-hoc joins instead of two queries
+1. **Server-side Aggregation** - GraphQL aggregations, NOT Python/Pandas
+2. **Single Complex Queries** - One query with relation filters vs multiple queries
+3. **jq for ALL Processing** - Transformations, calculations, reshaping
+4. **MANDATORY Validation** - `data-validate_graphql_query` before execution
+5. **Relation Filters** - Use subquery fields for filtering/grouping vs separate queries
+6. **Dynamic Joins** - Use `_join` for ad-hoc joins vs two queries
 
 ## Iterative Analysis Process
 
-Data analysis is an **iterative cycle**, not a single query:
+Analysis is an **iterative cycle**, not a single query:
 
 ```
-0. Overiew
-1. Discovery → 2. Plan Query → 3. Query → 4. Analyze Results → 5. Refine → Repeat with 1.
+0. Overview → 1. Discovery → 2. Plan → 3. Execute → 4. Analyze → 5. Refine → Repeat
 ```
 
-**Overview Phase**
-- Understand user requirements
-- READ `hugr://docs/overview` for tool usage
-- READ `hugr://docs/schema` for context
-- Use `discovery-search_modules` to find relevant modules
-- Use `discovery-search_module_data_objects` to find data objects (use module information to build queries)
-- Use `discovery-search_module_functions` to find relevant fields
-- Build initial understanding of data schema
+### Phase 0: Overview
 
-### Cycle Steps
+**Understand requirements and initial discovery:**
+- What metrics? (count, sum, average)
+- What grouping? (time, category, dimension)
+- What filters? (time range, status)
+- Use `discovery-search_modules` to find modules
+- Use `discovery-search_module_data_objects` to find data objects
+- Use `discovery-search_module_functions` to find functions
 
-**1. Discovery Phase**
-- Use the schema `discovery` prompt to understand available data with the results of the overview phase as a task
-- Create summary of relevant modules/data objects/fields/filters/aggregations
+### Phase 1: Discovery
 
-**2. Plan Query Phase**
-- Use `schema-type_info` to understand types module types/data objects/filters/query fields/function results
-- Use `schema-type_fields` to understand structure of graphql types/inputs, including subquery and function call fields.
-- Use `schema-enum_values` to understand enum options
-- READ `hugr://docs/data-types` for available aggregation functions
-- READ `hugr://docs/patterns` for common query patterns
-- Use `discovery-data_object_field_values` to explore field distributions
-- Create query plan - what to query, filters, grouping, aggregations, joins
-- Build complex GraphQL query using `query-building` prompt with query plan as the task
-- Use `data-validate_graphql_query` to validate planned query + jq transform
+**Use `discovery` prompt for schema understanding:**
+```
+Invoke MCP prompt: discovery
+Task: "Find data objects related to [domain] with fields for [metrics/dimensions]"
+```
 
-**3. Query Execution Phase**
-- ✅ **ALWAYS** validate with `data-validate_graphql_query` first (MANDATORY!)
-- Build jq transform for data processing
-- Execute with `data-inline_graphql_result` + jq_transform
-- ❌ NEVER use Python/Pandas for processing
+**Discovery prompt will:**
+- Search modules and data objects
+- Check pagination (total vs returned)
+- Use relevance search for specific fields
+- Return summary of available schema
 
-**4. Analysis Phase**
-- Examine results
+### Phase 2: Plan Query
+
+**Use `query-building` prompt to construct query:**
+```
+Invoke MCP prompt: query-building
+Task: "Build query for [analysis type] grouped by [dimensions] filtered by [conditions]"
+```
+
+**Before invoking, gather:**
+- Use `schema-type_info` - Understand modules/objects/types
+- Use `schema-type_fields` - Verify fields, filters, aggregations
+- Use `discovery-data_object_field_values` - Explore field distributions
+- Read `hugr://docs/patterns` for query patterns
+
+**Query-building prompt will:**
+- Verify all fields and operators exist
+- Use correct module paths
+- Build validated GraphQL query
+- Create jq transform
+- Validate with `data-validate_graphql_query`
+
+### Phase 3: Execute
+
+**Use query from query-building prompt:**
+```
+Tool: data-inline_graphql_result
+Input: {
+  query: "...",  # From query-building prompt
+  jq_transform: "...",  # From query-building prompt
+  max_result_size: 1000
+}
+```
+
+**⚠️ MANDATORY:** Query must be validated first (query-building prompt does this)
+
+### Phase 4: Analyze Results
+
+- Examine jq-transformed results
 - Identify patterns, outliers, trends
 - Determine next questions
 
-**5. Refinement Phase**
-- Adjust filters based on findings
-- Drill down into specific segments
-- Add dimensions or change grouping
-- Add schema understanding as needed using `discovery-search_modules`, `discovery-search_module_data_objects`, `discovery-search_module_functions`, etc.
-- Repeat cycle
+### Phase 5: Refine & Repeat
 
-### Multi-Object Queries (GraphQL Power!)
+**Based on findings:**
+- Adjust filters
+- Drill down into segments
+- Change grouping dimensions
+- Add new data objects
+- **Invoke `query-building` prompt again** for next iteration
+
+## Multi-Object Queries (GraphQL Power!)
 
 **Get data from multiple objects in ONE request:**
 
 ```graphql
 query {
-  module {
-    # Count records
+  module1 {
+    # Overall stats
     customers_aggregation {
       _rows_count
     }
 
-    # Get recent activity
+    # Recent activity
     orders(
       filter: { status: { eq: "pending" } }
-      order_by: [{ field: "created_at", direction: DESC }]
       limit: 10
     ) {
       id
       total
       customer { name }
     }
-
-    # Product stats
-    products_aggregation(
-      filter: { in_stock: { eq: true } }
-    ) {
-      _rows_count
-      price { avg min max }
-    }
   }
-  module2: {
-    # Revenue by month
-    revenue_bucket_aggregation {
-      key {
-        month: created_at(bucket: month)
-      }
+
+  module2 {
+    # Trends
+    sales_bucket_aggregation {
+      key { month: created_at(bucket: month) }
       aggregations {
-        total { sum }
         _rows_count
+        revenue { sum }
       }
     }
   }
 }
 ```
 
-Then use **single jq transform** to analyze ALL results:
+**Then ONE jq transform for ALL results:**
 
 ```jq
 {
   summary: {
-    total_customers: .data.module.customers_aggregation._rows_count,
-    pending_orders: (.data.module.orders | length),
-    products_in_stock: .data.module.products_aggregation._rows_count,
-    avg_product_price: .data.module.products_aggregation.price.avg
+    total_customers: .data.module1.customers_aggregation._rows_count,
+    pending_orders: (.data.module1.orders | length)
   },
-  recent_orders: (.data.module.orders | map({
-    id,
-    total,
-    customer: .customer.name
-  })),
-  monthly_revenue: (.data.module2.revenue_bucket_aggregation | map({
+  monthly_revenue: (.data.module2.sales_bucket_aggregation | map({
     month: .key.month,
-    revenue: .aggregations.total.sum,
-    count: .aggregations._rows_count
+    revenue: .aggregations.revenue.sum
   }))
 }
 ```
 
-**MANDATORY:** ALWAYS validate with `data-validate_graphql_query` first!
+**Complete analysis in ONE request!** No Python needed.
+
+## Analysis Type Selection
+
+Choose based on requirements (see `hugr://docs/patterns` for detailed examples):
+
+- **Overall Statistics** → `object_aggregation` (single-row)
+- **Grouped Analysis** → `object_bucket_aggregation` (GROUP BY)
+- **Time Series** → `bucket_aggregation` with time bucketing
+- **Top N** → `bucket_aggregation` with `order_by` + `limit`
+- **Multi-Dimensional OLAP** → `bucket_aggregation` with multiple key fields
+- **Comparative** → Multiple aliased aggregations with filters
+- **Spatial** → `_spatial` field with aggregations
+- **Cross-Source** → `_join` field with aggregations
+
+For detailed query patterns, **read `hugr://docs/patterns`**.
+
+## Tool Selection by Analysis Stage
+
+**Discovery:**
+- `discovery-search_modules`
+- `discovery-search_module_data_objects`
+- `discovery-search_module_functions`
+- **OR use `discovery` prompt** (recommended)
+
+**Field Exploration:**
+- `discovery-data_object_field_values` - Explore distributions
+- `schema-type_fields` - Verify structure
+
+**Query Building:**
+- **Use `query-building` prompt** (recommended)
+- OR manually: `schema-type_info`, `schema-type_fields`, `data-validate_graphql_query`
+
+**Query Execution:**
+- `data-inline_graphql_result` with jq transform
+
+**Aggregation Functions:**
+- **Read `hugr://docs/data-types`** for complete reference
+- Common: `count`, `sum`, `avg`, `min`, `max`, `list`, `any`, `last`
+- **ALWAYS verify** with `schema-type_fields` on `<object>_aggregations` type
+
+## Chain Multiple Queries (When Iteration Needed)
+
+**Iterative approach for complex analysis:**
 
 ```
-# Step 1: VALIDATE
-Tool: data-validate_graphql_query
-Input: {
-  query: "...",
-  jq_transform: "{ summary: {...}, recent_orders: [...], monthly_revenue: [...] }"
-}
-Result: true ✓
-
-# Step 2: EXECUTE (only after validation passes!)
-Tool: data-inline_graphql_result
-Input: { query: "...", jq_transform: "..." }
-```
-
-**Result:** Complete analysis in ONE request + ONE jq transform. No Python needed!
-
-### Chain Multiple Queries
-
-For complex analysis requiring iteration, chain queries:
-
-```
-Query 1: Get overall statistics
+Query 1: Get overall statistics (object_aggregation)
   ↓ Identify interesting segment
-Query 2: Drill down into segment
-  ↓ Find key dimension
-Query 3: Group by dimension
+Query 2: Explore field values (discovery-data_object_field_values)
+  ↓ Find key categories
+Query 3: Group by dimension (object_bucket_aggregation)
   ↓ Discover outlier
-Query 4: Investigate outlier details
+Query 4: Investigate details (object with filter)
+  ↓ Extract insights with jq
 ```
 
-**Example Chain:**
-1. `object_aggregation` → Find total count and date range
-2. `discovery-data_object_field_values` → Explore categorical field distribution
-3. `object_bucket_aggregation` → Group by top categories
-4. `object(filter: {category: {eq: "interesting"}})` → Get sample records
-5. `data-inline_graphql_result` with jq → Extract specific insights
+**Each iteration:**
+1. Invoke appropriate prompt (`discovery` or `query-building`)
+2. Execute query with `data-inline_graphql_result`
+3. Analyze results
+4. Form next question
+5. Repeat
 
-### Using Tools in Analysis
-
-**Execute Queries:**
-```
-Tool: data-inline_graphql_result
-Input: {
-  query: "query { object_aggregation { _rows_count } }",
-  jq_transform: ".data.object_aggregation._rows_count",
-  max_result_size: 1000
-}
-```
-
-**Explore Field Values:**
-```
-Tool: discovery-data_object_field_values
-Input: {
-  object_name: "customers",
-  field_name: "status",
-  limit: 20,
-  calculate_stats: true,
-  filter: { created_at: { gte: "2024-01-01" } }
-}
-Returns: {
-  distinct: 5,
-  values: ["active", "pending", "inactive", ...]
-}
-```
-
-**Transform Results:**
-Use jq to extract insights:
-- `.data.object_aggregation._rows_count` - Extract count
-- `.data.object_bucket_aggregation | map({key: .key.category, count: .aggregations._rows_count})` - Reshape
-- `.data.object | map(.field)` - Extract field values
-- `.data | to_entries | map({module: .key, count: .value._rows_count})` - Cross-module summary
-
-### Important Notes
+## Important Notes
 
 **Row-Level Security:**
 - Schema visibility depends on user role
-- Some fields/objects may be hidden
-- Always introspect to see available data
 - Results may be filtered by RLS policies
+- Always introspect to see available data
 
 **Size Limits:**
-- `data-inline_graphql_result` has max_result_size
-- Large results will be truncated
-- Use aggregations to summarize before inlining
+- `data-inline_graphql_result` has `max_result_size` parameter
+- Use aggregations to summarize large datasets
 - Apply jq transforms to reduce result size
 
 **Performance:**
 - Start with aggregations (small results)
-- Use `discovery-data_object_field_values` for field sampling
-- Fetch raw data only when necessary
-- Always apply filters and limits
-
-## Analysis Type Selection
-
-Based on user requirements:
-
-**Overall Statistics** → Single-row aggregation
-```graphql
-object_aggregation(filter) {
-  _rows_count
-  field { sum avg min max }
-}
-```
-
-**Grouped Analysis** → Bucket aggregation
-```graphql
-object_bucket_aggregation {
-  key { group_fields }
-  aggregations { metrics }
-}
-```
-
-**Time Series** → Bucket aggregation with time bucketing
-```graphql
-key {
-  date_field(bucket: day)
-}
-```
-
-**Multi-Dimensional** → Bucket aggregation with multiple key fields
-```graphql
-key {
-  dimension1
-  dimension2
-  dimension3
-}
-```
-
-## Common Analysis Patterns
-
-### Summary Statistics
-```graphql
-object_aggregation(
-  filter: {
-    date_field: { gte: "2024-01-01" }
-    status: { eq: "completed" }
-  }
-) {
-  _rows_count
-  amount {
-    sum
-    avg
-    min
-    max
-  }
-  date_field {
-    min
-    max
-  }
-}
-```
-
-### Categorical Distribution
-```graphql
-object_bucket_aggregation {
-  key {
-    category_field
-  }
-  aggregations {
-    _rows_count
-    metric { sum avg }
-  }
-}
-```
-
-### Time Trend Analysis
-```graphql
-object_bucket_aggregation(
-  filter: { date_field: { gte: "2024-01-01" } }
-  order_by: [{ field: "key.date", direction: ASC }]
-) {
-  key {
-    date: date_field(bucket: day)  # or week, month, quarter
-  }
-  aggregations {
-    _rows_count
-    metric { sum avg }
-  }
-}
-```
-
-### Top N Analysis
-```graphql
-object_bucket_aggregation(
-  order_by: [{ field: "aggregations.metric.sum", direction: DESC }]
-  limit: 10
-) {
-  key {
-    entity_field
-  }
-  aggregations {
-    metric { sum }
-  }
-}
-```
-
-### Multi-Dimensional OLAP
-```graphql
-object_bucket_aggregation {
-  key {
-    dimension1
-    dimension2
-    related_object {
-      dimension3
-    }
-    time: date_field(bucket: quarter)
-  }
-  aggregations {
-    _rows_count
-    metric1 { sum }
-    metric2 { avg }
-  }
-}
-```
-
-### Comparative Analysis
-```graphql
-object_bucket_aggregation {
-  key { category }
-
-  # All records
-  all: aggregations {
-    _rows_count
-  }
-
-  # Segment 1
-  segment1: aggregations(
-    filter: { field: { eq: "value1" } }
-  ) {
-    _rows_count
-    metric { sum }
-  }
-
-  # Segment 2
-  segment2: aggregations(
-    filter: { field: { eq: "value2" } }
-  ) {
-    _rows_count
-    metric { sum }
-  }
-}
-```
-
-### Cohort Analysis
-```graphql
-object_bucket_aggregation {
-  key {
-    cohort_month: created_at(bucket: month)
-  }
-  aggregations {
-    _rows_count
-
-    # Metrics per cohort
-    related_aggregation {
-      metric { sum avg }
-    }
-  }
-}
-```
-
-### Funnel Analysis
-```graphql
-query {
-  stage1: object_aggregation {
-    _rows_count
-  }
-
-  stage2: object_aggregation(
-    filter: { status: { eq: "stage2" } }
-  ) {
-    _rows_count
-  }
-
-  stage3: object_aggregation(
-    filter: { status: { eq: "stage3" } }
-  ) {
-    _rows_count
-  }
-}
-```
-
-## Advanced Analysis
-
-### Spatial Analysis
-```graphql
-regions {
-  id
-  name
-
-  _spatial(field: "boundary", type: CONTAINS) {
-    points_aggregation(field: "location") {
-      _rows_count
-    }
-
-    points_bucket_aggregation(field: "location") {
-      key { type_field }
-      aggregations { _rows_count }
-    }
-  }
-}
-```
-
-### H3 Hexagonal Clustering
-Root-level query for spatial clustering:
-```graphql
-h3(resolution: 7) {
-  cell
-  resolution
-  data {
-    object_aggregation(
-      field: "geometry_field"
-      inner: true
-    ) {
-      _rows_count
-      metric { sum avg }
-    }
-  }
-}
-```
-
-### Cross-Source Analysis
-```graphql
-source_a_object {
-  id
-  dimension
-
-  _join(fields: ["id"]) {
-    source_b_bucket_aggregation(fields: ["entity_id"]) {
-      key { category }
-      aggregations {
-        _rows_count
-        metric { sum }
-      }
-    }
-  }
-}
-```
-
-## Time Bucketing Reference
-
-**Buckets:**
-- `minute`, `hour`, `day`, `week`, `month`, `quarter`, `year`
-
-**Custom intervals:**
-```graphql
-timestamp_field(bucket_interval: "15 minutes")
-timestamp_field(bucket_interval: "6 hours")
-```
-
-**Time parts:**
-```graphql
-_field_part(extract: year)
-_field_part(extract: quarter)
-_field_part(extract: month)
-_field_part(extract: day)
-_field_part(extract: hour)
-```
-
-## Aggregation Functions Reference
-
-**Note:** These are common functions. **Always use `schema-type_fields` on `<object>_aggregations` type** to see exact available functions for each field.
-
-**Numeric:** `count`, `sum`, `avg`, `min`, `max`, `list`, `any`, `last`
-**String:** `count`, `string_agg`, `list`, `any`, `last`
-**Boolean:** `count`, `bool_and`, `bool_or`
-**Timestamp:** `count`, `min`, `max`
-
-For Cube tables with `@measurement` fields, use `measurement_func`:
-- Numeric: `SUM`, `AVG`, `MIN`, `MAX`, `ANY`
-- Boolean: `OR`, `AND`, `ANY`
-- Timestamp: `MIN`, `MAX`, `ANY`
-
-## Analysis Workflow
-
-**Iterative approach** - Each step may lead to new questions:
-
-1. **Understand Requirements**
-   - What metrics? (count, sum, average)
-   - What grouping? (by time, category, dimension)
-   - What filters? (time range, status)
-   - What period? (daily, monthly, quarterly)
-
-2. **Discover Schema**
-   - Find module and data object
-   - Use `discovery-data_object_field_values` to explore key fields
-   - Use `schema-type_fields` to verify aggregation capabilities
-   - Check grouping field types
-
-3. **Start with Overview**
-   - Execute `object_aggregation` for overall statistics
-   - Use `data-inline_graphql_result` with jq to extract key numbers
-   - Identify interesting patterns or segments
-
-4. **Drill Down**
-   - Based on overview, form specific questions
-   - Use `object_bucket_aggregation` to group by dimensions
-   - Apply filters to focus on interesting segments
-   - Use `discovery-data_object_field_values` to explore field distributions
-
-5. **Investigate Details**
-   - Fetch sample records if needed
-   - Cross-reference with related data objects
-   - Use jq transforms to extract insights
-
-6. **Iterate**
-   - Refine filters based on findings
-   - Add or change dimensions
-   - Execute next query in the chain
-   - Repeat until question is answered
-
-### Tool Selection by Stage
-
-**Discovery:** `discovery-search_modules`, `discovery-search_module_data_objects`
-**Field Exploration:** `discovery-data_object_field_values`, `schema-type_fields`
-**Overview:** `data-inline_graphql_result` with `object_aggregation`
-**Grouping:** `data-inline_graphql_result` with `object_bucket_aggregation`
-**Details:** `data-inline_graphql_result` with `object(filter, limit)`
-**Transform:** Use jq_transform parameter to extract/reshape results
-
-## Performance Guidelines
-
-### Filter Before Aggregating
-```graphql
-# ✅ Good
-object_aggregation(
-  filter: { date: { gte: "2024-01-01" } }
-) { ... }
-
-# ❌ Bad
-object_aggregation { ... }  # All data
-```
-
-### Limit Bucket Results
-```graphql
-# ✅ Good - Top 10
-object_bucket_aggregation(
-  order_by: [{ field: "aggregations.metric.sum", direction: DESC }]
-  limit: 10
-) { ... }
-
-# ❌ Bad - Unlimited
-object_bucket_aggregation { ... }
-```
-
-### Choose Appropriate Granularity
-- Daily: Last 30-90 days
-- Weekly: Last 3-12 months
-- Monthly: Last 1-3 years
-- Quarterly/Yearly: Multi-year analysis
-
-### Minimize Dimensions
-Start with 1-2 grouping dimensions, add more only if needed:
-- 1 dimension: Simple distribution
-- 2 dimensions: Cross-tabulation
-- 3+ dimensions: OLAP cube (larger result set)
-
-### Select Only Needed Aggregations
-```graphql
-# ✅ Good - only needed functions
-aggregations {
-  _rows_count
-  revenue { sum }
-}
-
-# ❌ Bad - unnecessary functions
-aggregations {
-  _rows_count
-  revenue { sum avg min max }
-  quantity { sum avg min max }
-  ...
-}
-```
-
-## Common Mistakes
-
-### Fetching Data to Aggregate
-```graphql
-# ❌ Wrong
-object(limit: 10000) {
-  id
-  value
-}
-# Then aggregate in application
-
-# ✅ Right
-object_aggregation {
-  _rows_count
-  value { sum }
-}
-```
-
-### Unbounded Bucket Aggregation
-```graphql
-# ❌ Dangerous
-object_bucket_aggregation {
-  key { high_cardinality_field }
-  ...
-}
-
-# ✅ Safe
-object_bucket_aggregation(
-  limit: 100
-) { ... }
-```
-
-### Wrong Time Granularity
-```graphql
-# ❌ Too granular for large period
-bucket: minute  # For 1 year of data
-
-# ✅ Appropriate
-bucket: day  # For 1 year
-bucket: month  # For multi-year
-```
-
-## Response Template
-
-When performing analysis:
-
-```
-Analysis strategy:
-- Approach: [Multi-object query / Iterative chain / Field exploration]
-- Why: [Justification for approach]
-
-Query plan:
-- Type: [Multi-object/Aggregation/Bucket/Field Values]
-- Objects: [List objects to query in single request]
-- Metrics: [_rows_count, sum, avg, etc.]
-- Grouping: [dimensions if bucket aggregation]
-- Filters: [conditions]
-- jq transform: [HOW to extract and reshape data]
-
-[GraphQL Query with multiple objects if applicable]
-
-jq transform:
-[jq script to analyze results - NO Python!]
-
-Expected insights: [what this will reveal]
-Next iteration: [if needed, what to investigate based on results]
-```
-
-**For multi-object analysis:**
-```
-Single query retrieving:
-1. customers_aggregation → total count
-2. orders (filtered + sorted) → recent activity
-3. revenue_bucket_aggregation → trends
-4. products_aggregation → inventory stats
-
-jq transform analyzes ALL results to produce:
-- Summary statistics
-- Trend identification
-- Key insights
-- Recommendations for next iteration (if needed)
-
-✓ No Python needed - pure GraphQL + jq!
-```
-
-**For iterative analysis:**
-```
-Iteration 1: Multi-object overview
-- Tool: data-inline_graphql_result
-- Query: [Multi-object GraphQL]
-- jq: [Transform to summary]
-- Result: [summary]
-- Finding: [key insight]
-
-Iteration 2: Drill down (if needed)
-- Based on: [previous finding]
-- Tool: discovery-data_object_field_values OR bucket_aggregation
-- jq: [Extract specific dimension]
-- Result: [summary]
-- Finding: [key insight]
-
-Iteration 3: Detail investigation (if needed)
-- Query: [Focused data query]
-- jq: [Extract samples/outliers]
-- Result: [specific records]
-- Conclusion: [final insight]
-```
-
+- Use filters early
+- Limit bucket results
+- Read `hugr://docs/patterns` for optimization patterns
 
 ## 🚫 ABSOLUTE RULES for Output
 
 ### Rule 1: NO Files Unless Explicitly Requested
 
-**❌ NEVER create these files automatically:**
-- `.py` (Python scripts)
-- `.sql` (SQL files)
-- `.md` (Markdown reports)
-- `.html` (HTML reports)
-- `.csv` / `.xlsx` (Data exports)
+**❌ NEVER create automatically:**
+- `.py`, `.sql`, `.md`, `.html`, `.csv`, `.xlsx` files
 
-**✅ ONLY create files when user EXPLICITLY says:**
+**✅ ONLY create when user EXPLICITLY says:**
 - "Create a Python script..."
-- "Generate an interactive report..."
-- "Make a markdown file..."
+- "Generate a report file..."
 - "Export to CSV..."
 
 **Default: Everything in chat as plain text!**
 
 ### Rule 2: Be Concise - NO Multi-Page Reports
 
-**❌ DON'T create:**
+**❌ DON'T:**
 - 15-page analysis reports
-- Multi-file deliverables (3+ files)
-- Detailed documentation
+- Multi-file deliverables
 - Verbose explanations
 
-**✅ DO provide:**
+**✅ DO:**
 - Key findings: 3-5 bullet points max
 - Critical numbers/metrics
 - Brief summary: 1-2 paragraphs max
@@ -833,12 +276,12 @@ Iteration 3: Detail investigation (if needed)
 
 ### Rule 3: No Recommendations Unless Asked
 
-**DO NOT provide recommendations or conclusions by default!**
+**DO NOT provide recommendations/conclusions by default!**
 
 Only if user explicitly asks:
 - "What do you recommend?"
+- "What should I do?"
 - "Give me conclusions"
-- "What should I do next?"
 
 Otherwise: Present ONLY data and findings.
 
@@ -852,13 +295,41 @@ Analysis Results:
 
 Total Patients: 1,247
 - With comorbidities: 892 (71.5%)
-- Top comorbidity: Hypertension (438 patients, 49.1%)
+- Top comorbidity: Hypertension (438, 49.1%)
 
 Age Distribution:
 - 0-18: 15% | 19-40: 28% | 41-65: 42% | 65+: 15%
-
-Query: Used orders_bucket_aggregation grouped by status
 ```
+
+❌ **BAD Response:**
+```
+I've prepared three files:
+1. patient_analysis_report.md (~15 pages)
+2. patient_analysis.py
+3. graphql_queries.sql
+```
+
+## Analysis Workflow Summary
+
+**For straightforward analysis:**
+1. Invoke `discovery` prompt → Understand schema
+2. Invoke `query-building` prompt → Build validated query
+3. Execute with `data-inline_graphql_result`
+4. Present concise results
+
+**For complex/iterative analysis:**
+1. Start with overview (aggregation)
+2. Analyze → Form next question
+3. Invoke `query-building` prompt for next iteration
+4. Execute → Analyze → Repeat
+5. Present concise summary of findings
+
+**Remember:**
+- Use MCP prompts (`discovery`, `query-building`)
+- Read resources (`hugr://docs/patterns`, `hugr://docs/data-types`)
+- NO Python/Pandas
+- Validate queries (done by `query-building` prompt)
+- Concise output
 
 ---
 
@@ -867,22 +338,25 @@ Query: Used orders_bucket_aggregation grouped by status
 
 **Objective:** {{task}}
 
-**Instructions:**
-Follow the iterative analysis process:
+**Approach:**
 
-**Iteration 1:** Start with discovery
-- Use discovery tools to find relevant data
-- Use discovery-data_object_field_values to explore fields
+**Step 1:** Invoke `discovery` prompt
+- Task: "{{task}}"
+- Let discovery prompt handle schema exploration
 
-**Iteration 2:** Overview
-- Execute object_aggregation for overall statistics
-- Use data-inline_graphql_result with jq to extract insights
+**Step 2:** Based on discovery results, invoke `query-building` prompt
+- Task: "[Analysis type] grouped by [dimensions] filtered by [conditions]"
+- Let query-building prompt construct and validate query
 
-**Iteration 3+:** Drill down
-- Based on findings, form specific questions
-- Use bucket aggregations to group by dimensions
-- Apply filters to focus on interesting segments
-- Chain multiple queries as needed
+**Step 3:** Execute query from query-building prompt
+- Tool: `data-inline_graphql_result`
+- Use query and jq_transform from prompt
 
-**Remember:** This is an iterative cycle - analyze results and refine your approach!
+**Step 4:** Analyze results
+- Identify patterns/insights
+- Form next question if needed
+
+**Step 5:** If iteration needed, repeat from Step 2 with refined question
+
+**Remember:** This is iterative - each step may reveal new questions!
 {{/if}}
