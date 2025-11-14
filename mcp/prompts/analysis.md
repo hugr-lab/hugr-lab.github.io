@@ -65,7 +65,8 @@ Data analysis is an **iterative cycle**, not a single query:
 - Use `discovery-data_object_field_values` to explore field distributions
 
 **2. Query Execution Phase**
-- Use `data-inline_graphql_result` to execute queries
+- Validate with `data-validate_graphql_query` first (complex queries)
+- Execute with `data-inline_graphql_result`
 - Apply jq transforms to extract relevant data
 - Keep results small (size-limited)
 

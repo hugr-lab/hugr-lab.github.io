@@ -27,7 +27,7 @@ Instructions for AI models on specific workflows:
 
 ## MCP Tools
 
-Hugr MCP server provides 9 tools:
+Hugr MCP server provides 10 tools:
 
 **Discovery:**
 - `discovery-search_modules` - Find modules by natural language query
@@ -42,6 +42,7 @@ Hugr MCP server provides 9 tools:
 - `schema-enum_values` - Get enum values
 
 **Execution:**
+- `data-validate_graphql_query` - Validate GraphQL query without executing it
 - `data-inline_graphql_result` - Execute GraphQL query and return inline result
 
 ## Key Principles

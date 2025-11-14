@@ -75,24 +75,44 @@ query {
 }
 ```
 
-### Step 3: Validate with limit: 0
+### Step 3: Validate Query
 
-Before executing with real data:
+**ALWAYS validate before execution!**
+
+**Option 1: Use data-validate_graphql_query (Recommended)**
+
+```
+Tool: data-validate_graphql_query
+Input: {
+  query: "query { module { data_object(filter: {...}, limit: 100) { fields } } }",
+  variables: {}
+}
+
+Returns: true ✓
+  OR
+Error: "Field 'field_name' not found on type 'ObjectType'"
+```
+
+**Option 2: Test with limit: 0**
 
 ```graphql
 # Test query structure without fetching data
-data_object(
-  filter: { complex_filter_here }
-  order_by: [{ field: "field", direction: DESC }]
-  limit: 0  # ← No data, just validates structure
-) {
-  id
-  fields
-  relations { ... }
+query {
+  module {
+    data_object(
+      filter: { complex_filter_here }
+      order_by: [{ field: "field", direction: DESC }]
+      limit: 0  # ← No data returned, validates structure
+    ) {
+      id
+      fields
+      relations { ... }
+    }
+  }
 }
 ```
 
-If successful → change `limit: 0` to `limit: 100` and execute.
+**Best practice:** Use data-validate_graphql_query first, then execute with real data.
 
 ### Step 4: Execute and Get Results
 
@@ -587,7 +607,7 @@ Before executing query:
 **Complexity:**
 - [ ] Built complex query instead of multiple simple ones
 - [ ] Used nested filters instead of two-step approach
-- [ ] Validated with `limit: 0` first
+- [ ] Validated with `data-validate_graphql_query` first
 - [ ] Considered multi-object query instead of separate requests
 
 **Performance:**
@@ -619,13 +639,17 @@ Based on discovered schema:
 Query strategy:
 - Type: [Data/Aggregation/Bucket/Multi-Object]
 - Complexity: [Simple/Complex with nested filters]
-- Validation: [Will test with limit: 0 first]
+- Validation: Will use data-validate_graphql_query first
 - Limit: [value]
 - Sort: [field, direction in UPPERCASE]
 
 [GraphQL Query]
 
-Next step: Execute with limit: 0 to validate structure.
+Validation:
+Tool: data-validate_graphql_query
+Result: [true ✓ or error message]
+
+Next step: Execute with data-inline_graphql_result (+ optional jq transform).
 ```
 
 

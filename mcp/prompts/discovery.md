@@ -71,12 +71,19 @@ After discovering objects, **MUST verify ALL fields** before using:
 - Returns: Valid enum values
 - Use: Understand enum options
 
-### Query Execution Tool
+### Query Execution Tools
+
+**data-validate_graphql_query**
+- Input: GraphQL query, optional variables
+- Returns: true if query is valid, error if invalid
+- Use: **Validate query correctness BEFORE execution**
+- Checks syntax, field existence, type compatibility
+- **Always validate complex queries before executing!**
 
 **data-inline_graphql_result**
 - Input: GraphQL query, optional variables, optional jq transform
 - Returns: Query result as inline JSON (size-limited)
-- Use: Execute queries directly after schema discovery, test queries
+- Use: Execute queries directly after schema discovery
 - Supports jq transforms for result processing
 
 ## Discovery Strategy
