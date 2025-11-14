@@ -10,12 +10,13 @@ mcp/
 ├── index.md               # Detailed implementation guide
 ├── example_server.go      # Complete Go implementation example
 ├── resources/             # Static reference documentation
-│   ├── reference.json     # Resource metadata (5 resources)
+│   ├── reference.json     # Resource metadata (6 resources)
 │   ├── ai-instructions.md # ⭐ AI assistant guide (9.2KB)
 │   ├── overview.md        # Hugr architecture (3.4KB)
-│   ├── data-types.md      # Operators, functions, errors (16.8KB)
-│   ├── schema-structure.md# Type system (5.9KB)
-│   └── query-patterns.md  # GraphQL patterns (10.7KB)
+│   ├── filter-guide.md    # Filter construction (13KB)
+│   ├── data-types.md      # Operators, functions, errors (18KB)
+│   ├── schema-structure.md# Type system (5.8KB)
+│   └── query-patterns.md  # GraphQL patterns (11KB)
 └── prompts/               # Interactive workflow templates
     ├── reference.json     # Prompt metadata (4 prompts)
     ├── start.md           # ⭐ Auto-routing (4.9KB)
@@ -88,9 +89,10 @@ Resources provide **reference material** for LLMs to understand Hugr.
 |-----|------|-------------|------|
 | `hugr://ai/instructions` | **AI Instructions** ⭐ | **How to work with Hugr MCP** (for AI assistants) | 9.2KB |
 | `hugr://docs/overview` | Hugr Overview | Architecture, modules, RLS | 3.4KB |
-| `hugr://docs/data-types` | Data Types | Filter operators, aggregations, errors | 16.8KB |
-| `hugr://docs/schema` | Schema Structure | Types, introspection, filters | 5.9KB |
-| `hugr://docs/patterns` | Query Patterns | GraphQL examples, anti-patterns | 10.7KB |
+| `hugr://docs/filters` | Filter Construction | Boolean logic, relations, joins, spatial, common mistakes | 13KB |
+| `hugr://docs/data-types` | Data Types | Filter operators, aggregations, errors | 18KB |
+| `hugr://docs/schema` | Schema Structure | Types, introspection, filters | 5.8KB |
+| `hugr://docs/patterns` | Query Patterns | GraphQL examples, anti-patterns | 11KB |
 
 **⭐ Special Resource: `hugr://ai/instructions`**
 
@@ -401,18 +403,19 @@ curl http://localhost:3000/mcp/prompts/get?name=discovery&task=find%20orders
 
 ## 📊 Statistics
 
-- **Resources:** 5 files, ~46KB
+- **Resources:** 6 files, ~60KB
   - ai-instructions.md (9.2KB) - AI assistant guide ⭐
   - overview.md (3.4KB) - Architecture
-  - data-types.md (16.8KB) - Operators, functions & error reference
-  - schema-structure.md (5.9KB) - Type system
-  - query-patterns.md (10.7KB) - Patterns & anti-patterns
+  - filter-guide.md (13KB) - Filter construction, joins, spatial
+  - data-types.md (18KB) - Operators, functions & error reference
+  - schema-structure.md (5.8KB) - Type system
+  - query-patterns.md (11KB) - Patterns & anti-patterns
 - **Prompts:** 4 files, ~45KB
   - start.md (4.9KB) - Auto-routing ⭐
   - discovery.md (13.3KB) - Schema discovery
   - query-building.md (10.7KB) - Query construction
   - analysis.md (16.1KB) - Iterative analysis
-- **Total:** ~91KB (compact for comprehensive MCP package)
+- **Total:** ~105KB (compact for comprehensive MCP package)
 - **Languages:** Markdown (docs), JSON (metadata), Go (implementation)
 
 ## 🔗 Links

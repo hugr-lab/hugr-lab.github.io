@@ -66,81 +66,39 @@ filter: {
 
 ## 🔢 Scalar Field Filters
 
-Scalar fields (String, Int, Boolean, Timestamp, etc.) use **type-specific operators**.
+Scalar fields (String, Int, Boolean, Timestamp, Array, etc.) use **type-specific operators**.
 
-### String Fields
+**For complete operator reference by type, see:** `hugr://docs/data-types`
 
+### Key Concepts
+
+**Each scalar type has different operators:**
+- **String:** `eq`, `in`, `like`, `ilike`, `regex`, `is_null`
+- **Numeric (Int/Float/BigInt):** `eq`, `in`, `gt`, `gte`, `lt`, `lte`, `is_null`
+- **Boolean:** `eq`, `is_null`
+- **Timestamp/Date:** `eq`, `gt`, `gte`, `lt`, `lte`, `is_null`
+- **Array (scalar lists):** `eq`, `contains`, `intersects`, `is_null`
+
+**Common pattern - field with operator:**
 ```graphql
-name: {
-  eq: "exact"           # Equal
-  in: ["val1", "val2"]  # In list
-  like: "%pattern%"     # SQL LIKE (% wildcard)
-  ilike: "%PATTERN%"    # Case-insensitive LIKE
-  regex: "^[A-Z]+"      # POSIX ERE regex (NOT Perl!)
-  is_null: false        # NULL check
+filter: {
+  field_name: { operator: value }
 }
 ```
 
-**Available operators:** `eq`, `in`, `like`, `ilike`, `regex`, `is_null`
-
-**NOT available:** ❌ `contains`, `not_like`, `not_ilike`, `not_regex`, `_not`, `_and`, `_or`
-
-### Numeric Fields (Int, Float, BigInt)
-
+**Example:**
 ```graphql
-age: {
-  eq: 25                # Equal
-  in: [25, 30, 35]      # In list
-  gt: 18                # Greater than
-  gte: 18               # Greater than or equal
-  lt: 65                # Less than
-  lte: 65               # Less than or equal
-  is_null: false        # NULL check
+filter: {
+  name: { like: "%pattern%" }      # String field
+  age: { gte: 18 }                 # Numeric field
+  active: { eq: true }             # Boolean field
+  tags: { intersects: ["a", "b"] } # Array field
 }
 ```
 
-**Available operators:** `eq`, `in`, `gt`, `gte`, `lt`, `lte`, `is_null`
+**NOT available on scalar fields:** ❌ `_not`, `_and`, `_or` (use at filter object level!)
 
-### Boolean Fields
-
-```graphql
-active: {
-  eq: true              # Equal
-  is_null: false        # NULL check
-}
-```
-
-**Available operators:** `eq`, `is_null`
-
-### Timestamp/Date Fields
-
-```graphql
-created_at: {
-  eq: "2024-01-01T00:00:00Z"   # Equal
-  gt: "2024-01-01"              # After
-  gte: "2024-01-01"             # After or equal
-  lt: "2024-12-31"              # Before
-  lte: "2024-12-31"             # Before or equal
-  is_null: false                # NULL check
-}
-```
-
-**Available operators:** `eq`, `gt`, `gte`, `lt`, `lte`, `is_null`
-
-### List/Array Fields (scalar arrays)
-
-```graphql
-tags: {
-  eq: ["val1", "val2"]           # Exact array match
-  contains: ["val1", "val2"]     # Contains all values
-  intersects: ["val1", "val2"]   # Has any of values
-  is_null: false                 # NULL check
-}
-```
-
-**Available operators:** `eq`, `contains`, `intersects`, `is_null`
-
-**NOT available:** ❌ `_some`, `_every`, `_none` (these don't exist - use relation operators instead)
+**For full operator lists and examples:** Read `hugr://docs/data-types` → "Filter Operators by Type"
 
 ---
 
@@ -181,6 +139,264 @@ filter: {
 **ONLY for relation fields, NOT for scalar arrays!**
 
 **See `hugr://docs/patterns` for detailed relation filter examples.**
+
+---
+
+## 🔍 Filtering Through Subqueries (inner)
+
+When aggregating data with joins, use the `inner` argument to filter aggregation results.
+
+### inner: true - Only Include Matching Rows
+
+**Without inner (default):**
+All rows in the parent dataset are included, even if they have no matching joined data.
+
+**With inner: true:**
+Only rows that have matching joined data are included in the aggregation.
+
+### Example: Population Density with inner
+
+```graphql
+query {
+  h3(resolution: 6) {
+    cell
+    data {
+      # Only include cells that have population data
+      districts: boundaries_aggregation(
+        field: "geom"
+        inner: true  # Filter: only cells with district data
+      ) {
+        pop: _join(fields: ["district_code"]) {
+          population(fields: ["code"]) {
+            count {
+              sum
+            }
+          }
+        }
+      }
+
+      # All cells included
+      buildings: buildings_aggregation(
+        field: "geom"
+        # inner: false (default) - all cells
+      ) {
+        area {
+          sum
+        }
+      }
+    }
+  }
+}
+```
+
+**Use Case:** When calculating distributions or ratios, `inner: true` ensures the denominator is only calculated for rows with numerator data.
+
+---
+
+## 🔗 Filtering with Dynamic Joins (_join)
+
+Use `_join` for query-time joins and filter the joined data.
+
+### Basic Query-Time Join
+
+```graphql
+query {
+  customers(
+    filter: { country: { eq: "USA" } }
+  ) {
+    id
+    name
+
+    # Join with orders at query time
+    _join(fields: ["id"]) {
+      orders(
+        fields: ["customer_id"]
+        filter: {
+          status: { eq: "pending" }
+          total: { gt: 1000 }
+        }
+      ) {
+        id
+        total
+        status
+      }
+    }
+  }
+}
+```
+
+### Cross-Source Joins with Filters
+
+```graphql
+query {
+  postgres_customers(
+    filter: { active: { eq: true } }
+  ) {
+    id
+    name
+
+    # Join with MySQL orders from different data source
+    _join(fields: ["email"]) {
+      mysql_orders(
+        fields: ["customer_email"]
+        filter: {
+          created_at: { gte: "2024-01-01" }
+          status: { in: ["pending", "processing"] }
+        }
+      ) {
+        id
+        total
+      }
+    }
+  }
+}
+```
+
+### Aggregating Joined Data with Filters
+
+```graphql
+query {
+  products {
+    id
+    name
+
+    _join(fields: ["id"]) {
+      # Aggregate only 5-star reviews
+      reviews_aggregation(
+        fields: ["product_id"]
+        filter: { rating: { eq: 5 } }
+      ) {
+        _rows_count
+        rating {
+          avg
+        }
+      }
+    }
+  }
+}
+```
+
+**Pattern:**
+1. Filter parent data (customers, products, etc.)
+2. Join at query time with `_join`
+3. Filter joined data with nested `filter`
+4. Can aggregate joined results
+
+---
+
+## 🗺️ Spatial Filtering (_spatial)
+
+For geographic data, use `_spatial` to filter by spatial relationships.
+
+### Basic Spatial Join with Filter
+
+```graphql
+query {
+  stores(
+    filter: { active: { eq: true } }
+  ) {
+    id
+    name
+    location
+
+    # Find customers within 5km
+    _spatial(
+      field: "location"
+      type: DWITHIN
+      buffer: 5000  # meters
+    ) {
+      customers(
+        field: "address_location"
+        filter: {
+          vip: { eq: true }
+          last_order: { gte: "2024-01-01" }
+        }
+      ) {
+        id
+        name
+      }
+    }
+  }
+}
+```
+
+### Spatial Join Types
+
+| Type | Description | Example Use |
+|------|-------------|-------------|
+| `INTERSECTS` | Geometries share any space | Find overlapping regions |
+| `WITHIN` | Geometry completely inside | Find points in polygon |
+| `CONTAINS` | Reference inside geometry | Find polygon containing point |
+| `DISJOINT` | Geometries don't overlap | Find non-adjacent areas |
+| `DWITHIN` | Within distance (needs buffer) | Find nearby locations |
+
+### Complex Spatial Query
+
+```graphql
+query {
+  delivery_zones {
+    id
+    name
+    boundary
+
+    # Active orders within zone
+    _spatial(field: "boundary", type: CONTAINS) {
+      orders(
+        field: "delivery_location"
+        filter: {
+          _and: [
+            { status: { in: ["pending", "processing"] } }
+            { scheduled_time: { lte: "2024-12-31T23:59:59Z" } }
+            {
+              customer: {
+                vip: { eq: true }
+              }
+            }
+          ]
+        }
+      ) {
+        id
+        delivery_location
+        customer {
+          name
+        }
+      }
+    }
+  }
+}
+```
+
+### Spatial Aggregation with Filters
+
+```graphql
+query {
+  regions {
+    id
+    name
+
+    _spatial(field: "boundary", type: CONTAINS) {
+      # Aggregate only residential buildings
+      buildings_aggregation(
+        field: "location"
+        filter: {
+          building_type: { eq: "residential" }
+        }
+      ) {
+        _rows_count
+        area {
+          sum
+        }
+      }
+    }
+  }
+}
+```
+
+**Pattern:**
+1. Filter parent geographic data
+2. Spatial join with `_spatial(field, type, buffer)`
+3. Filter joined spatial data
+4. Can aggregate spatial results
 
 ---
 
@@ -401,18 +617,24 @@ Or use MCP tool: `schema-type_fields(type_name: "customers_list_filter")`
 
 ## ✅ Quick Reference
 
-| What | Where | Operators |
-|------|-------|-----------|
+| What | Where | Operators / Usage |
+|------|-------|-------------------|
 | **Boolean logic** | Filter object level | `_and`, `_or`, `_not` |
 | **String field** | Inside field | `eq`, `in`, `like`, `ilike`, `regex`, `is_null` |
 | **Numeric field** | Inside field | `eq`, `in`, `gt`, `gte`, `lt`, `lte`, `is_null` |
 | **Boolean field** | Inside field | `eq`, `is_null` |
 | **Array field** | Inside field | `eq`, `contains`, `intersects`, `is_null` |
-| **Relation field** | Inside field | `any_of`, `all_of`, `none_of` (for one-to-many) |
-| **Relation field** | Direct access | Nested object (for many-to-one) |
+| **Relation field** | Inside field | `any_of`, `all_of`, `none_of` (one-to-many) |
+| **Relation field** | Direct access | Nested object (many-to-one) |
+| **Subquery filtering** | Aggregation argument | `inner: true` (only matching rows) |
+| **Dynamic joins** | `_join(fields)` | Query-time joins with nested `filter` |
+| **Spatial joins** | `_spatial(field, type, buffer)` | Geographic filtering (INTERSECTS, WITHIN, DWITHIN, etc.) |
 
 **Remember:**
 1. `_and/_or/_not` at **filter object level** ONLY
 2. Scalar fields have **NO boolean logic operators**
-3. Use `schema-type_fields` to verify available operators
-4. Read error messages - they tell you exactly what's wrong!
+3. For operator details: Read `hugr://docs/data-types`
+4. Use `inner: true` in aggregations to filter by joined data
+5. Use `_join` for dynamic cross-source joins with filters
+6. Use `_spatial` for geographic queries with spatial filters
+7. Read error messages - they tell you exactly what's wrong!

@@ -16,7 +16,7 @@
   {
     "filename": "filter-guide.md",
     "name": "Filter Construction Guide",
-    "description": "Complete filtering guide: filter object vs scalar fields, boolean logic (_and/_or/_not at object level ONLY), scalar operators by type, relation operators (any_of/all_of/none_of), common mistakes (contains doesn't exist, _some is Prisma not Hugr, boolean logic on scalars).",
+    "description": "Complete filtering guide: filter object vs scalar fields, boolean logic (_and/_or/_not at object level ONLY), relation operators (any_of/all_of/none_of), filtering through subqueries (inner argument), dynamic joins (_join), spatial filtering (_spatial), common mistakes (contains doesn't exist, _some is Prisma not Hugr, boolean logic on scalars). References data-types.md for operator details.",
     "uri": "hugr://docs/filters",
     "priority": 3
   },
