@@ -71,7 +71,7 @@ For each data object (e.g., `customers`):
 
 ### Relations
 
-- **Predefined** - Foreign keys defined in schema
+- **Predefined** - Foreign keys or joins defined in schema
   - One-to-one/Many-to-one: Direct field
   - One-to-many/Many-to-many: List fields with subqueries
 - **Dynamic** - `_join` field for ad-hoc joins (cross-source capable)

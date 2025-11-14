@@ -16,21 +16,13 @@
 - ✅ `max_result_size` for large results
 
 ### ❌ WRONG: Python/Pandas/DuckDB
-```python
-# DON'T DO THIS!
-results = []
-for i in range(10):
-    query = f"query {{ objects(limit: 100, offset: {i*100}) {{ data }} }}"
-    results.append(execute(query))
+Do not use Python/Pandas/DuckDB for analysis, if:
 
-import pandas as pd
-df = pd.DataFrame(results)
-df.groupby('category').agg({'value': 'sum'})
+- You can use GraphQL aggregations instead
+- You can use jq transforms instead
+- You can perform aggregations/grouping/filtering in GraphQL by references or joined data
+- You can join the data using `_join` in GraphQL
 
-# OR THIS:
-import duckdb
-duckdb.query("SELECT category, SUM(value) FROM data GROUP BY category")
-```
 
 ### ✅ CORRECT: GraphQL Aggregation + jq
 ```graphql
@@ -93,9 +85,10 @@ schema-type_fields(
 **Core principles:**
 
 1. **Server-side Aggregation** - Use GraphQL aggregations, NOT Python/Pandas
-2. **Single Complex Queries** - One query with relation filters, NOT two queries
+2. **Single Complex Queries** - One query with relation filters instead of multiple queries or with a numer of queries in one graphql request
 3. **jq for ALL Processing** - Transformations, calculations, analysis - all in jq
 4. **Validate First** - ALWAYS use data-validate_graphql_query before executing
+5. **Subqueries** - Use subquery GraphQL type fields (for references or joined data) defined in the schema for filtering/selecting or grouping instead of multiple queries
 5. **Use _join** - For ad-hoc joins instead of two queries
 
 ## Iterative Analysis Process
@@ -103,32 +96,52 @@ schema-type_fields(
 Data analysis is an **iterative cycle**, not a single query:
 
 ```
-1. Discover → 2. Query → 3. Analyze Results → 4. Refine → Repeat
+0. Overiew
+1. Discovery → 2. Plan Query → 3. Query → 4. Analyze Results → 5. Refine → Repeat with 1.
 ```
+
+**Overview Phase**
+- Understand user requirements
+- READ `hugr://docs/overview` for tool usage
+- READ `hugr://docs/schema` for context
+- Use `discovery-search_modules` to find relevant modules
+- Use `discovery-search_module_data_objects` to find data objects (use module information to build queries)
+- Use `discovery-search_module_functions` to find relevant fields
+- Build initial understanding of data schema
 
 ### Cycle Steps
 
 **1. Discovery Phase**
-- Use `discovery-search_modules` to find relevant modules
-- Use `discovery-search_module_data_objects` to find data objects
-- Use `schema-type_fields` to understand structure
-- Use `discovery-data_object_field_values` to explore field distributions
+- Use the schema `discovery` prompt to understand available data with the results of the overview phase as a task
+- Create summary of relevant modules/data objects/fields/filters/aggregations
 
-**2. Query Execution Phase**
+**2. Plan Query Phase**
+- Use `schema-type_info` to understand types module types/data objects/filters/query fields/function results
+- Use `schema-type_fields` to understand structure of graphql types/inputs, including subquery and function call fields.
+- Use `schema-enum_values` to understand enum options
+- READ `hugr://docs/data-types` for available aggregation functions
+- READ `hugr://docs/patterns` for common query patterns
+- Use `discovery-data_object_field_values` to explore field distributions
+- Create query plan - what to query, filters, grouping, aggregations, joins
+- Build complex GraphQL query using `query-building` prompt with query plan as the task
+- Use `data-validate_graphql_query` to validate planned query + jq transform
+
+**3. Query Execution Phase**
 - ✅ **ALWAYS** validate with `data-validate_graphql_query` first (MANDATORY!)
 - Build jq transform for data processing
 - Execute with `data-inline_graphql_result` + jq_transform
 - ❌ NEVER use Python/Pandas for processing
 
-**3. Analysis Phase**
+**4. Analysis Phase**
 - Examine results
 - Identify patterns, outliers, trends
 - Determine next questions
 
-**4. Refinement Phase**
+**5. Refinement Phase**
 - Adjust filters based on findings
 - Drill down into specific segments
 - Add dimensions or change grouping
+- Add schema understanding as needed using `discovery-search_modules`, `discovery-search_module_data_objects`, `discovery-search_module_functions`, etc.
 - Repeat cycle
 
 ### Multi-Object Queries (GraphQL Power!)
@@ -154,6 +167,15 @@ query {
       customer { name }
     }
 
+    # Product stats
+    products_aggregation(
+      filter: { in_stock: { eq: true } }
+    ) {
+      _rows_count
+      price { avg min max }
+    }
+  }
+  module2: {
     # Revenue by month
     revenue_bucket_aggregation {
       key {
@@ -163,14 +185,6 @@ query {
         total { sum }
         _rows_count
       }
-    }
-
-    # Product stats
-    products_aggregation(
-      filter: { in_stock: { eq: true } }
-    ) {
-      _rows_count
-      price { avg min max }
     }
   }
 }
@@ -191,7 +205,7 @@ Then use **single jq transform** to analyze ALL results:
     total,
     customer: .customer.name
   })),
-  monthly_revenue: (.data.module.revenue_bucket_aggregation | map({
+  monthly_revenue: (.data.module2.revenue_bucket_aggregation | map({
     month: .key.month,
     revenue: .aggregations.total.sum,
     count: .aggregations._rows_count
@@ -272,78 +286,6 @@ Use jq to extract insights:
 - `.data.object_bucket_aggregation | map({key: .key.category, count: .aggregations._rows_count})` - Reshape
 - `.data.object | map(.field)` - Extract field values
 - `.data | to_entries | map({module: .key, count: .value._rows_count})` - Cross-module summary
-
-### Iterative Example
-
-**Task:** Understand customer distribution and behavior
-
-**Iteration 1 - Overview:**
-```graphql
-query {
-  customers_aggregation {
-    _rows_count
-    created_at { min max }
-    total_purchases { sum avg }
-  }
-}
-```
-Result: 10,000 customers, created 2020-2024, avg 5 purchases
-
-**Iteration 2 - Explore Status Field:**
-```
-Tool: discovery-data_object_field_values
-Input: { object_name: "customers", field_name: "status" }
-```
-Result: ["active" (7000), "inactive" (2500), "suspended" (500)]
-
-**Iteration 3 - Compare Segments:**
-```graphql
-query {
-  customers_bucket_aggregation {
-    key { status }
-    aggregations {
-      _rows_count
-      total_purchases { avg sum }
-      last_purchase_date { max }
-    }
-  }
-}
-```
-Result: Active users avg 12 purchases, inactive avg 2
-
-**Iteration 4 - Time Trend:**
-```graphql
-query {
-  customers_bucket_aggregation(
-    filter: { status: { eq: "active" } }
-  ) {
-    key {
-      month: created_at(bucket: month)
-    }
-    aggregations {
-      _rows_count
-    }
-  }
-}
-```
-Result: Growth pattern identified, spike in Q3 2023
-
-**Iteration 5 - Investigate Spike:**
-```graphql
-query {
-  customers(
-    filter: {
-      created_at: { gte: "2023-07-01", lt: "2023-10-01" }
-    }
-    limit: 100
-  ) {
-    id
-    source
-    referral_code
-  }
-}
-```
-Use jq: `.data.customers | group_by(.source) | map({source: .[0].source, count: length})`
 
 ### Important Notes
 
@@ -868,7 +810,7 @@ Iteration 3: Detail investigation (if needed)
 
 **✅ ONLY create files when user EXPLICITLY says:**
 - "Create a Python script..."
-- "Generate an interactive HTML report..."
+- "Generate an interactive report..."
 - "Make a markdown file..."
 - "Export to CSV..."
 
@@ -917,22 +859,6 @@ Age Distribution:
 
 Query: Used orders_bucket_aggregation grouped by status
 ```
-
-❌ **BAD Response:**
-```
-I've prepared three files for you:
-
-1. patient_analysis_report.md (~15 pages) - Full detailed analysis
-2. patient_analysis.py - Python script to demonstrate the results
-3. graphql_queries.sql - SQL and GraphQL queries
-
-All files are in /private/tmp/. Would you like me to explain any part?
-```
-
-**Remember:**
-- Start concise
-- User will ask for detail if needed
-- Files ONLY when explicitly requested
 
 ---
 

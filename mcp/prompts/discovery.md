@@ -22,6 +22,8 @@ After discovering objects, **MUST verify ALL fields** before using:
 - Aggregation functions (even "sum", "avg")
 - Enum values (even "ASC", "DESC")
 
+!**READ the `hugr://docs/data-types` documentation for the scalar data types to understand their filter operators and aggregation functions.**
+
 **Always introspect to confirm!**
 
 ## MCP Tools
