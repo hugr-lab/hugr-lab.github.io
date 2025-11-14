@@ -1,26 +1,22 @@
-[
-  {
-    "filename": "index.md",
+{
+  "index.md": {
     "name": "Documentation Index",
     "description": "Navigation guide for all Hugr MCP resources and prompts. Overview of available documentation, tools, and key principles.",
     "uri": "hugr://docs/index"
   },
-  {
-    "filename": "r-overview.md",
+  "r-overview.md": {
     "name": "Hugr Overview",
     "description": "Architecture overview: Data Sources → Modules → Objects/Functions. Module hierarchy (core.sales.analytics), auto-generated queries, special table types (Cube, Hypertable), and row-level security (RLS) considerations.",
     "uri": "hugr://docs/overview"
   },
-  {
-    "filename": "r-schema-structure.md",
+  "r-schema-structure.md": {
     "name": "Schema Structure",
     "description": "Type system, introspection strategy (CRITICAL: always introspect), filter operators by type, aggregation system, cube tables with @measurement fields, H3 clustering, and semantic search capabilities.",
     "uri": "hugr://docs/schema"
   },
-  {
-    "filename": "r-query-patterns.md",
+  "r-query-patterns.md": {
     "name": "Query Patterns",
     "description": "Common GraphQL query patterns: data queries, aggregations, filtering, sorting, pagination, joins (predefined and dynamic _join), time bucketing, and semantic search examples.",
     "uri": "hugr://docs/patterns"
   }
-]
+}

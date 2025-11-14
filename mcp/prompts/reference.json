@@ -1,6 +1,5 @@
-[
-  {
-    "filename": "discovery.md",
+{
+  "discovery.md": {
     "name": "discovery",
     "description": "Schema discovery and introspection workflow. Find modules, data objects, fields, and understand schema structure through MCP tools. NEVER assume schema - always discover first.",
     "arguments": [
@@ -11,8 +10,7 @@
       }
     ]
   },
-  {
-    "filename": "query-building.md",
+  "query-building.md": {
     "name": "query-building",
     "description": "GraphQL query construction guidelines and best practices. Choose query types, build filters, apply sorting/pagination, optimize performance, and validate queries before execution.",
     "arguments": [
@@ -23,8 +21,7 @@
       }
     ]
   },
-  {
-    "filename": "analysis.md",
+  "analysis.md": {
     "name": "analysis",
     "description": "Iterative data analysis workflow with query chaining. Discover → Query → Analyze → Refine cycle. Use data-inline_graphql_result, discovery-data_object_field_values, and jq transforms for multi-iteration analysis.",
     "arguments": [
@@ -35,4 +32,4 @@
       }
     ]
   }
-]
+}

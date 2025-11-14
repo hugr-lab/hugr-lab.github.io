@@ -1,5 +1,75 @@
 # Query Patterns
 
+## ⚠️ CRITICAL Rules
+
+**Before building any query:**
+
+1. **Module Structure** - ALL queries must be wrapped in module structure:
+   ```graphql
+   query {
+     module_name {
+       data_object { ... }
+     }
+   }
+   ```
+   Root module objects can be at query root. Sub-module objects MUST be nested.
+
+2. **Row Count** - Use `_rows_count` (NOT `count`):
+   ```graphql
+   aggregation { _rows_count }  # ✅ Correct
+   aggregation { count }         # ❌ Wrong
+   ```
+
+3. **Sort Direction** - Use UPPERCASE enums:
+   ```graphql
+   order_by: [{ field: "name", direction: ASC }]  # ✅ Correct
+   order_by: [{ field: "name", direction: asc }]  # ❌ Wrong
+   # Valid values: ASC, DESC (uppercase!)
+   ```
+
+4. **Distinct Count** - Use `count(distinct: true)`:
+   ```graphql
+   field { count(distinct: true) }  # ✅ Correct
+   field { distinct_count }          # ❌ Wrong (doesn't exist)
+   field { value_count }             # ❌ Wrong (doesn't exist)
+   ```
+
+5. **Verify Fields** - ALWAYS check field existence with `schema-type_fields` before using
+
+6. **Complex Queries First** - Build full query, validate with `limit: 0`, then execute
+
+## Module Structure
+
+### Root Module
+```graphql
+query {
+  # Objects in root module
+  customers(limit: 10) { id name }
+}
+```
+
+### Sub-Module
+```graphql
+query {
+  sales {
+    # Objects in sales module
+    orders(limit: 10) { id total }
+  }
+}
+```
+
+### Nested Modules
+```graphql
+query {
+  sales {
+    analytics {
+      # Objects in sales.analytics module
+      revenue_summary { metric value }
+    }
+  }
+}
+```
+
 ## Basic Queries
 
 ### List with Filter and Limit
@@ -47,12 +117,13 @@ parent_object(limit: 10) {
 data_object_aggregation(
   filter: { field: { gte: "2024-01-01" } }
 ) {
-  _rows_count
+  _rows_count  # ✅ Use _rows_count
   numeric_field {
     sum
     avg
     min
     max
+    count(distinct: true)  # ✅ Distinct count
   }
 }
 ```
@@ -61,7 +132,7 @@ data_object_aggregation(
 ```graphql
 data_object_bucket_aggregation(
   filter: { ... }
-  order_by: [{ field: "aggregations.total.sum", direction: DESC }]
+  order_by: [{ field: "aggregations.total.sum", direction: DESC }]  # ✅ DESC uppercase
   limit: 10
 ) {
   key {
@@ -71,10 +142,11 @@ data_object_bucket_aggregation(
     }
   }
   aggregations {
-    _rows_count
+    _rows_count  # ✅ Use _rows_count
     value_field {
       sum
       avg
+      count(distinct: true)  # ✅ Distinct values
     }
   }
 }
@@ -82,7 +154,9 @@ data_object_bucket_aggregation(
 
 ### Time Series
 ```graphql
-data_object_bucket_aggregation {
+data_object_bucket_aggregation(
+  order_by: [{ field: "key.date", direction: ASC }]  # ✅ ASC uppercase
+) {
   key {
     date: timestamp_field(bucket: day)
   }
@@ -112,6 +186,112 @@ data_object_bucket_aggregation {
     filter: { value: { gt: 1000 } }
   ) {
     value { sum avg }
+  }
+}
+```
+
+## Deep Nested Filtering
+
+### Filter by Related Objects (Multiple Levels)
+```graphql
+# Find orders where customer's company is in USA
+orders(
+  filter: {
+    customer: {
+      company: {
+        country: { eq: "USA" }
+      }
+    }
+  }
+  limit: 100
+) {
+  id
+  total
+  customer {
+    name
+    company {
+      name
+      country
+    }
+  }
+}
+```
+
+### Filter with Back-References
+```graphql
+# Find customers with active orders and shipped items
+customers(
+  filter: {
+    orders: {
+      any_of: {
+        status: { eq: "active" }
+        items: {
+          any_of: {
+            shipped: { eq: true }
+          }
+        }
+      }
+    }
+  }
+  limit: 100
+) {
+  id
+  name
+}
+```
+
+### Complex Nested Filter
+```graphql
+filter: {
+  related_object: {
+    field1: { eq: "value" }
+    sub_related: {
+      field2: { gt: 100 }
+      deep_related: {
+        field3: { in: ["a", "b"] }
+      }
+    }
+    back_refs: {
+      any_of: {
+        status: { eq: "active" }
+      }
+    }
+  }
+}
+```
+
+### Alternative: Single Complex Query Instead of Two Queries
+```graphql
+# ❌ Bad: Two queries
+# Query 1: Get IDs
+# Query 2: Get data for those IDs
+
+# ✅ Good: One query with nested filter
+users(
+  filter: {
+    purchases: {
+      any_of: {
+        product: {
+          category: { eq: "electronics" }
+        }
+        amount: { gt: 1000 }
+      }
+    }
+  }
+  limit: 100
+) {
+  id
+  name
+  purchases(
+    filter: {
+      product: { category: { eq: "electronics" } }
+      amount: { gt: 1000 }
+    }
+    nested_limit: 10
+  ) {
+    id
+    amount
+    product { name }
   }
 }
 ```
@@ -171,6 +351,25 @@ source_a_object {
 }
 ```
 
+## Query Validation
+
+### Test with limit: 0
+```graphql
+# Build complex query, test structure with limit: 0
+data_object(
+  filter: { ... complex filter ... }
+  order_by: [{ field: "field", direction: DESC }]
+  limit: 0  # ✅ No data returned, but validates query structure
+) {
+  id
+  field1
+  related {
+    field2
+  }
+}
+# If successful, change limit: 0 to limit: 100
+```
+
 ## Advanced Patterns
 
 ### Spatial Query
@@ -207,7 +406,38 @@ documents(
 }
 ```
 
-### Complex Filtering
+### Multi-Object Query (GraphQL Power!)
+```graphql
+query {
+  # Get data from multiple objects in ONE request
+  module_name {
+    customers_aggregation {
+      _rows_count
+    }
+
+    orders(
+      filter: { status: { eq: "pending" } }
+      order_by: [{ field: "created_at", direction: DESC }]
+      limit: 10
+    ) {
+      id
+      total
+    }
+
+    revenue_bucket_aggregation {
+      key {
+        month: created_at(bucket: month)
+      }
+      aggregations {
+        total { sum }
+      }
+    }
+  }
+}
+# ✅ All results in one response - use jq to transform!
+```
+
+### Complex AND/OR Filtering
 ```graphql
 filter: {
   _and: [
@@ -222,6 +452,7 @@ filter: {
       related_objects: {
         any_of: {
           status: { eq: "active" }
+          value: { gt: 50 }
         }
       }
     }
@@ -240,30 +471,30 @@ data_object { fields }
 data_object(limit: 100) { fields }
 ```
 
-### Filter Early
+### Filter Early (Push Down)
 ```graphql
-# ✅ Filter at root
+# ✅ Filter at root - efficient
 parent(filter: { field: { eq: "value" } }) {
   children { ... }
 }
 
-# ❌ Filter nested
+# ❌ Filter nested - inefficient
 parent {
   children(filter: { parent: { field: { eq: "value" } } }) { ... }
 }
 ```
 
-### Use Aggregations
+### Use Aggregations Over Fetching
 ```graphql
-# ✅ Efficient
+# ✅ Efficient - server-side count
 data_object_aggregation {
   _rows_count
 }
 
-# ❌ Wasteful
-data_object {
+# ❌ Wasteful - fetch all, count client-side
+data_object(limit: 10000) {
   id
-}  # Then count in application
+}
 ```
 
 ### Limit Nested Queries
@@ -284,3 +515,32 @@ filter: { name: { like: "%pattern%" } }
 filter: { name: { ilike: "%pattern%" } }
 filter: { name: { regex: "pattern" } }
 ```
+
+### Batch with Single Query, Not Loops
+```graphql
+# ❌ Bad: Generate 100 separate queries
+# for id in ids:
+#   query { object_by_pk(id: $id) { ... } }
+
+# ✅ Good: Single query with filter
+query {
+  objects(
+    filter: { id: { in: $ids } }
+    limit: 1000
+  ) {
+    id
+    data
+  }
+}
+```
+
+## Common Mistakes to Avoid
+
+1. ❌ Using `count` instead of `_rows_count`
+2. ❌ Using lowercase `asc`/`desc` instead of `ASC`/`DESC`
+3. ❌ Querying outside module structure
+4. ❌ Using invented functions like `value_count`, `distinct_count`
+5. ❌ Two queries instead of one with nested filters
+6. ❌ Python/scripts for query generation instead of direct complex queries
+7. ❌ Fetching data for client-side analysis instead of using aggregations
+8. ❌ Not validating queries with `limit: 0` first
