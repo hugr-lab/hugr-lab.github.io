@@ -54,6 +54,7 @@ const faqItems: FAQItem[] = [
           <li><strong>Spatial Formats:</strong> GeoParquet, GeoJSON, Shapefiles (GDAL compatible)</li>
           <li><strong>Services:</strong> REST APIs with authentication (HTTP Basic, ApiKey, OAuth2)</li>
           <li><strong>Storage:</strong> Local files and cloud object storage (S3-compatible)</li>
+          <li><strong>Coming Soon:</strong> DuckLake - a data lake solution for managing large volumes of data with snapshot-based schema evolution</li>
         </ul>
       </>
     ),
@@ -70,7 +71,8 @@ const faqItems: FAQItem[] = [
           <li><code>@table</code> - Define database tables</li>
           <li><code>@view</code> - Define views with SQL expressions</li>
           <li><code>@field_references</code> - Define relationships between tables</li>
-          <li><code>@pk</code> - Mark primary key fields</li>
+          <li><code>@join</code> - Define query-time joins between data objects</li>
+          <li><code>@module</code> - Organize schema into logical modules</li>
           <li><code>@function</code> - Define custom functions</li>
         </ul>
         <p>

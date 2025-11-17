@@ -16,8 +16,6 @@ export default function SetupSection(): ReactNode {
       run: `docker run -d \\
   --name hugr \\
   -p 18000:8080 \\
-  -e HUGR_ADMIN_ENABLED=true \\
-  -e HUGR_CORS_ENABLED=true \\
   ghcr.io/hugr-lab/hugr:latest`,
       stop: 'docker stop hugr',
       logs: 'docker logs -f hugr',
@@ -26,8 +24,6 @@ export default function SetupSection(): ReactNode {
       run: `docker run -d ^
   --name hugr ^
   -p 18000:8080 ^
-  -e HUGR_ADMIN_ENABLED=true ^
-  -e HUGR_CORS_ENABLED=true ^
   ghcr.io/hugr-lab/hugr:latest`,
       stop: 'docker stop hugr',
       logs: 'docker logs -f hugr',
@@ -37,7 +33,7 @@ export default function SetupSection(): ReactNode {
   const databaseExamples = {
     duckdb: {
       title: 'Connect DuckDB Database',
-      description: 'Use DuckDB as an embedded analytical database',
+      description: 'Use DuckDB as an embedded analytical database with auto-generated schema',
       mutation: `mutation AddDuckDBSource {
   core {
     insert_data_sources(data: {
@@ -46,17 +42,22 @@ export default function SetupSection(): ReactNode {
       description: "DuckDB analytics database"
       path: "/data/analytics.db"
       as_module: true
-      catalogs: [
-        {
-          name: "schema"
-          type: "uri"
-          description: "Schema definition"
-          path: "/schemas"
-        }
-      ]
+      self_defined: true
     }) {
       name
       type
+    }
+  }
+}
+
+# Load the data source
+mutation LoadDuckDBSource {
+  function {
+    core {
+      load_data_source(name: "analytics") {
+        success
+        message
+      }
     }
   }
 }`,
@@ -83,6 +84,18 @@ export default function SetupSection(): ReactNode {
     }) {
       name
       type
+    }
+  }
+}
+
+# Load the data source
+mutation LoadPostgreSQLSource {
+  function {
+    core {
+      load_data_source(name: "production") {
+        success
+        message
+      }
     }
   }
 }`,
