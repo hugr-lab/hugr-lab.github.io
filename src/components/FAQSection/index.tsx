@@ -71,7 +71,7 @@ const faqItems: FAQItem[] = [
           <li><code>@table</code> - Define database tables</li>
           <li><code>@view</code> - Define views with SQL expressions</li>
           <li><code>@field_references</code> - Define relationships between tables</li>
-          <li><code>@join</code> - Define query-time joins between data objects</li>
+          <li><code>@join</code> - Define subquery fields in schema for data selection</li>
           <li><code>@module</code> - Organize schema into logical modules</li>
           <li><code>@function</code> - Define custom functions</li>
         </ul>
