@@ -11,6 +11,8 @@ import ListSection from '../components/ListSection';
 import DescriptionSection from '../components/DescriptionSection';
 import DuckDBSection from '../components/DuckDBSection';
 import DataMeshSection from '../components/DataMeshSection';
+import SetupSection from '../components/SetupSection';
+import FAQSection from '../components/FAQSection';
 
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
@@ -127,6 +129,8 @@ export default function Home(): ReactNode {
           </div>
         </section>
 
+        <SetupSection />
+        <FAQSection />
         <DuckDBSection />
       </main>
     </Layout>
