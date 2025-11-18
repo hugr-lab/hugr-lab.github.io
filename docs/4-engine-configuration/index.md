@@ -1,5 +1,4 @@
 ---
-slug: /docs/4-engine-configuration
 title: Overview
 sidebar_position: 1
 ---

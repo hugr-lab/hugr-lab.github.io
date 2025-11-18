@@ -1,0 +1,243 @@
+.setupSection {
+  padding: 4rem 0;
+  background: linear-gradient(180deg, var(--ifm-background-color) 0%, var(--ifm-color-emphasis-100) 100%);
+}
+
+.sectionTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 3rem;
+  color: var(--ifm-font-color-base);
+}
+
+.setupContent {
+  max-width: 1140px;
+  margin: 0 auto;
+}
+
+.setupBlock {
+  margin-bottom: 3rem;
+  background: var(--ifm-background-color);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.blockTitle {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: var(--ifm-color-primary);
+}
+
+.blockDescription {
+  margin-bottom: 1.5rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.6;
+}
+
+.blockDescription a {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.blockDescription a:hover {
+  text-decoration: underline;
+}
+
+.osTabs,
+.dbTabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--ifm-color-emphasis-200);
+}
+
+.tabButton {
+  background: transparent;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+
+.tabButton:hover {
+  color: var(--ifm-color-primary);
+}
+
+.tabButton.active {
+  color: var(--ifm-color-primary);
+  border-bottom-color: var(--ifm-color-primary);
+}
+
+.commandBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.commandLabel {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-font-color-base);
+}
+
+.commandRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.commandColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+.dbExample {
+  margin-top: 1rem;
+}
+
+.exampleTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-font-color-base);
+}
+
+.exampleDescription {
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 1rem;
+}
+
+.helpText {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-600);
+  font-style: italic;
+}
+
+.helpText code {
+  background: var(--ifm-color-emphasis-200);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+/* Dark code block styling */
+.darkCodeBlock {
+  --prism-background-color: #1e1e1e;
+}
+
+.darkCodeBlock :global(.prism-code) {
+  background-color: #1e1e1e !important;
+  color: #4af626 !important;
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+}
+
+.darkCodeBlock :global(.token-line) {
+  color: #4af626 !important;
+}
+
+.darkCodeBlock :global(.token) {
+  color: #4af626 !important;
+}
+
+/* Collapsible Section */
+.collapsibleHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.2s;
+}
+
+.setupBlock:hover {
+  background: var(--ifm-color-emphasis-100);
+}
+
+.collapsibleHeader .blockTitle {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.collapsibleHeader .toggleIcon {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--ifm-color-primary);
+  font-weight: 300;
+  transition: transform 0.2s;
+}
+
+.collapsibleHeader[aria-expanded="true"] .toggleIcon {
+  transform: rotate(180deg);
+}
+
+.collapsibleContent {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.collapsibleContent.open {
+  max-height: 3000px;
+  transition: max-height 0.5s ease-in;
+  padding-top: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .setupSection {
+    padding: 3rem 0;
+  }
+
+  .sectionTitle {
+    font-size: 2rem;
+  }
+
+  .setupBlock {
+    padding: 1.5rem;
+  }
+
+  .blockTitle {
+    font-size: 1.5rem;
+  }
+
+  .commandRow {
+    grid-template-columns: 1fr;
+  }
+
+  .osTabs,
+  .dbTabs {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .tabButton {
+    padding: 0.75rem 1rem;
+    text-align: left;
+  }
+
+  .collapsibleHeader .toggleIcon {
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 1.25rem;
+  }
+}
