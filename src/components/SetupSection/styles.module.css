@@ -138,6 +138,15 @@
 
 .darkCodeBlock :global(.prism-code) {
   background-color: #1e1e1e !important;
+  color: #ffffff !important;
+}
+
+.darkCodeBlock :global(.token-line) {
+  color: #ffffff !important;
+}
+
+.darkCodeBlock :global(.token) {
+  color: #ffffff !important;
 }
 
 /* Collapsible Section */

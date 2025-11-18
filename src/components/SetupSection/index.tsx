@@ -202,7 +202,7 @@ mutation LoadPostgreSQLSource {
                 <p className={styles.exampleDescription}>
                   {databaseExamples[selectedDB].description}
                 </p>
-                <CodeBlock language="graphql" className={styles.darkCodeBlock}>
+                <CodeBlock language="graphql">
                   {databaseExamples[selectedDB].mutation}
                 </CodeBlock>
                 <p className={styles.helpText}>
