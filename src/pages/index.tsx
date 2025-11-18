@@ -13,6 +13,8 @@ import DuckDBSection from '../components/DuckDBSection';
 import DataMeshSection from '../components/DataMeshSection';
 import TryHugrCTA from '../components/TryHugrCTA';
 import JoinUsCTA from '../components/JoinUsCTA';
+import SetupSection from '../components/SetupSection';
+import FAQSection from '../components/FAQSection';
 
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
@@ -130,6 +132,9 @@ export default function Home(): ReactNode {
         </section>
 
         <TryHugrCTA />
+
+        <SetupSection />
+        <FAQSection />
 
         <JoinUsCTA />
 

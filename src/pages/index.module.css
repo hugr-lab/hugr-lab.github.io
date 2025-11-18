@@ -52,16 +52,14 @@
   font-size: 1.3rem !important;
 }
 
-/* Для экранов меньше 800px */
-@media screen and (max-width: 1120px) {
+@media screen and (max-width: 1440px) {
   .heroBanner {
     background-image: none;
     background-color: white !important;
     min-height: 80vh;
-    isolation: isolate; /* КРИТИЧНО: изолирует stacking context */
+    isolation: isolate;
   }
   
-  /* Фоновое изображение */
   .heroBanner::before {
     content: '';
     position: absolute;
