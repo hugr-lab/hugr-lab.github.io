@@ -145,7 +145,7 @@ const config: Config = {
             },
             {
               label: 'Query engine configuration',
-              to: '/docs/category/query-engine-configuration/',
+              to: '/docs/engine-configuration/',
             },
           ],
         },
