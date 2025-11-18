@@ -2,7 +2,7 @@
   "label": "Schema definitions",
   "position": 4,
   "link": {
-    "type": "generated-index",
-    "description": "Learn how to define and manage schema definitions in your GraphQL API. This section covers the structure, types, and relationships within your schema, enabling you to build robust and scalable APIs."
+    "type": "doc",
+    "id": "engine-configuration/schema-definition/index"
   }
 }

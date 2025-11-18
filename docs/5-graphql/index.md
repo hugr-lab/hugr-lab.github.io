@@ -1,5 +1,4 @@
 ---
-slug: /docs/5-graphql
 title: GraphQL API
 sidebar_position: 1
 description: Comprehensive GraphQL API for querying, mutating, and transforming data in hugr
