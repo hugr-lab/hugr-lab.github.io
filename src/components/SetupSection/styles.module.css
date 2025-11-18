@@ -31,6 +31,22 @@
   color: var(--ifm-color-primary);
 }
 
+.blockDescription {
+  margin-bottom: 1.5rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.6;
+}
+
+.blockDescription a {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.blockDescription a:hover {
+  text-decoration: underline;
+}
+
 .osTabs,
 .dbTabs {
   display: flex;
@@ -115,6 +131,73 @@
   font-size: 0.85rem;
 }
 
+/* Dark code block styling */
+.darkCodeBlock {
+  --prism-background-color: #1e1e1e;
+}
+
+.darkCodeBlock :global(.prism-code) {
+  background-color: #1e1e1e !important;
+}
+
+/* Collapsible Section */
+.collapsibleHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: opacity 0.2s;
+}
+
+.collapsibleHeader:hover {
+  opacity: 0.8;
+}
+
+.collapsibleHeader .blockTitle {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.collapsibleHeader .toggleIcon {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--ifm-color-primary);
+  font-weight: 300;
+  border: 2px solid var(--ifm-color-primary);
+  border-radius: 50%;
+  transition: transform 0.3s, background-color 0.2s;
+}
+
+.collapsibleHeader:hover .toggleIcon {
+  background-color: var(--ifm-color-primary-lightest);
+}
+
+.collapsibleHeader[aria-expanded="true"] .toggleIcon {
+  transform: rotate(180deg);
+}
+
+.collapsibleContent {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.collapsibleContent.open {
+  max-height: 3000px;
+  transition: max-height 0.5s ease-in;
+  padding-top: 1.5rem;
+}
+
 @media (max-width: 768px) {
   .setupSection {
     padding: 3rem 0;
@@ -145,5 +228,11 @@
   .tabButton {
     padding: 0.75rem 1rem;
     text-align: left;
+  }
+
+  .collapsibleHeader .toggleIcon {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1.5rem;
   }
 }
