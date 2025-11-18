@@ -145,7 +145,7 @@ mutation LoadPostgreSQLSource {
               </CodeBlock>
 
               <p className={styles.commandLabel}>Access the admin UI:</p>
-              <CodeBlock language="text" className={styles.darkCodeBlock}>
+              <CodeBlock language="text">
                 http://localhost:15000/admin
               </CodeBlock>
 

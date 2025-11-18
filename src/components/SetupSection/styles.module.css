@@ -138,15 +138,15 @@
 
 .darkCodeBlock :global(.prism-code) {
   background-color: #1e1e1e !important;
-  color: #ffffff !important;
+  color: #4af626 !important;
 }
 
 .darkCodeBlock :global(.token-line) {
-  color: #ffffff !important;
+  color: #4af626 !important;
 }
 
 .darkCodeBlock :global(.token) {
-  color: #ffffff !important;
+  color: #4af626 !important;
 }
 
 /* Collapsible Section */
@@ -160,11 +160,11 @@
   padding: 0;
   cursor: pointer;
   text-align: left;
-  transition: opacity 0.2s;
+  transition: background-color 0.2s;
 }
 
-.collapsibleHeader:hover {
-  opacity: 0.8;
+.setupBlock:hover {
+  background: var(--ifm-color-emphasis-100);
 }
 
 .collapsibleHeader .blockTitle {
@@ -174,21 +174,15 @@
 
 .collapsibleHeader .toggleIcon {
   flex-shrink: 0;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2rem;
+  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
+  font-size: 1.5rem;
   color: var(--ifm-color-primary);
   font-weight: 300;
-  border: 2px solid var(--ifm-color-primary);
-  border-radius: 50%;
-  transition: transform 0.3s, background-color 0.2s;
-}
-
-.collapsibleHeader:hover .toggleIcon {
-  background-color: var(--ifm-color-primary-lightest);
+  transition: transform 0.2s;
 }
 
 .collapsibleHeader[aria-expanded="true"] .toggleIcon {
@@ -240,8 +234,8 @@
   }
 
   .collapsibleHeader .toggleIcon {
-    width: 2rem;
-    height: 2rem;
-    font-size: 1.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 1.25rem;
   }
 }
