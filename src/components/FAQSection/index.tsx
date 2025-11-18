@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 import styles from './styles.module.css';
 import Heading from '@theme/Heading';
+import Link from '@docusaurus/Link';
 
 interface FAQItem {
   question: string;
@@ -23,6 +24,9 @@ const faqItems: FAQItem[] = [
           hugr enables rapid API development, analytics & BI, geospatial processing,
           and serves as a universal data access layer for applications.
         </p>
+        <p>
+          <Link to="/docs/overview">Learn more about hugr →</Link>
+        </p>
       </>
     ),
   },
@@ -40,6 +44,9 @@ const faqItems: FAQItem[] = [
           <li>Domain-specific modeling and independent scaling</li>
           <li>Decentralized data ownership while maintaining unified access</li>
         </ul>
+        <p>
+          <Link to="/docs/concept">Learn more about Data Mesh architecture →</Link>
+        </p>
       </>
     ),
   },
@@ -56,6 +63,9 @@ const faqItems: FAQItem[] = [
           <li><strong>Storage:</strong> Local files and cloud object storage (S3-compatible)</li>
           <li><strong>Coming Soon:</strong> DuckLake - a data lake solution for managing large volumes of data with snapshot-based schema evolution</li>
         </ul>
+        <p>
+          <Link to="/docs/engine-configuration/data-sources">Learn more about data sources →</Link>
+        </p>
       </>
     ),
   },
@@ -79,6 +89,9 @@ const faqItems: FAQItem[] = [
           Schema files are stored in catalogs and can be located in file systems,
           HTTP endpoints, or S3 buckets.
         </p>
+        <p>
+          <Link to="/docs/references/directives">Learn more about schema directives →</Link>
+        </p>
       </>
     ),
   },
@@ -101,6 +114,11 @@ const faqItems: FAQItem[] = [
           <li>Delete with conditional filters</li>
           <li>Full transaction support within single requests</li>
         </ul>
+        <p>
+          <Link to="/docs/graphql/queries">Learn more about queries →</Link>
+          {' | '}
+          <Link to="/docs/graphql/mutations">Learn more about mutations →</Link>
+        </p>
       </>
     ),
   },
@@ -126,6 +144,9 @@ const faqItems: FAQItem[] = [
         <p>
           Automatic cache invalidation occurs on mutations based on tags.
         </p>
+        <p>
+          <Link to="/docs/engine-configuration/cache">Learn more about caching →</Link>
+        </p>
       </>
     ),
   },
@@ -142,6 +163,9 @@ const faqItems: FAQItem[] = [
         </ul>
         <p>
           Multiple methods can be enabled simultaneously, and hugr tries each in order.
+        </p>
+        <p>
+          <Link to="/docs/deployment/auth">Learn more about authentication →</Link>
         </p>
       </>
     ),
@@ -163,6 +187,9 @@ const faqItems: FAQItem[] = [
           Permissions support wildcards (<code>*</code>) for broad rules with specific exceptions.
           Access is open by default; add permission entries to restrict.
         </p>
+        <p>
+          <Link to="/docs/engine-configuration/access-control">Learn more about access control →</Link>
+        </p>
       </>
     ),
   },
@@ -181,6 +208,9 @@ const faqItems: FAQItem[] = [
           <li>Excellent performance for large-scale data processing</li>
           <li>Can attach external databases (PostgreSQL, MySQL) and query them together</li>
         </ul>
+        <p>
+          <Link to="/docs/engine-configuration/data-sources/duckdb">Learn more about DuckDB integration →</Link>
+        </p>
       </>
     ),
   },
@@ -199,6 +229,11 @@ const faqItems: FAQItem[] = [
           <li>Distance-based queries and spatial relationships</li>
           <li>H3 clustering for hierarchical spatial indexing</li>
         </ul>
+        <p>
+          <Link to="/docs/graphql/queries/spatial">Learn more about spatial queries →</Link>
+          {' | '}
+          <Link to="/docs/graphql/queries/h3-clustering">Learn more about H3 clustering →</Link>
+        </p>
       </>
     ),
   },
@@ -214,6 +249,11 @@ const faqItems: FAQItem[] = [
           <li><strong>Performance:</strong> Query optimization and pushdown to data sources</li>
           <li><strong>Kubernetes Ready:</strong> Helm charts for easy K8s deployment</li>
         </ul>
+        <p>
+          <Link to="/docs/deployment/cluster">Learn more about cluster mode →</Link>
+          {' | '}
+          <Link to="/docs/deployment/container">Learn more about container deployment →</Link>
+        </p>
       </>
     ),
   },
@@ -231,6 +271,13 @@ const faqItems: FAQItem[] = [
         <p>
           The Arrow IPC protocol enables efficient streaming of large datasets to analytics
           and ML pipelines.
+        </p>
+        <p>
+          <Link to="/docs/querying/hugr-ipc">Learn more about Arrow IPC →</Link>
+          {' | '}
+          <Link to="/docs/querying/python-client">Learn more about Python client →</Link>
+          {' | '}
+          <Link to="/docs/querying/jq-endpoint">Learn more about JQ transformations →</Link>
         </p>
       </>
     ),
