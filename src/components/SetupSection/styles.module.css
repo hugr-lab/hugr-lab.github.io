@@ -12,7 +12,7 @@
 }
 
 .setupContent {
-  max-width: 900px;
+  max-width: 1140px;
   margin: 0 auto;
 }
 
@@ -139,6 +139,8 @@
 .darkCodeBlock :global(.prism-code) {
   background-color: #1e1e1e !important;
   color: #4af626 !important;
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
 }
 
 .darkCodeBlock :global(.token-line) {
