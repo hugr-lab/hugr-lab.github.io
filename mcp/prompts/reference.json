@@ -1,0 +1,54 @@
+[
+  {
+    "filename": "start.md",
+    "name": "start",
+    "description": "Main entry point - automatically routes user requests to specialized prompts (analysis, discovery, query-building). Use this when you're unsure which prompt to invoke, or want automatic task classification.",
+    "arguments": [
+      {
+        "name": "task",
+        "description": "User's request in natural language (e.g., 'show me top products', 'what tables are available', 'build a query for customers'). Router will classify and route to appropriate prompt.",
+        "required": false
+      }
+    ],
+    "priority": 1
+  },
+  {
+    "filename": "discovery.md",
+    "name": "discovery",
+    "description": "Schema discovery and introspection workflow. Find modules, data objects, fields, and understand schema structure through MCP tools. NEVER assume schema - always discover first.",
+    "arguments": [
+      {
+        "name": "task",
+        "description": "Discovery objective (e.g., 'find order tables', 'show customer schema', 'explore sales module'). Optional - if not provided, returns full discovery guide.",
+        "required": false
+      }
+    ],
+    "priority": 2
+  },
+  {
+    "filename": "query-building.md",
+    "name": "query-building",
+    "description": "GraphQL query construction guidelines and best practices. Choose query types, build filters, apply sorting/pagination, optimize performance, and validate queries before execution.",
+    "arguments": [
+      {
+        "name": "task",
+        "description": "Query requirement (e.g., 'get active users with email', 'top 10 products by revenue', 'filter orders by date range'). Optional - if not provided, returns full query building guide.",
+        "required": false
+      }
+    ],
+    "priority": 3
+  },
+  {
+    "filename": "analysis.md",
+    "name": "analysis",
+    "description": "Iterative data analysis workflow with query chaining. Discover → Query → Analyze → Refine cycle. Use data-inline_graphql_result, discovery-data_object_field_values, and jq transforms for multi-iteration analysis.",
+    "arguments": [
+      {
+        "name": "task",
+        "description": "Analysis objective (e.g., 'customer distribution by region', 'sales trends over time', 'identify outliers'). Optional - if not provided, returns full analysis guide.",
+        "required": false
+      }
+    ],
+    "priority": 4
+  }
+]
