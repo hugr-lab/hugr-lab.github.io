@@ -1,6 +1,6 @@
 /* DuckDB Section Styles */
 .duckdbSection {
-  padding: 60px 0;
+  padding: 2rem 0;
   background: #f8fafc;
 }
 
@@ -53,6 +53,12 @@
 }
 
 /* Responsive Design */
+@media (max-width: 996px) {
+  .duckdbSection {
+    background: white;
+  }
+}
+
 @media (max-width: 768px) {
   .content {
     flex-direction: column;

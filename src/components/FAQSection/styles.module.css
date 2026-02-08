@@ -1,5 +1,5 @@
 .faqSection {
-  padding: 4rem 0;
+  padding: 2rem 0;
   background: var(--ifm-background-color);
 }
 
@@ -7,12 +7,11 @@
   font-size: 2.5rem;
   font-weight: 700;
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 1.5rem;
   color: var(--ifm-font-color-base);
 }
 
 .faqList {
-  max-width: 1140px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;

@@ -1,4 +1,4 @@
-import {type ReactNode} from 'react';
+import {type ReactNode, useState, useEffect} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
@@ -14,10 +14,72 @@ import DataMeshSection from '../components/DataMeshSection';
 import SetupSection from '../components/SetupSection';
 import FAQSection from '../components/FAQSection';
 
+function HeroNavbar() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 80);
+    };
+    window.addEventListener('scroll', handleScroll, {passive: true});
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <nav className={clsx(styles.heroNav, scrolled && styles.heroNavScrolled)}>
+      <div className={styles.heroNavInner}>
+        <div className={styles.heroNavLeft}>
+          <Link to="/" className={styles.heroNavLogo}>
+            <img src="/img/logo-circle.svg" alt="Hugr Lab" />
+          </Link>
+          <Link to="/docs/overview/" className={styles.heroNavLink}>Docs</Link>
+          <Link to="/docs/join-us/" className={styles.heroNavLink}>Join us</Link>
+        </div>
+        <div className={styles.heroNavRight}>
+          <Link
+            to="https://github.com/hugr-lab/hugr"
+            className={clsx(styles.heroNavLink, styles.heroNavExternal)}
+          >
+            GitHub
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginLeft: '0.3rem'}}>
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </Link>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 997px)');
+    setIsDesktop(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
   return (
     <header className={clsx('hero hero--primary', styles.heroBanner)}>
+      {isDesktop && (
+        <video
+          className={styles.heroVideo}
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster="/img/hero_mobile_smooth.png"
+        >
+          <source src="/video/heroloop_seamless.mp4" type="video/mp4" />
+        </video>
+      )}
       <div className="container">
         <Heading as="h1" className="hero__title">
           {siteConfig.title}
@@ -38,11 +100,22 @@ function HomepageHeader() {
 
 export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
+
+  useEffect(() => {
+    // Hide the default Docusaurus navbar on the homepage
+    const navbar = document.querySelector('.navbar') as HTMLElement;
+    if (navbar) navbar.style.display = 'none';
+    return () => {
+      if (navbar) navbar.style.display = '';
+    };
+  }, []);
+
   return (
     <Layout
       wrapperClassName='homepage'
       title={`${siteConfig.title}`}
       description="hugr - Open Source Data Mesh platform and high-performance GraphQL backend for distributed data sources">
+      <HeroNavbar />
       <HomepageHeader />
       <main className={styles.mainContent}>
         <DescriptionSection />

@@ -1,6 +1,6 @@
 /* Key Benefits Section */
 .benefits {
-  padding: 4rem 0;
+  padding: 2rem 0;
   position: relative;
 }
 
@@ -25,7 +25,7 @@
 .sectionTitle {
   font-size: 2.5rem;
   font-weight: 800;
-  margin-bottom: 3rem;
+  margin-bottom: 1.5rem;
   color: var(--ifm-heading-color);
   text-align: center;
   position: relative;
@@ -90,6 +90,11 @@
 @media (max-width: 996px) {
   .benefits {
     padding: 3rem 0;
+    background: white;
+  }
+
+  .benefits::before {
+    display: none;
   }
   
   .benefitRow {
