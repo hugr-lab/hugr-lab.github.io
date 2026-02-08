@@ -1,6 +1,6 @@
 .descriptionSection {
   background-color: rgba(214,229,228,0.39);
-  padding: 4rem 0rem;
+  padding: 2rem 0;
   margin: 0;
 }
 
@@ -52,4 +52,22 @@
   align-items: left;
   justify-content: left;
   margin-bottom: 2rem;
+}
+
+@media (max-width: 996px) {
+  .descriptionSection {
+    background-color: rgba(214, 229, 228, 0.39);
+  }
+
+  .descriptionVisual {
+    min-width: unset;
+  }
+
+  .descriptionVisual img {
+    max-height: 200px;
+  }
+
+  .descriptionGrid {
+    gap: 1.5rem;
+  }
 }

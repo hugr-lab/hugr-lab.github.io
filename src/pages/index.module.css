@@ -3,29 +3,252 @@
  * and scoped locally.
  */
 
+/* Custom hero navbar — overlays the hero */
+.heroNav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: 1rem 2rem;
+  transition: background 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease;
+}
+
+.heroNavInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: var(--ifm-container-width-xl, 1440px);
+  margin: 0 auto;
+}
+
+.heroNavLeft {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.heroNavRight {
+  display: flex;
+  align-items: center;
+}
+
+.heroNavLogo img {
+  height: 64px;
+  width: auto;
+}
+
+/* Solid background when scrolled past hero */
+.heroNavScrolled {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+.heroNavScrolled .heroNavLogo img {
+  height: 44px;
+}
+
+.heroNavLink {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #056969 !important;
+  text-decoration: none !important;
+  transition: font-weight 0.3s ease;
+}
+
+.heroNavScrolled .heroNavLink {
+  font-weight: 600;
+}
+
+.heroNavLink:hover {
+  color: #1c7d78 !important;
+}
+
+.heroNavExternal {
+  display: flex;
+  align-items: center;
+}
+
+/* Mobile hamburger toggle — hidden on desktop */
+.heroNavToggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: #056969;
+}
+
+/* Mobile logo (right side) — hidden on desktop */
+.heroNavLogoMobile {
+  display: none;
+}
+
+/* Mobile sidebar */
+.heroSidebar {
+  display: none;
+}
+
+.heroSidebarBackdrop {
+  display: none;
+}
+
+@media screen and (max-width: 996px) {
+  .heroNavToggle {
+    display: block;
+  }
+
+  .heroNavLogoMobile {
+    display: block;
+  }
+
+  .heroNavLogoMobile img {
+    height: 48px;
+    width: auto;
+  }
+
+  /* Hide desktop nav elements on mobile */
+  .heroNavLeft {
+    display: none;
+  }
+
+  .heroNavRight {
+    display: none;
+  }
+
+  .heroNavInner {
+    justify-content: space-between;
+  }
+
+  /* Sidebar backdrop */
+  .heroSidebarBackdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 99;
+  }
+
+  /* Sidebar panel */
+  .heroSidebar {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 80%;
+    max-width: 350px;
+    background: white;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    padding: 1rem 1.5rem;
+  }
+
+  .heroSidebarOpen {
+    transform: translateX(0);
+  }
+
+  .heroSidebarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+  }
+
+  .heroSidebarHeader .heroNavLogo img {
+    height: 48px;
+  }
+
+  .heroSidebarClose {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    color: #333;
+  }
+
+  .heroSidebarLinks {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .heroSidebarLink {
+    font-family: 'Quicksand', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #056969 !important;
+    text-decoration: none !important;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #eee;
+  }
+}
+
 .heroBanner {
   padding: 0;
   text-align: center;
   position: relative;
   overflow: hidden;
-  min-height: 800px;
+  width: 100%;
+  aspect-ratio: 1924 / 1076;
   margin-top: 0;
 
-  background-image: url('/img/hero-back.png');
+  /* Fallback for browsers without video support */
+  background-image: url('/img/hero_mobile_smooth.png');
   background-size: cover;
   background-position: center bottom;
   background-repeat: no-repeat;
-  
+
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  flex-direction: column;
 }
 
-.heroBanner .container {
-  padding-bottom: 4rem; 
+/* Spacer — flexible, pushes text to the bottom of the hero */
+.heroBanner::before {
+  content: '';
+  flex: 1 1 auto;
+}
+
+.heroVideo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+/* Gradient overlay: transparent top → light bottom for text readability */
+.heroBanner::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 70%;
+  background: linear-gradient(to bottom, transparent 0%, rgba(220, 225, 225, 0.5) 20%, rgba(220, 225, 225, 0.8) 45%, rgba(220, 225, 225, 0.95) 70%, rgba(220, 225, 225, 0.98) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.heroBanner :global(.container) {
+  padding-bottom: 2rem;
   width: 100%;
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .heroBanner.hero {
@@ -33,7 +256,6 @@
   background-color: transparent !important;
 }
 
-/* Переопределяем стили Docusaurus для текста */
 .heroBanner :global(.hero__title) {
   font-family: 'Quicksand' !important;
   color: #0a3145 !important;
@@ -41,7 +263,7 @@
 
 .heroBanner :global(.hero__subtitle) {
   font-family: 'Quicksand' !important;
-  color: #26bab5 !important;
+  color: #056969 !important;
   font-size: 1.7rem !important;
   font-weight: 600 !important;
 }
@@ -52,52 +274,46 @@
   font-size: 1.3rem !important;
 }
 
-@media screen and (max-width: 1440px) {
+@media screen and (max-width: 996px) {
   .heroBanner {
-    background-image: none;
-    background-color: white !important;
-    min-height: 80vh;
-    isolation: isolate;
+    background-image: url('/img/hero_mobile_smooth.png');
+    background-size: 100% auto;
+    background-position: top center;
+    background-repeat: no-repeat;
+    background-color: #e4e7e7;
+    height: auto;
+    min-height: 100vh;
+    min-height: 100svh;
+    aspect-ratio: auto;
   }
-  
+
   .heroBanner::before {
     content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: url('/img/hero-back-small.png');
-    background-size: cover;
-    background-position: center bottom;
-    background-repeat: no-repeat;
-    opacity: 0.6;
-    z-index: -1; /* КРИТИЧНО: отрицательный z-index */
+    flex: 0 0 auto;
+    width: 100%;
+    /* Match the vertical position where objects end in the background image.
+       Image aspect: 1170 x 2106. Objects end at ~52% of image height.
+       Image displayed at 100% width, so spacer height = image_width/image_height_to_objects.
+       1170 / (2106 * 0.52) ≈ 1170 / 1095 */
+    aspect-ratio: 1170 / 1095;
   }
-  
-  .heroBanner .container {
+
+  .heroBanner::after {
+    display: none;
+  }
+
+  .heroBanner :global(.container) {
     padding-bottom: 2rem;
-    position: relative;
-    z-index: 1;
-    isolation: isolate; /* КРИТИЧНО: изолирует контент */
+    z-index: 2;
   }
 
-  /* Явно устанавливаем непрозрачность для всех элементов текста */
-  .heroBanner :global(.hero__title),
-  .heroBanner :global(.hero__subtitle),
-  .heroBanner :global(.hero__description),
-  .heroBanner .buttons,
-  .heroBanner .buttons * {
-    opacity: 1 !important;
-  }
-
-  /* Цвета текста на мобильных */
   .heroBanner :global(.hero__title) {
     color: #0a3145 !important;
+    font-size: 2.2rem !important;
   }
 
   .heroBanner :global(.hero__subtitle) {
-    color: #0a3145 !important;
+    display: none;
   }
 
   .heroBanner :global(.hero__description) {
@@ -105,13 +321,22 @@
   }
 }
 
-@media screen and (max-width: 996px) and (min-width: 801px) {
-  .heroBanner {
-    min-height: 80vh;
+/* Desktop/mobile title toggle */
+.titleDesktop {
+  display: inline;
+}
+
+.titleMobile {
+  display: none;
+}
+
+@media screen and (max-width: 996px) {
+  .titleDesktop {
+    display: none;
   }
-  
-  .heroBanner .container {
-    padding-bottom: 2rem;
+
+  .titleMobile {
+    display: inline;
   }
 }
 
@@ -126,7 +351,7 @@
 .useCasesSection {
   background: var(--ifm-background-surface-color);
   padding: 2rem 0;
-  margin: 1rem 0;
+  margin: 0;
   border-radius: 0;
 }
 
@@ -146,7 +371,7 @@
 
 /* Ensure proper spacing between major sections */
 .mainContent > * {
-  margin-bottom: 2rem;
+  margin-bottom: 0;
 }
 
 .mainContent > *:last-child {
@@ -156,10 +381,10 @@
 /* Responsive adjustments */
 @media screen and (max-width: 996px) {
   .useCasesSection {
-    padding: 3rem 0;
-    margin: 2rem 0;
+    padding: 2rem 0;
+    margin: 0;
   }
-  
+
   .sectionHeader {
     font-size: 2rem;
     margin-bottom: 2rem;
@@ -169,9 +394,9 @@
 @media screen and (max-width: 768px) {
   .useCasesSection {
     padding: 2rem 0;
-    margin: 1.5rem 0;
+    margin: 0;
   }
-  
+
   .sectionHeader {
     font-size: 1.8rem;
     margin-bottom: 1.5rem;

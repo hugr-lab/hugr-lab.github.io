@@ -1,5 +1,5 @@
 .dataMeshSection {
-  padding: 4rem 0;
+  padding: 2rem 0;
   background-color: var(--ifm-background-surface-color);
   position: relative;
   overflow: hidden;
@@ -84,8 +84,8 @@
 }
 
 .expandedContent {
-  margin-top: 3rem;
-  padding-top: 3rem;
+  margin-top: 0;
+  padding-top: 0;
   grid-column: 1 / -1;
   position: relative;
   z-index: 1;
@@ -244,68 +244,48 @@
 @media screen and (max-width: 996px) {
   .dataMeshSection {
     position: relative;
+    background-color: white;
   }
-  
+
   .mainContent {
     grid-template-columns: 1fr;
-    gap: 0;
+    gap: 1rem;
     position: relative;
-    min-height: 500px;
+    min-height: auto;
   }
-  
-  /* Картинка как фон на мобильных - обрезанная и затемнённая */
+
   .imageContent {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 0;
-    min-height: 100%;
+    position: relative;
+    min-height: auto;
   }
-  
+
   .imageContent::before {
     display: none;
   }
-  
-  /* Белый полупрозрачный overlay для затемнения картинки */
+
   .imageContent::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(255, 255, 255, 0.5); /* белый overlay для выцветания */
-    z-index: 1;
+    display: none;
   }
-  
+
   .imageContent img {
     width: 100%;
-    height: 100%;
-    object-fit: cover; /* обрезает изображение */
-    object-position: center center;
-    filter: blur(1px); /* лёгкое размытие для лучшей читаемости */
+    height: auto;
+    object-fit: contain;
+    filter: none;
   }
-  
+
   .textContent {
     position: relative;
-    z-index: 2;
+    z-index: 1;
     background-color: transparent;
-    padding: 2rem 0;
+    padding: 0;
   }
-  
-  /* Делаем текст более контрастным */
-  .textContent .title,
-  .textContent .description {
-    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.8);
-  }
-  
+
   .expandedContent {
     grid-column: 1;
     position: relative;
-    z-index: 2;
-    background-color: var(--ifm-background-surface-color);
+    z-index: 1;
+    background-color: white;
   }
   
   .tableRow {

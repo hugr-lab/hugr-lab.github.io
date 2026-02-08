@@ -1,4 +1,4 @@
-import {type ReactNode} from 'react';
+import {type ReactNode, useState, useEffect} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
@@ -14,19 +14,129 @@ import DataMeshSection from '../components/DataMeshSection';
 import SetupSection from '../components/SetupSection';
 import FAQSection from '../components/FAQSection';
 
+function HeroNavbar() {
+  const [scrolled, setScrolled] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 80);
+    };
+    window.addEventListener('scroll', handleScroll, {passive: true});
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <nav className={clsx(styles.heroNav, scrolled && styles.heroNavScrolled)}>
+      <div className={styles.heroNavInner}>
+        {/* Mobile: hamburger toggle */}
+        <button
+          className={styles.heroNavToggle}
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label="Toggle navigation"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+
+        <div className={styles.heroNavLeft}>
+          <Link to="/" className={styles.heroNavLogo}>
+            <img src="/img/logo-circle.svg" alt="Hugr Lab" />
+          </Link>
+          <Link to="/docs/overview/" className={styles.heroNavLink}>Docs</Link>
+          <Link to="/docs/join-us/" className={styles.heroNavLink}>Join us</Link>
+        </div>
+
+        {/* Mobile: logo on the right */}
+        <Link to="/" className={styles.heroNavLogoMobile}>
+          <img src="/img/logo-circle.svg" alt="Hugr Lab" />
+        </Link>
+
+        <div className={styles.heroNavRight}>
+          <Link
+            to="https://github.com/hugr-lab/hugr"
+            className={clsx(styles.heroNavLink, styles.heroNavExternal)}
+          >
+            GitHub
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginLeft: '0.3rem'}}>
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </Link>
+        </div>
+      </div>
+
+      {/* Mobile sidebar */}
+      {sidebarOpen && (
+        <div className={styles.heroSidebarBackdrop} onClick={() => setSidebarOpen(false)} />
+      )}
+      <div className={clsx(styles.heroSidebar, sidebarOpen && styles.heroSidebarOpen)}>
+        <div className={styles.heroSidebarHeader}>
+          <Link to="/" className={styles.heroNavLogo}>
+            <img src="/img/logo-circle.svg" alt="Hugr Lab" />
+          </Link>
+          <button
+            className={styles.heroSidebarClose}
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close navigation"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div className={styles.heroSidebarLinks}>
+          <Link to="/docs/overview/" className={styles.heroSidebarLink} onClick={() => setSidebarOpen(false)}>Docs</Link>
+          <Link to="/docs/join-us/" className={styles.heroSidebarLink} onClick={() => setSidebarOpen(false)}>Join Us</Link>
+          <Link to="https://github.com/hugr-lab/hugr" className={styles.heroSidebarLink} onClick={() => setSidebarOpen(false)}>GitHub</Link>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 997px)');
+    setIsDesktop(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
   return (
-    <header className={clsx('hero hero--primary', styles.heroBanner)}>
+    <header className={clsx('hero', styles.heroBanner)}>
+      {isDesktop && (
+        <video
+          className={styles.heroVideo}
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster="/img/hero_mobile_smooth.png"
+        >
+          <source src="/video/heroloop_shifted_up.mp4" type="video/mp4" />
+        </video>
+      )}
       <div className="container">
         <Heading as="h1" className="hero__title">
-          {siteConfig.title}
+          <span className={styles.titleDesktop}>{siteConfig.title}</span>
+          <span className={styles.titleMobile}>Unified API for All Your Data</span>
         </Heading>
         <p className="hero__subtitle">One GraphQL layer for all your data.</p>
         <p className="hero__description">{siteConfig.tagline}</p>
         <div className={styles.buttons}>
           <Link
-            className="button button--secondary button--lg"
+            className="button button--primary button--lg"
             to="/docs/get-started">
             Get Started
           </Link>
@@ -38,11 +148,13 @@ function HomepageHeader() {
 
 export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
+
   return (
     <Layout
       wrapperClassName='homepage'
       title={`${siteConfig.title}`}
       description="hugr - Open Source Data Mesh platform and high-performance GraphQL backend for distributed data sources">
+      <HeroNavbar />
       <HomepageHeader />
       <main className={styles.mainContent}>
         <DescriptionSection />

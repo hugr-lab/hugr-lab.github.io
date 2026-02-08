@@ -158,6 +158,15 @@ const config: Config = {
             },
           ],
         },
+        {
+          title: 'Legal',
+          items: [
+            {
+              label: 'Impressum',
+              to: '/impressum/',
+            },
+          ],
+        },
       ],
       copyright: `Copyright © ${new Date().getFullYear()} hugr-lab. Built with Docusaurus.`,
     },

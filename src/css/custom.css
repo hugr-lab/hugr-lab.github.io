@@ -59,6 +59,11 @@
   }
 }
 
+/* Hide default Docusaurus navbar on homepage (custom HeroNavbar used instead) */
+.navbar:has(~ .homepage) {
+  display: none !important;
+}
+
 
 /*
 /* For readability concerns, you should choose a lighter palette in dark mode. 
@@ -74,26 +79,4 @@
 }
 */
 
-.homepage .navbar--fixed-top {
-  background: transparent !important;
-  background-color: transparent !important;
-  backdrop-filter: none !important;
-  box-shadow: none !important;
-}
-
-.homepage .heroBanner {
-  padding-top: calc(var(--ifm-navbar-height) + 4rem) !important;
-  margin-top: calc(-1 * var(--ifm-navbar-height)) !important;
-}
-
-.homepage .navbar--fixed-top.navbar--scrolled {
-  background-color: var(--ifm-navbar-background-color) !important;
-  box-shadow: var(--ifm-global-shadow-lw) !important;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.homepage .navbar--scrolled .navbar__link,
-.homepage .navbar--scrolled .navbar__title {
-  color: var(--ifm-navbar-link-color) !important;
-}
 
