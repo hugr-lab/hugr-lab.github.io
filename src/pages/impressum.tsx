@@ -13,6 +13,10 @@ export default function Impressum(): ReactNode {
           Germany
         </p>
         <p>
+          <strong>Contact:</strong><br />
+          <a href="mailto:info@hugr-lab.com">info@hugr-lab.com</a>
+        </p>
+        <p>
           <strong>LinkedIn:</strong><br />
           <a href="https://www.linkedin.com/in/vladimirgribanov/" target="_blank" rel="noopener noreferrer">linkedin.com/in/vladimirgribanov</a>
         </p>

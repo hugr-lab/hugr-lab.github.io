@@ -159,8 +159,12 @@ const config: Config = {
           ],
         },
         {
-          title: 'Legal',
+          title: 'Contact',
           items: [
+            {
+              label: 'info@hugr-lab.com',
+              href: 'mailto:info@hugr-lab.com',
+            },
             {
               label: 'Impressum',
               to: '/impressum/',
