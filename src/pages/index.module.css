@@ -74,12 +74,132 @@
   align-items: center;
 }
 
+/* Mobile hamburger toggle — hidden on desktop */
+.heroNavToggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: #056969;
+}
+
+/* Mobile logo (right side) — hidden on desktop */
+.heroNavLogoMobile {
+  display: none;
+}
+
+/* Mobile sidebar */
+.heroSidebar {
+  display: none;
+}
+
+.heroSidebarBackdrop {
+  display: none;
+}
+
+@media screen and (max-width: 996px) {
+  .heroNavToggle {
+    display: block;
+  }
+
+  .heroNavLogoMobile {
+    display: block;
+  }
+
+  .heroNavLogoMobile img {
+    height: 48px;
+    width: auto;
+  }
+
+  /* Hide desktop nav elements on mobile */
+  .heroNavLeft {
+    display: none;
+  }
+
+  .heroNavRight {
+    display: none;
+  }
+
+  .heroNavInner {
+    justify-content: space-between;
+  }
+
+  /* Sidebar backdrop */
+  .heroSidebarBackdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 99;
+  }
+
+  /* Sidebar panel */
+  .heroSidebar {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 80%;
+    max-width: 350px;
+    background: white;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    padding: 1rem 1.5rem;
+  }
+
+  .heroSidebarOpen {
+    transform: translateX(0);
+  }
+
+  .heroSidebarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+  }
+
+  .heroSidebarHeader .heroNavLogo img {
+    height: 48px;
+  }
+
+  .heroSidebarClose {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    color: #333;
+  }
+
+  .heroSidebarLinks {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .heroSidebarLink {
+    font-family: 'Quicksand', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #056969 !important;
+    text-decoration: none !important;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #eee;
+  }
+}
+
 .heroBanner {
   padding: 0;
   text-align: center;
   position: relative;
   overflow: hidden;
-  min-height: 100vh;
+  width: 100%;
+  aspect-ratio: 1924 / 1076;
   margin-top: 0;
 
   /* Fallback for browsers without video support */
@@ -89,8 +209,13 @@
   background-repeat: no-repeat;
 
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  flex-direction: column;
+}
+
+/* Spacer — flexible, pushes text to the bottom of the hero */
+.heroBanner::before {
+  content: '';
+  flex: 1 1 auto;
 }
 
 .heroVideo {
@@ -110,8 +235,8 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 55%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(220, 225, 225, 0.7) 40%, rgba(220, 225, 225, 0.92) 100%);
+  height: 70%;
+  background: linear-gradient(to bottom, transparent 0%, rgba(220, 225, 225, 0.5) 20%, rgba(220, 225, 225, 0.8) 45%, rgba(220, 225, 225, 0.95) 70%, rgba(220, 225, 225, 0.98) 100%);
   z-index: 1;
   pointer-events: none;
 }
@@ -121,6 +246,9 @@
   width: 100%;
   position: relative;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .heroBanner.hero {
@@ -148,52 +276,67 @@
 
 @media screen and (max-width: 996px) {
   .heroBanner {
-    background-image: none;
-    background-color: white !important;
-    min-height: 80vh;
-    isolation: isolate;
+    background-image: url('/img/hero_mobile_smooth.png');
+    background-size: 100% auto;
+    background-position: top center;
+    background-repeat: no-repeat;
+    background-color: #e4e7e7;
+    height: auto;
+    min-height: 100vh;
+    min-height: 100svh;
+    aspect-ratio: auto;
   }
 
   .heroBanner::before {
     content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: url('/img/hero_mobile_smooth.png');
-    background-size: cover;
-    background-position: center bottom;
-    background-repeat: no-repeat;
-    opacity: 0.6;
-    z-index: -1;
+    flex: 0 0 auto;
+    width: 100%;
+    /* Match the vertical position where objects end in the background image.
+       Image aspect: 1170 x 2106. Objects end at ~52% of image height.
+       Image displayed at 100% width, so spacer height = image_width/image_height_to_objects.
+       1170 / (2106 * 0.52) ≈ 1170 / 1095 */
+    aspect-ratio: 1170 / 1095;
+  }
+
+  .heroBanner::after {
+    display: none;
   }
 
   .heroBanner :global(.container) {
     padding-bottom: 2rem;
-    position: relative;
-    z-index: 1;
-    isolation: isolate;
-  }
-
-  .heroBanner :global(.hero__title),
-  .heroBanner :global(.hero__subtitle),
-  .heroBanner :global(.hero__description),
-  .heroBanner .buttons,
-  .heroBanner .buttons * {
-    opacity: 1 !important;
+    z-index: 2;
   }
 
   .heroBanner :global(.hero__title) {
     color: #0a3145 !important;
+    font-size: 2.2rem !important;
   }
 
   .heroBanner :global(.hero__subtitle) {
-    color: #0a3145 !important;
+    display: none;
   }
 
   .heroBanner :global(.hero__description) {
     color: #0a3145 !important;
+  }
+}
+
+/* Desktop/mobile title toggle */
+.titleDesktop {
+  display: inline;
+}
+
+.titleMobile {
+  display: none;
+}
+
+@media screen and (max-width: 996px) {
+  .titleDesktop {
+    display: none;
+  }
+
+  .titleMobile {
+    display: inline;
   }
 }
 

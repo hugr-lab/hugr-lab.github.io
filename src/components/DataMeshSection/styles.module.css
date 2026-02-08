@@ -249,14 +249,13 @@
 
   .mainContent {
     grid-template-columns: 1fr;
-    gap: 2rem;
+    gap: 1rem;
     position: relative;
     min-height: auto;
   }
 
   .imageContent {
     position: relative;
-    order: -1;
     min-height: auto;
   }
 

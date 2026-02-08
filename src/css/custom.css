@@ -59,6 +59,11 @@
   }
 }
 
+/* Hide default Docusaurus navbar on homepage (custom HeroNavbar used instead) */
+.navbar:has(~ .homepage) {
+  display: none !important;
+}
+
 
 /*
 /* For readability concerns, you should choose a lighter palette in dark mode. 
