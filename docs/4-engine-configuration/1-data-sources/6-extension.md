@@ -1,6 +1,6 @@
 ---
 label: "Extension"
-sidebar_position: 6
+sidebar_position: 7
 description: "Extensions are a special type of data source that allow you to extend existing data objects with cross-source subquery and function call fields."
 ---
 

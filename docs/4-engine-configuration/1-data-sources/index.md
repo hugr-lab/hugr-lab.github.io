@@ -16,9 +16,10 @@ The following data sources are supported by the `hugr` query engine:
 - **DuckDB**: A lightweight, embedded database engine (see [DuckDB](1-duckdb.md)).
 - **PostgreSQL**: A powerful, open-source relational database system (see [PostgreSQL](2-postgres.md)).
 - **MySQL**: A widely used open-source relational database management system (see [MySQL](3-mysql.md)).
+- **SQL Server / Azure SQL**: Microsoft SQL Server and Azure Fabric Warehouse / Analytical Endpoint, with SQL Server authentication and Azure EntraID service principal authentication (see [SQL Server / Azure SQL](4-sqlserver.md)).
 - **DuckLake**: A data lake solution that supports various storage systems, including cloud storage and distributed file systems. DuckLake is designed to handle large volumes of data, provides efficient querying capabilities, and is able to manage data and schema changes through snapshots (in development).
-- **HTTP RESTful API**: Allows you to connect to any RESTful API endpoint (see [HTTP RESTful API](4-http.md)).
-- **Extension**: A special data source type that allows you to extend GraphQL data objects (tables and views) by adding extra subquery (joins) and function call fields. This is useful for creating custom logic or aggregations using data from other sources. The extension data source can also define cross-data source views, which allow you to combine data from multiple data sources into a single view. This is useful for creating complex queries that span multiple data sources (see [Extension Data Source](5-extension.md) for setup and [Extensions & Cross-Source Subqueries](../4-extension.md) for comprehensive guide).
+- **HTTP RESTful API**: Allows you to connect to any RESTful API endpoint (see [HTTP RESTful API](5-http.md)).
+- **Extension**: A special data source type that allows you to extend GraphQL data objects (tables and views) by adding extra subquery (joins) and function call fields. This is useful for creating custom logic or aggregations using data from other sources. The extension data source can also define cross-data source views, which allow you to combine data from multiple data sources into a single view. This is useful for creating complex queries that span multiple data sources (see [Extension Data Source](6-extension.md) for setup and [Extensions & Cross-Source Subqueries](../4-extension.md) for comprehensive guide).
 
 File views (spatial formats, CSV, Parquet, etc.) are supported through the DuckDB data source, which can read and write various file formats and locations directly.
 
@@ -219,7 +220,7 @@ The argument `self: true` indicates that the schema should be generated based on
 ## Relational Databases
 
 
-`hugr` uses relational database data sources (DuckDB, PostgreSQL, MySQL, DuckLake) as attached databases to the DuckDB query engine. You can explore the internal data source structure (tables, views, constraints) by using metadata queries via views in the `core.meta` module.
+`hugr` uses relational database data sources (DuckDB, PostgreSQL, MySQL, SQL Server, DuckLake) as attached databases to the DuckDB query engine. You can explore the internal data source structure (tables, views, constraints) by using metadata queries via views in the `core.meta` module.
 
 For example, this query is used to define the schema for self-defined data sources:
 

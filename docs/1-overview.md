@@ -60,6 +60,7 @@ Schemas are defined using GraphQL SDL with extended directives, offering:
 	- DuckDB – used as the core query engine and supports attaching DuckDB databases as sources
 	- PostgreSQL (with PostGIS, TimescaleDB, pgvector). Hugr supports filters, sorting, limits, aggregations, and in-source joins pushed down to PostgreSQL databases.
 	- MySQL (through DuckDB without join pushdown)
+	- SQL Server / Azure SQL – Microsoft SQL Server with SQL Server authentication, and Azure Fabric Warehouse / Analytical Endpoints with Azure EntraID (service principal) authentication (through DuckDB without join pushdown)
 
 **Files**:
 
