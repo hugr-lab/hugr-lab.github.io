@@ -1,5 +1,5 @@
 ---
-sidebar_position: 7
+sidebar_position: 8
 title: "Embeddings and Semantic Search"
 description: "Add embeddings models and perform semantic search queries."
 ---

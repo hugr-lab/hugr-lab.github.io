@@ -1,6 +1,7 @@
 // src/components/RemoteMarkdown.js
 import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import CodeBlock from '@theme/CodeBlock';
 
 export default function RemoteMarkdown({ 
@@ -34,35 +35,40 @@ export default function RemoteMarkdown({
   return (
     <div className="markdown">
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
         components={{
           code(props) {
-            const { children, className, ...rest } = props;
+            const { children, className, node, ...rest } = props;
             const match = /language-(\w+)/.exec(className || '');
-            
-            // Если это блок кода с языком
+            const isBlock = node?.position &&
+              node.position.start.line !== node.position.end.line;
+
             if (match) {
               return (
-                <CodeBlock 
-                  language={match[1]}
-                  title="" // пустой title чтобы не было лишнего заголовка
-                >
+                <CodeBlock language={match[1]}>
                   {String(children).replace(/\n$/, '')}
                 </CodeBlock>
               );
             }
-            
-            // Инлайн код
+
+            // Code block without language
+            if (isBlock) {
+              return (
+                <CodeBlock>
+                  {String(children).replace(/\n$/, '')}
+                </CodeBlock>
+              );
+            }
+
+            // Inline code
             return (
               <code className={className} {...rest}>
                 {children}
               </code>
             );
           },
-          // Для pre блоков тоже добавим обработку
           pre(props) {
             const { children } = props;
-            // Если внутри pre есть code с языком, то CodeBlock уже обработает
-            // Иначе просто возвращаем как есть
             return <>{children}</>;
           }
         }}

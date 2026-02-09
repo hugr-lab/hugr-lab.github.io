@@ -1,0 +1,37 @@
+---
+sidebar_position: 8
+title: "Azure: Fabric Warehouse"
+---
+
+This example demonstrates how to connect to a Microsoft Fabric Warehouse using Azure EntraID (service principal) authentication as a `hugr` data source. The example uses a star schema design with a Trip fact table and dimension tables.
+
+You can find the complete example in the [Hugr examples repository](https://github.com/hugr-lab/examples).
+
+To read more about the SQL Server / Azure SQL data source, see the [SQL Server / Azure SQL data source documentation](../4-engine-configuration/1-data-sources/4-sqlserver.md).
+
+:::note Prerequisites
+You need a Microsoft Fabric Warehouse instance and Azure AD service principal credentials (tenant_id, client_id, client_secret) to run this example.
+:::
+
+## Example
+
+import RemoteMarkdown from '@site/src/components/RemoteMarkdown';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+<Tabs>
+  <TabItem value="readme" label="Getting Started">
+    <RemoteMarkdown
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/fabric-warehouse/README.md"
+      fallback="📄 Loading documentation..."
+    />
+  </TabItem>
+
+  <TabItem value="schema" label="GraphQL Schema">
+    <RemoteMarkdown
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/fabric-warehouse/schema/schema.graphql"
+      fallback="📋 Loading schema..."
+      transform={(content) => '```graphql\n' + content + '\n```'}
+    />
+  </TabItem>
+</Tabs>

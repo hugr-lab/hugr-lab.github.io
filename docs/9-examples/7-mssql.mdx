@@ -1,0 +1,65 @@
+---
+sidebar_position: 7
+title: "SQL Server: Adventure Works"
+---
+
+This example demonstrates how to set up a Microsoft SQL Server database with the Adventure Works sample data as a `hugr` data source.
+
+You can find the complete example in the [Hugr examples repository](https://github.com/hugr-lab/examples).
+
+To read more about the SQL Server data source, see the [SQL Server / Azure SQL data source documentation](../4-engine-configuration/1-data-sources/4-sqlserver.md).
+
+## Example
+
+import RemoteMarkdown from '@site/src/components/RemoteMarkdown';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+<Tabs>
+  <TabItem value="readme" label="Getting Started">
+    <RemoteMarkdown
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/mssql/README.md"
+      fallback="📄 Loading documentation..."
+    />
+  </TabItem>
+
+  <TabItem value="person" label="Person Schema">
+    <RemoteMarkdown
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/mssql/schema/schemas/person.graphql"
+      fallback="📋 Loading schema..."
+      transform={(content) => '```graphql\n' + content + '\n```'}
+    />
+  </TabItem>
+
+  <TabItem value="sales" label="Sales Schema">
+    <RemoteMarkdown
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/mssql/schema/schemas/sales.graphql"
+      fallback="📋 Loading schema..."
+      transform={(content) => '```graphql\n' + content + '\n```'}
+    />
+  </TabItem>
+
+  <TabItem value="production" label="Production Schema">
+    <RemoteMarkdown
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/mssql/schema/schemas/production.graphql"
+      fallback="📋 Loading schema..."
+      transform={(content) => '```graphql\n' + content + '\n```'}
+    />
+  </TabItem>
+
+  <TabItem value="purchasing" label="Purchasing Schema">
+    <RemoteMarkdown
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/mssql/schema/schemas/purchasing.graphql"
+      fallback="📋 Loading schema..."
+      transform={(content) => '```graphql\n' + content + '\n```'}
+    />
+  </TabItem>
+
+  <TabItem value="hr" label="HR Schema">
+    <RemoteMarkdown
+      url="https://raw.githubusercontent.com/hugr-lab/examples/main/examples/mssql/schema/schemas/humanresources.graphql"
+      fallback="📋 Loading schema..."
+      transform={(content) => '```graphql\n' + content + '\n```'}
+    />
+  </TabItem>
+</Tabs>
