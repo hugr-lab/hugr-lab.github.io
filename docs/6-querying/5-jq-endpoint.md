@@ -86,7 +86,7 @@ X-Hugr-Cache-Invalidate: <true|false>
 - **jq** (string, required): JQ expression to apply to the GraphQL response
 - **query** (object, required): GraphQL query details
   - **query** (string, required): GraphQL query text
-  - **variables** (object, optional): Query variables
+  - **variables** (object, optional): Query variables. Supports the [`_jq` variable input transformation](/docs/graphql/jq-transformations#_jq-variable-input-transformations) for dynamically computing variables before query execution.
   - **operationName** (string, optional): Operation name for named queries
 
 ### JQ Input

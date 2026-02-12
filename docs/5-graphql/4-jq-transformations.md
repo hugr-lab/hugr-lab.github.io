@@ -609,6 +609,126 @@ Variables:
 - Variable names must match GraphQL variable names (without the `$` in GraphQL, with `$` in JQ)
 - Variables maintain their types (strings, numbers, booleans, objects, arrays)
 
+## `_jq` Variable Input Transformations
+
+The `_jq` key is a special reserved key in GraphQL request variables that allows you to dynamically compute or transform variables before the GraphQL query is parsed. Its value is a string containing a JQ expression that produces an object, which is then merged into the request variables.
+
+This is useful when you need variables derived from the current time, authentication context, or other dynamic values that can't be hardcoded by the client.
+
+### How It Works
+
+1. The client includes an `_jq` key in the GraphQL request `variables` with a JQ expression string as the value
+2. The engine evaluates the JQ expression (all [custom JQ functions](./5-jq-custom-functions.md) are available)
+3. The result — which must be an object — is merged with the input variables
+4. The `_jq` key itself is removed from the variables
+5. The GraphQL query is parsed with the merged variables
+
+### Merge Behavior
+
+When the JQ expression result is merged with the existing variables:
+
+- **Override**: Keys present in the JQ result **override** existing variables with the same name
+- **Preserve**: Existing variables not present in the JQ result are **preserved**
+- **Add**: New keys from the JQ result are **added** to the variables
+
+**Example** — before and after merge:
+
+```json
+// Input variables (from client)
+{
+  "_jq": "{ from: (utcTime | roundTime(\"day\")), limit: 100 }",
+  "limit": 50,
+  "category": "sensors"
+}
+
+// After _jq processing:
+{
+  "from": "2024-06-15T00:00:00Z",   // added by _jq
+  "limit": 100,                       // overridden by _jq (was 50)
+  "category": "sensors"               // preserved (not in _jq result)
+}
+```
+
+### Examples
+
+#### Dynamic Date Range
+
+Compute a date range for a time-series query using the current UTC time:
+
+```graphql
+query GetReadings($from: String!, $to: String!, $sensorId: ID!) {
+  readings(where: { timestamp: { _gte: $from, _lt: $to }, sensor_id: { _eq: $sensorId } }) {
+    timestamp
+    value
+  }
+}
+```
+
+**Variables**:
+
+```json
+{
+  "_jq": "{ from: (utcTime | roundTime(\"day\") | timeAdd(\"-7d\")), to: (utcTime | roundTime(\"day\")) }",
+  "sensorId": "sensor-42"
+}
+```
+
+**Effective variables** (after `_jq` processing):
+
+```json
+{
+  "from": "2024-06-08T00:00:00Z",
+  "to": "2024-06-15T00:00:00Z",
+  "sensorId": "sensor-42"
+}
+```
+
+The `_jq` expression computes a 7-day window ending at the start of today, while `sensorId` is passed through unchanged.
+
+#### Conditional Defaults
+
+Set default values that the client can optionally override:
+
+```graphql
+query GetEvents($from: String!, $limit: Int!) {
+  events(where: { created_at: { _gte: $from } }, limit: $limit) {
+    id
+    name
+    created_at
+  }
+}
+```
+
+**Variables** (client provides only `limit`):
+
+```json
+{
+  "_jq": "{ from: (utcTime | roundTime(\"month\")) }",
+  "limit": 25
+}
+```
+
+**Effective variables**:
+
+```json
+{
+  "from": "2024-06-01T00:00:00Z",
+  "limit": 25
+}
+```
+
+The `_jq` expression provides a default `from` value (start of current month), while the client-supplied `limit` is preserved.
+
+### Notes
+
+:::tip
+All [custom JQ functions](./5-jq-custom-functions.md) — including time functions (`localTime`, `utcTime`, `roundTime`, `timeAdd`, `datePart`, `unixTime`), `queryHugr`, and `authInfo` — are available in `_jq` expressions.
+:::
+
+- The `_jq` key is **not** a GraphQL variable — it is removed before the query is parsed and will not be visible to resolvers
+- If the JQ expression returns a non-object value or contains a syntax error, the request will fail with an error
+- The JQ expression in `_jq` does not receive any input (`.` is `null`) — use zero-argument functions like `utcTime` or `authInfo` to produce values
+
 ## queryHugr() Function (JQ-only)
 
 :::warning Important
@@ -1470,6 +1590,7 @@ curl -X POST http://localhost:8080/jq-query \
 - [Function Calls](/docs/graphql/queries/function-calls) - HTTP function JQ parameters
 
 ### Related Topics
+- [Custom JQ Functions](/docs/graphql/jq-custom-functions) - Time manipulation, authentication, and query engine functions
 - [REST API /jq-query Endpoint](/docs/querying/jq-endpoint) - Detailed endpoint documentation
 - [HTTP Data Sources](/docs/engine-configuration/data-sources/http) - JQ in HTTP functions
 - [Overview - Result Transformation](/docs/overview#5-advanced-features) - Platform capabilities
