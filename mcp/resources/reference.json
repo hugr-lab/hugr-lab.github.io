@@ -1,0 +1,51 @@
+[
+  {
+    "filename": "ai-instructions.md",
+    "name": "AI Assistant Instructions",
+    "description": "⭐ START HERE ⭐ Complete guide for AI assistants on when and how to use Hugr MCP. Automatic trigger detection, decision tree, workflow patterns, and critical rules. Read this first when user asks about data!",
+    "uri": "hugr://ai/instructions",
+    "priority": 1
+  },
+  {
+    "filename": "overview.md",
+    "name": "Hugr Overview",
+    "description": "Architecture: Data Sources → Modules → Objects/Functions. 7 field types: scalar (with auto-generated fields for timestamps/geometry), JSON, nested objects, relations (subqueries), aggregations, function calls (can have arguments!), dynamic (_join/_spatial). Module hierarchy, special tables (Cube, Hypertable), RLS. MANDATORY introspection workflow: discovery → schema-type_fields → check signatures/arguments → build query. Schema varies by deployment/database/extensions - NEVER assume!",
+    "uri": "hugr://docs/overview",
+    "priority": 2
+  },
+  {
+    "filename": "filter-guide.md",
+    "name": "Filter Construction Guide",
+    "description": "Filter fundamentals: filter object vs scalar fields, boolean logic (_and/_or/_not at object level ONLY), relation operators (any_of/all_of/none_of), inner on relations, basic _join and _spatial patterns, common mistakes. References data-types for operators, patterns for advanced examples.",
+    "uri": "hugr://docs/filters",
+    "priority": 3
+  },
+  {
+    "filename": "aggregations.md",
+    "name": "Aggregations Guide",
+    "description": "Aggregation fundamentals: single row (_aggregation), bucket (_bucket_aggregation), functions by type, nested aggregations through relations, sub-aggregations, filtering with aliases, inner on relation aggregations, time-based grouping, sorting, pagination. References patterns for advanced examples.",
+    "uri": "hugr://docs/aggregations",
+    "priority": 4
+  },
+  {
+    "filename": "data-types.md",
+    "name": "Data Types and Operations",
+    "description": "Operator quick reference by type, aggregation functions, sorting, distinct_on, and comprehensive error documentation with real validation error examples and fixes.",
+    "uri": "hugr://docs/data-types",
+    "priority": 5
+  },
+  {
+    "filename": "schema-structure.md",
+    "name": "Schema Structure",
+    "description": "Type system, introspection strategy (CRITICAL: always introspect), filter operators by type, aggregation system, cube tables with @measurement fields, H3 clustering, and semantic search capabilities.",
+    "uri": "hugr://docs/schema",
+    "priority": 6
+  },
+  {
+    "filename": "query-patterns.md",
+    "name": "Query Patterns",
+    "description": "Decision tree, anti-patterns (NO Python!). Relation filters (any_of/all_of/none_of), _join patterns (cross-source, aggregation), spatial patterns (types, aggregation, analytics), aggregation use cases (dashboard, time series, multi-dimensional), distinct_on, jq transformations, validation workflow.",
+    "uri": "hugr://docs/patterns",
+    "priority": 7
+  }
+]
