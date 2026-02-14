@@ -11,6 +11,8 @@ import ListSection from '../components/ListSection';
 import DescriptionSection from '../components/DescriptionSection';
 import DuckDBSection from '../components/DuckDBSection';
 import DataMeshSection from '../components/DataMeshSection';
+import TryHugrCTA from '../components/TryHugrCTA';
+import JoinUsCTA from '../components/JoinUsCTA';
 import SetupSection from '../components/SetupSection';
 import FAQSection from '../components/FAQSection';
 
@@ -251,8 +253,13 @@ export default function Home(): ReactNode {
           </div>
         </section>
 
+        <TryHugrCTA />
+
         <SetupSection />
         <FAQSection />
+
+        <JoinUsCTA />
+
         <DuckDBSection />
       </main>
     </Layout>
