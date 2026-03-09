@@ -5,7 +5,7 @@ sidebar_position: 1
 
 # Configuration
 
-Hugr can be configured using environment variables. This page describes all available configuration options for the hugr server and management node.
+Hugr can be configured using environment variables. This page describes all available configuration options for the hugr server.
 
 ## Server Configuration
 
@@ -100,6 +100,28 @@ Hugr can be configured using environment variables. This page describes all avai
 
   Used for each PostgreSQL data source to pool connections to the concrete data source
 
+- **`DB_PG_PAGES_PER_TASK`** - PostgreSQL pages per task for parallel scans (default: `0`)
+  ```bash
+  DB_PG_PAGES_PER_TASK=1000
+  ```
+
+- **`DB_ENABLE_LOGGING`** - Enable DuckDB internal logging (default: `false`)
+  ```bash
+  DB_ENABLE_LOGGING=true
+  ```
+
+### Schema Cache Configuration
+
+- **`SCHEMA_CACHE_MAX_ENTRIES`** - Maximum number of compiled schema entries to cache (default: `0`/disabled)
+  ```bash
+  SCHEMA_CACHE_MAX_ENTRIES=100
+  ```
+
+- **`SCHEMA_CACHE_TTL`** - Time-to-live for cached schema entries (default: `0s`/no expiration)
+  ```bash
+  SCHEMA_CACHE_TTL=5m
+  ```
+
 ### Core Database Configuration
 
 The core database stores hugr metadata including data sources, catalogs, and schema definitions. Also stores roles and permissions, and managed API keys if enabled.
@@ -143,6 +165,23 @@ For DuckDB core database that is placed in S3 object storage:
 - **`CORE_DB_S3_USE_SSL`** - SSL enforcement
   ```bash
   CORE_DB_S3_USE_SSL=true
+  ```
+
+### MCP Configuration
+
+- **`MCP_ENABLED`** - Enable the Model Context Protocol endpoint at `/mcp` (default: `false`)
+  ```bash
+  MCP_ENABLED=true
+  ```
+
+- **`EMBEDDER_URL`** - URL of an OpenAI-compatible embeddings API for semantic search in MCP
+  ```bash
+  EMBEDDER_URL=http://localhost:11434/v1/embeddings
+  ```
+
+- **`EMBEDDER_VECTOR_SIZE`** - Dimension of embedding vectors produced by the embedder
+  ```bash
+  EMBEDDER_VECTOR_SIZE=384
   ```
 
 ### CORS Settings
@@ -197,35 +236,47 @@ See the [Caching](./2-caching.md) section for detailed cache configuration optio
 
 ### Cluster Configuration
 
-See the [Clustered Deployment](./6-cluster.md) section for cluster-specific configuration options.
-
-## Management Node Configuration
-
-The management node coordinates synchronization across work nodes in the cluster.
-
-### General Settings
-
-- **`BIND`** - Management port (default: `:14000`)
+- **`CLUSTER_ENABLED`** - Enable cluster mode (default: `false`)
   ```bash
-  BIND=":14000"
+  CLUSTER_ENABLED=true
   ```
 
-- **`CLUSTER_SECRET`** - Cluster authentication (shared with work nodes)
+- **`CLUSTER_ROLE`** - Node role: `management` or `worker` (default: empty/standalone)
+  ```bash
+  CLUSTER_ROLE=worker
+  ```
+
+- **`CLUSTER_NODE_NAME`** - Unique name for this node in the cluster
+  ```bash
+  CLUSTER_NODE_NAME=worker-1
+  ```
+
+- **`CLUSTER_NODE_URL`** - URL where this node is reachable by the management node
+  ```bash
+  CLUSTER_NODE_URL=http://worker-1:15000
+  ```
+
+- **`CLUSTER_SECRET`** - Shared secret for cluster authentication (must match across all nodes)
   ```bash
   CLUSTER_SECRET=your-cluster-secret
   ```
 
-  This secret must be identical across all work nodes and the management node
-
-- **`TIMEOUT`** - Node communication timeout (default: `30s`)
+- **`CLUSTER_HEARTBEAT`** - Interval between heartbeat signals (default: `30s`)
   ```bash
-  TIMEOUT=30s
+  CLUSTER_HEARTBEAT=30s
   ```
 
-- **`CHECK`** - Node health check interval (default: `1m`)
+- **`CLUSTER_GHOST_TTL`** - Time after which an unresponsive node is considered dead (default: `2m`)
   ```bash
-  CHECK=1m
+  CLUSTER_GHOST_TTL=2m
   ```
+
+- **`CLUSTER_POLL_INTERVAL`** - Interval for workers to poll schema version from management (default: `30s`)
+  ```bash
+  CLUSTER_POLL_INTERVAL=30s
+  ```
+
+See the [Clustered Deployment](./6-cluster.md) section for architecture details and deployment examples.
 
 ### OIDC Integration
 
@@ -273,6 +324,11 @@ MAX_DEPTH=7
 
 # Core Database
 CORE_DB_PATH=/data/core.db
+
+# MCP
+MCP_ENABLED=true
+EMBEDDER_URL=http://localhost:11434/v1/embeddings
+EMBEDDER_VECTOR_SIZE=384
 
 # CORS
 CORS_ALLOWED_ORIGINS=http://localhost:3000

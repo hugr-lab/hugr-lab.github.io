@@ -9,45 +9,34 @@ Hugr is distributed as Docker containers hosted in the GitHub Container Registry
 
 ## Container Images
 
-Hugr provides three official Docker images:
+Hugr provides two official Docker images:
 
-### 1. Automigrate Image (Recommended for Single-Node Deployments)
+### 1. Automigrate Image (Recommended)
 **Image**: `ghcr.io/hugr-lab/automigrate`
 
 Hugr server with automatic database schema migration for the core database. This image automatically applies schema updates on startup, making updates transparent and seamless. The automigrate image includes the same functionality as the server image, plus automatic schema migration on startup.
 
 **Use this image for**:
 - Single-node (non-clustered) deployments
+- Cluster management nodes (`CLUSTER_ROLE=management`) — the management node is a full query node that also coordinates the cluster
+- Cluster worker nodes that need auto-migration
 - Development environments
-- Production deployments without clustering
 
 ```bash
 docker pull ghcr.io/hugr-lab/automigrate:latest
 ```
 
-### 2. Server Image (For Cluster Work Nodes)
+### 2. Server Image (For Cluster Workers)
 **Image**: `ghcr.io/hugr-lab/server`
 
 The main hugr server that provides the GraphQL API and admin interface. This is the base server image without automatic migrations.
 
 **Use this image for**:
-- Work nodes in clustered deployments
+- Worker nodes in clustered deployments (migrations are handled by the management node)
 - Custom migration workflows
 
 ```bash
 docker pull ghcr.io/hugr-lab/server:latest
-```
-
-### 3. Management Image (For Cluster Management Node)
-**Image**: `ghcr.io/hugr-lab/management`
-
-Management node for cluster mode deployments. This node coordinates schema synchronization, data source configuration, object storage, and authentication settings across multiple work nodes. The management node does not provide a GraphQL API; all queries must go through work nodes. The management node also applies core database migrations at startup if the core database is not in read-only mode.
-
-**Use this image for**:
-- Management node in clustered deployments only
-
-```bash
-docker pull ghcr.io/hugr-lab/management:latest
 ```
 
 ## Quick Start with Docker
@@ -376,12 +365,6 @@ docker build -t ghcr.io/hugr-lab/server:latest -f server.dockerfile .
 docker build -t ghcr.io/hugr-lab/automigrate:latest -f automigrate.dockerfile .
 ```
 
-### Build Management Image
-
-```bash
-docker build -t ghcr.io/hugr-lab/management:latest -f management.dockerfile .
-```
-
 ### Using Docker Compose Build
 
 The repository includes a `docker-compose.yml` file for building:
@@ -398,8 +381,8 @@ Choose the right image based on your deployment scenario:
 |---------------------|-------------------|-------|
 | Single-node production | `automigrate` | Automatic migrations on startup |
 | Development environment | `automigrate` | Simplifies schema updates |
-| Cluster work nodes | `server` | No automatic migrations needed |
-| Cluster management node | `management` | Manages cluster operations |
+| Cluster management node | `automigrate` | Set `CLUSTER_ROLE=management`; auto-migrates and coordinates cluster |
+| Cluster worker nodes | `server` | No automatic migrations needed |
 
 ## Kubernetes Deployment
 

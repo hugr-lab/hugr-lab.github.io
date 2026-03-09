@@ -27,7 +27,7 @@ hugr combines the power of modern data architecture patterns with the flexibilit
 - **Open Source**: Free for commercial and non-commercial use
 - **Repository**: [hugr-lab/hugr](https://github.com/hugr-lab/hugr)
 - **Core Engine**: [hugr-lab/query-engine](https://github.com/hugr-lab/query-engine)
-- **Docker Images**: [hugr-lab/docker](https://github.com/r/hugr-lab/docker)
+- **Docker Images**: [hugr-lab/docker](https://github.com/hugr-lab/docker)
 - **Documentation**: [docs](https://hugr-lab.github.io/docs/)
 
 We are in active development, but you can already use `hugr` for your projects.
@@ -92,7 +92,16 @@ hugr is optimized for analytical workloads:
 - **Large Dataset Processing**: Efficient handling of big data through DuckDB
 - **Arrow IPC**: Custom protocol for efficient data transfer and integration with Python environments
 
-### 5. Advanced Features
+### 5. MCP Integration
+
+hugr includes a built-in [Model Context Protocol](./6-querying/6-mcp.md) (MCP) endpoint that enables AI assistants to explore and query the data graph:
+
+- **Schema Discovery**: AI tools can browse modules, data objects, fields, and functions
+- **Semantic Search**: Optional embedding-based search for finding relevant data objects by meaning
+- **Query Validation & Execution**: Validate and run GraphQL queries directly from AI assistants
+- **Compatible Clients**: Works with Claude, Cursor, and other MCP-capable tools
+
+### 6. Advanced Features
 
 **Result Transformation**:
 
@@ -201,15 +210,16 @@ The `server` is a lightweight HTTP server, written in Go, that:
 
 The [hugr-lab/hugr](https://github.com/hugr-lab/hugr/cmd/server) repository contains the server implementation, which can be run as a standalone binary or as a Docker container.
 
-### Hugr cluster management
+### Cluster Mode
 
-The `management` component manages multi-node deployments, providing:
+hugr supports multi-node cluster deployments using a single binary with role-based configuration:
 
-- **Cluster Coordination**: Synchronization of attached data sources and S3 storage access configuration
-- **Node health monitoring**: Monitoring and management of cluster nodes
-- **Core DB migration**: Core database schema migrations for cluster-wide consistency
+- **Single Binary**: The same hugr binary runs as management or worker node, controlled by the `CLUSTER_ROLE` environment variable
+- **Management Node**: A full query node that also coordinates schema synchronization, data source lifecycle, and storage configuration across all workers
+- **Worker Nodes**: Query nodes that receive schema updates from management via push (broadcast) and pull (polling) mechanisms
+- **PostgreSQL CoreDB**: Required for cluster mode — all nodes share the same PostgreSQL core database
 
-The [hugr-lab/hugr](https://github.com/hugr-lab/hugr/cmd/management) repository contains the management node implementation, which can be run as a standalone binary or as a Docker container.
+See the [Cluster Deployment](./7-deployment/6-cluster.md) guide for details.
 
 ### Schema & Access Separation
 
@@ -258,7 +268,7 @@ Two-level caching architecture:
 
 ### Deployment Options
 
-The [hugr-lab/docker](https://github.com/hugr-lab/docker) repository contains Docker images for both the `server` and `management` components, allowing easy deployment in containerized environments.
+The [hugr-lab/docker](https://github.com/hugr-lab/docker) repository contains Docker images for hugr, allowing easy deployment in containerized environments.
 It also provides **k8s chart templates** to deploy `hugr` in Kubernetes clusters, including support for multi-node setups with load balancing and caching.
 
 This comprehensive architecture makes `hugr` suitable for both small-scale applications and large enterprise data platforms, providing the flexibility to grow with your data needs while maintaining high performance and reliability.

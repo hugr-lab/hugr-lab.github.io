@@ -78,15 +78,15 @@ Python is the primary tool for data analytics and machine learning in the hugr e
 - Knowledge of Arrow format and data serialization
 - Experience with data visualization and Jupyter notebooks
 
-#### MCP Tools - Talk to Data
+#### MCP Integration — Talk to Data
 
-We are actively developing Model Context Protocol (MCP) tools for natural language data interaction:
+hugr includes a built-in Model Context Protocol (MCP) endpoint that enables AI assistants to explore and query data:
 
-- **MCP Server Development**: Building fundamental tools for "talk to data" capabilities
-- **Natural Language Queries**: Enabling conversational access to data through LLMs
-- **Data Discovery**: Using AI to help users explore and understand their data
-- **Query Generation**: Converting natural language questions into optimized queries
+- **Built-in MCP Server**: The `/mcp` endpoint provides discovery, schema, and data tools for LLM clients
+- **Schema Summarization**: The `hugr-tools summarize` CLI uses LLMs to generate human-readable descriptions for all schema objects
+- **Semantic Search**: Optional embedding-based search for finding relevant data objects by meaning
 - **Prompt Engineering**: Creating effective prompts for data interaction tasks
+- **Client Integration**: Compatible with Claude, Cursor, and other MCP-capable tools
 
 **What you need:**
 - Understanding of LLM capabilities and limitations
@@ -225,10 +225,13 @@ Docker images and Kubernetes charts for deploying hugr. Includes configurations 
 
 ### Tools & Extensions
 
-#### [hugr-lab/mcp](https://github.com/hugr-lab/mcp)
-**Language**: Go | **License**: MIT
+#### Built-in MCP Endpoint
 
-Model Context Protocol (MCP) service for hugr. Provides fundamental tools for "talk to data" - enabling natural language interaction with your data through LLM integration.
+The MCP server is now built into hugr itself (enabled via `MCP_ENABLED=true`). It provides discovery, schema introspection, and query execution tools for AI assistants. See the [MCP documentation](/docs/querying/mcp) for details.
+
+#### hugr-tools CLI
+
+The `hugr-tools` binary (in [hugr-lab/query-engine](https://github.com/hugr-lab/query-engine)) provides utilities for working with hugr instances, including AI-powered schema summarization. Install via the [install script](https://github.com/hugr-lab/query-engine/blob/main/install-hugr-tools.sh) or download from [GitHub releases](https://github.com/hugr-lab/query-engine/releases).
 
 ### Examples & Learning
 
