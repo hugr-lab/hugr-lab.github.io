@@ -5,772 +5,346 @@ sidebar_position: 6
 
 # Clustered Deployment
 
-Hugr supports clustered deployment for high availability and scalability. In cluster mode, multiple work nodes are coordinated by a management node, providing load balancing across work nodes.
+Hugr supports clustered deployment for horizontal scaling and high availability. In cluster mode, multiple hugr nodes share a PostgreSQL Core Database and coordinate schema changes via a management node.
 
-## Cluster Architecture
+## Overview
 
-A hugr cluster consists of:
+Hugr uses a **single binary** architecture. Every node in the cluster runs the same `ghcr.io/hugr-lab/server` (or `ghcr.io/hugr-lab/automigrate`) image. The role of each node is determined by the `CLUSTER_ROLE` environment variable:
 
-1. **Management Node** - Manages cluster operations, schema synchronization, data sources, object storage, and authentication settings. The management node runs on port 14000 by default and uses gRPC for communication with work nodes
-2. **Work Nodes** - Handle GraphQL queries and mutations with load balancing
-3. **Shared Core Database** - PostgreSQL or DuckDB (read-only) accessible by all nodes
-4. **Distributed Cache** - Optional Redis/Memcached for shared L2 cache
+| `CLUSTER_ROLE` | Behavior |
+|---|---|
+| `management` | Full query node **plus** cluster coordinator. Compiles schemas, broadcasts changes to workers, cleans up ghost nodes. |
+| `worker` | Full query node. Forwards cluster mutations to management, polls `schema_version` for missed broadcasts, syncs DuckDB secrets from management on startup. |
+| _(empty / unset)_ | Standalone mode (no cluster). This is the default. |
 
-### How Cluster Mode Works
+**Key points:**
 
-- **Load Balancing**: GraphQL queries are distributed across work nodes by a load balancer (nginx/HAProxy/Traefik)
-- **GraphQL API**: Work nodes provide the GraphQL API (including AdminUI). The management node does NOT expose GraphQL endpoints
-- **Cluster Operations**: When a work node receives a cluster operation request (via `core.cluster` module), it communicates with the management node to execute the operation
-- **Schema Synchronization**: The management node automatically synchronizes schemas, data sources, and object storage configurations across all work nodes
-- **No Distributed Query Execution**: Each work node processes queries independently; there is no distributed query processing across nodes. This means horizontal scaling is achieved by adding more work nodes behind a load balancer
+- The management node is a full query engine node — it serves GraphQL queries and the Admin UI just like workers do.
+- There is no distributed query execution. Each node processes queries independently against its own DuckDB instance. Horizontal scaling is achieved by adding more nodes behind a load balancer.
+- All cluster mutations (load/unload/reload sources, register/unregister storage, invalidate cache) can be sent to **any** node. Workers automatically forward them to the management node.
+- `CLUSTER_ENABLED=true` must be set on all cluster nodes.
+
+## Architecture
 
 ```mermaid
 graph TB
-    LB[Load Balancer<br/>nginx/HAProxy/Traefik]
+    Client([Clients])
+    LB[nginx / HAProxy / Traefik<br/>Load Balancer]
 
-    W1[Work Node 1<br/>GraphQL API]
-    W2[Work Node 2<br/>GraphQL API]
-    W3[Work Node 3<br/>GraphQL API]
-
-    MN[Management Node<br/>Coordinates work nodes via<br/>bidirectional HTTP]
+    subgraph Cluster
+        MN["Management Node<br/>(CLUSTER_ROLE=management)<br/>ghcr.io/hugr-lab/automigrate"]
+        W1["Worker 1<br/>(CLUSTER_ROLE=worker)<br/>ghcr.io/hugr-lab/server"]
+        W2["Worker 2<br/>(CLUSTER_ROLE=worker)<br/>ghcr.io/hugr-lab/server"]
+    end
 
     PG[(PostgreSQL<br/>Core DB)]
-    RD[(Redis<br/>Cache)]
-    MO[(MinIO<br/>Object Storage)]
-    DS[(Data Sources)]
-    OIDC[OIDC IdP<br/>optional]
+    DS[(Data Sources<br/>Parquet / PG / ...)]
+    RD[(Redis<br/>L2 Cache)]
 
+    Client --> LB
+    LB --> MN
     LB --> W1
     LB --> W2
-    LB --> W3
 
-    W1 <-->|HTTP bidir| MN
-    W2 <-->|HTTP bidir| MN
-    W3 <-->|HTTP bidir| MN
+    MN -- "broadcast<br/>(GraphQL/IPC)" --> W1
+    MN -- "broadcast<br/>(GraphQL/IPC)" --> W2
+    W1 -. "forward mutations" .-> MN
+    W2 -. "forward mutations" .-> MN
 
+    MN --> PG
     W1 --> PG
     W2 --> PG
-    W3 --> PG
+
+    MN --> DS
+    W1 --> DS
+    W2 --> DS
 
     W1 --> RD
     W2 --> RD
-    W3 --> RD
-
-    W1 --> MO
-    W2 --> MO
-    W3 --> MO
-
-    W1 --> DS
-    W2 --> DS
-    W3 --> DS
-
-    W1 -.-> OIDC
-    W2 -.-> OIDC
-    W3 -.-> OIDC
 
     style LB fill:#e1f5ff
+    style MN fill:#fff9c4
     style W1 fill:#c8e6c9
     style W2 fill:#c8e6c9
-    style W3 fill:#c8e6c9
-    style MN fill:#fff9c4
     style PG fill:#f8bbd0
-    style RD fill:#f8bbd0
-    style MO fill:#f8bbd0
     style DS fill:#f8bbd0
-    style OIDC fill:#e0e0e0
+    style RD fill:#f8bbd0
 ```
 
-**Architecture Notes:**
-- Work nodes communicate directly with core database (PostgreSQL), Redis, MinIO, and data sources
-- Work nodes and management node communicate via **bidirectional HTTP**:
-  - When a work node receives a `core.cluster` GraphQL query, it makes an HTTP request to the management node
-  - The management node then makes HTTP requests to all work nodes to coordinate cluster operations
-- The management node performs operations across all nodes in the cluster and collects information about their configurations
-- You can add an OIDC Identity Provider (IdP) to the architecture that work nodes communicate with for authentication
+**Communication flows:**
 
-## Cluster Configuration
+- **Client to nodes** — standard HTTP/GraphQL through the load balancer. All nodes (including management) serve the GraphQL API and Admin UI.
+- **Worker to management** — when a worker receives a cluster mutation, it looks up the management node's URL from the `_cluster_nodes` table and forwards the mutation via GraphQL over HTTP.
+- **Management to workers** — after executing a cluster mutation locally, the management node broadcasts the corresponding internal handler to all active workers in parallel via GraphQL over HTTP. Workers authenticate broadcasts using the shared `CLUSTER_SECRET`.
 
-### Management Node Configuration
+## Node Registration
 
-The management node requires the following environment variables:
+Every node registers itself in the `_cluster_nodes` table in PostgreSQL on startup. The table schema:
 
-```bash
-# Management node binding
-BIND=:14000
+| Column | Type | Description |
+|---|---|---|
+| `name` | `String!` (PK) | Unique node identifier (`CLUSTER_NODE_NAME`) |
+| `url` | `String!` | IPC endpoint URL (`CLUSTER_NODE_URL`) |
+| `role` | `String!` | `management` or `worker` |
+| `version` | `String` | Binary version from Go build info |
+| `started_at` | `Timestamp` | When the node started |
+| `last_heartbeat` | `Timestamp` | Last heartbeat timestamp |
+| `error` | `String` | Last error message (null = healthy) |
 
-# Cluster authentication (shared with work nodes)
-CLUSTER_SECRET=your-cluster-secret
+### Heartbeat Mechanism
 
-# Node communication timeout
-TIMEOUT=30s
+Each node sends a heartbeat (updates `last_heartbeat`) at the interval defined by `CLUSTER_HEARTBEAT` (default: 30s).
 
-# Node health check interval
-CHECK=1m
+The **management node** also runs a ghost cleanup pass on each heartbeat tick: any node whose `last_heartbeat` is older than `CLUSTER_GHOST_TTL` (default: 2m) is deleted from `_cluster_nodes`. This prevents stale entries from accumulating when workers crash or are scaled down.
 
-# Authentication settings (distributed to work nodes)
-ALLOWED_ANONYMOUS=true
-ANONYMOUS_ROLE=anonymous
-SECRET_KEY=your-secret-key
-AUTH_CONFIG_FILE=/config/auth.yaml
+:::note
+Node registration is deferred until the first heartbeat tick (not during `Attach`) because the query engine's planner is not yet initialized at attach time.
+:::
 
-# OIDC Integration (optional)
-OIDC_ISSUER=https://accounts.google.com
-OIDC_CLIENT_ID=your-client-id
-OIDC_COOKIE_NAME=hugr_session
-OIDC_USERNAME_CLAIM=preferred_username
-OIDC_USERID_CLAIM=sub
-OIDC_ROLE_CLAIM=roles
-```
+## Schema Synchronization
 
-For detailed authentication setup instructions, see the [Authentication Setup](./4-auth.md).
+Schema consistency across nodes is maintained through two complementary mechanisms:
 
-**Authentication Distribution**: The management node distributes these authentication settings to all work nodes when they connect. Work nodes automatically receive and apply the configuration, ensuring consistent authentication across the cluster.
+### Push — Management Broadcasts
 
-### Work Node Configuration
+When a schema change occurs on the management node (via `load_source`, `unload_source`, `reload_source`), the management node:
 
-Each work node needs to know about the management node:
+1. Executes the operation locally (compile + attach/detach).
+2. The catalog manager automatically increments `schema_version` in `_schema_settings`.
+3. Broadcasts the corresponding `handle_source_load` or `handle_source_unload` internal mutation to all active workers in parallel.
 
-```bash
-# Work node binding
-BIND=:15000
+Workers receiving the broadcast attach or detach the data source without recompilation — schema compilation is the management node's responsibility.
 
-# Cluster configuration
-CLUSTER_SECRET=your-cluster-secret
-CLUSTER_MANAGEMENT_URL=http://management:14000
-CLUSTER_NODE_NAME=worker-1
-CLUSTER_NODE_URL=http://worker-1:15000
-CLUSTER_TIMEOUT=5s
+### Pull — Workers Poll `schema_version`
 
-# Core database (shared)
-CORE_DB_PATH=postgres://hugr:password@postgres:5432/hugr_core
+Workers periodically poll `schema_version` from the Core Database at `CLUSTER_POLL_INTERVAL` (default: 30s). If the version has changed since the last check, the worker:
 
-# Distributed cache (L2)
-CACHE_L2_ENABLED=true
-CACHE_L2_BACKEND=redis
-CACHE_L2_ADDRESSES=redis:6379
-CACHE_L2_PASSWORD=redis_password
-```
+1. Invalidates all cached catalogs.
+2. **Reconciles** loaded sources: compares the `_schema_catalogs` table with locally attached sources, loading any missing and unloading any extra.
 
-### Important Configuration Notes
+This pull mechanism ensures recovery from missed broadcasts (e.g., due to transient network issues or a worker restarting after a broadcast was sent).
 
-- **`CLUSTER_SECRET`** must be identical across all nodes for secure communication
-- **`CLUSTER_NODE_NAME`** must be unique for each work node
-- **`CLUSTER_NODE_URL`** should be accessible by the management node
-- **`CORE_DB_PATH`** must point to a shared database:
-  - **PostgreSQL** (recommended) - Full read/write support
-  - **DuckDB** - Only in read-only mode (`CORE_DB_READONLY=true`), as DuckDB cannot handle concurrent writes from multiple processes to the same file. DuckDB cannot be used for the core database in write mode for cluster deployments due to its single-writer limitation
-- **L2 cache** is strongly recommended for cluster deployments to cache role permissions
+## DuckDB Secrets Sync
 
-### Roles and Permissions in Cluster Mode
+DuckDB secrets (S3/object storage credentials) are registered on the management node and stored in DuckDB's persistent secret storage. Workers sync secrets from management in two situations:
 
-**Important**: Role and permission synchronization is **not** performed in cluster mode. However:
+1. **On startup** — immediately after the first successful node registration, the worker queries the management node's `core.meta.secrets` endpoint and creates each secret locally using `CREATE OR REPLACE PERSISTENT SECRET`.
+2. **On broadcast** — when the management node registers or unregisters a storage secret, it broadcasts `handle_secret_sync` to all workers, triggering the same sync process.
 
-- All nodes can share a common core database (PostgreSQL or DuckDB in read-only mode)
-- Role permissions are cached using the standard caching mechanism (L1/L2) with default TTL from cache configuration
-- Authentication settings are configured on the management node (via environment variables) and automatically distributed to work nodes
+## CRUD vs Lifecycle Operations
 
-## Docker Compose Cluster Deployment
+Hugr distinguishes between two categories of data source operations:
 
-### Basic Cluster Setup
+### Database CRUD (Core Module)
 
-Here's a basic cluster configuration with two work nodes.
+These mutations modify the `_data_sources` table in the Core Database. They do **not** compile or attach anything at runtime:
 
-**Note**: Access the cluster GraphQL API through work nodes (ports 15001, 15002), not the management node. The management node (port 14000) does not provide GraphQL endpoints.
+- `insert_data_sources` — add a new data source record
+- `update_data_sources` — modify an existing record
+- `delete_data_sources` — remove a record
 
-```yaml
-version: '3.8'
+Access path: `mutation { core { insert_data_sources(...) { ... } } }`
 
-services:
-  management:
-    image: ghcr.io/hugr-lab/management:latest
-    ports:
-      - "14000:14000"
-    environment:
-      - BIND=:14000
-      - CLUSTER_SECRET=cluster-secret-key
-      - TIMEOUT=30s
-      - CHECK=1m
-    restart: unless-stopped
+### Runtime Lifecycle (Cluster Module)
 
-  worker-1:
-    image: ghcr.io/hugr-lab/server:latest
-    ports:
-      - "15001:15000"
-    environment:
-      # Server Config
-      - BIND=:15000
-      - ADMIN_UI=true
+These mutations compile, attach, or detach data sources across the cluster. They operate on sources that already exist in the database:
 
-      # Cluster Config
-      - CLUSTER_SECRET=cluster-secret-key
-      - CLUSTER_MANAGEMENT_URL=http://management:14000
-      - CLUSTER_NODE_NAME=worker-1
-      - CLUSTER_NODE_URL=http://worker-1:15000
-      - CLUSTER_TIMEOUT=5s
+- `load_source` — compile and attach a data source on all nodes
+- `unload_source` — detach a data source from all nodes (does not delete the DB record)
+- `reload_source` — unload + load (useful after updating a source's configuration)
 
-      # Core Database
-      - CORE_DB_PATH=postgres://hugr:password@postgres:5432/hugr_core
+Access path: `mutation { function { core { cluster { load_source(name: "...") { ... } } } } }`
 
-      # Cache
-      - CACHE_L1_ENABLED=true
-      - CACHE_L1_MAX_SIZE=512
-      - CACHE_L2_ENABLED=true
-      - CACHE_L2_BACKEND=redis
-      - CACHE_L2_ADDRESSES=redis:6379
-      - CACHE_L2_PASSWORD=redis_password
-    volumes:
-      - ./workspace:/workspace
-    depends_on:
-      - management
-      - postgres
-      - redis
-    restart: unless-stopped
+**Typical workflow:**
 
-  worker-2:
-    image: ghcr.io/hugr-lab/server:latest
-    ports:
-      - "15002:15000"
-    environment:
-      # Server Config
-      - BIND=:15000
-      - ADMIN_UI=true
+1. Use `insert_data_sources` to create a data source record.
+2. Use `load_source` to compile and attach it cluster-wide.
+3. If you change the source config with `update_data_sources`, use `reload_source` to apply changes.
+4. Use `unload_source` to detach without deleting.
+5. Use `delete_data_sources` to permanently remove.
 
-      # Cluster Config
-      - CLUSTER_SECRET=cluster-secret-key
-      - CLUSTER_MANAGEMENT_URL=http://management:14000
-      - CLUSTER_NODE_NAME=worker-2
-      - CLUSTER_NODE_URL=http://worker-2:15000
-      - CLUSTER_TIMEOUT=5s
+## Cluster Mutations
 
-      # Core Database
-      - CORE_DB_PATH=postgres://hugr:password@postgres:5432/hugr_core
+All cluster mutations are available via the `core.cluster` module. On workers, they are automatically forwarded to the management node. All return `OperationResult` with `success` and `message` fields.
 
-      # Cache
-      - CACHE_L1_ENABLED=true
-      - CACHE_L1_MAX_SIZE=512
-      - CACHE_L2_ENABLED=true
-      - CACHE_L2_BACKEND=redis
-      - CACHE_L2_ADDRESSES=redis:6379
-      - CACHE_L2_PASSWORD=redis_password
-    volumes:
-      - ./workspace:/workspace
-    depends_on:
-      - management
-      - postgres
-      - redis
-    restart: unless-stopped
+### `load_source`
 
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=hugr_core
-      - POSTGRES_USER=hugr
-      - POSTGRES_PASSWORD=password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
+Compile and attach a data source across the cluster.
 
-  redis:
-    image: redis:7-alpine
-    command: redis-server --requirepass redis_password
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-  redis_data:
-```
-
-### Cluster with Load Balancer (NGINX)
-
-Add NGINX as a load balancer:
-
-```yaml
-version: '3.8'
-
-services:
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - worker-1
-      - worker-2
-    restart: unless-stopped
-
-  management:
-    image: ghcr.io/hugr-lab/management:latest
-    ports:
-      - "14000:14000"
-    environment:
-      - BIND=:14000
-      - CLUSTER_SECRET=cluster-secret-key
-      - TIMEOUT=30s
-      - CHECK=1m
-    restart: unless-stopped
-
-  worker-1:
-    image: ghcr.io/hugr-lab/server:latest
-    environment:
-      - BIND=:15000
-      - ADMIN_UI=false
-      - CLUSTER_SECRET=cluster-secret-key
-      - CLUSTER_MANAGEMENT_URL=http://management:14000
-      - CLUSTER_NODE_NAME=worker-1
-      - CLUSTER_NODE_URL=http://worker-1:15000
-      - CLUSTER_TIMEOUT=5s
-      - CORE_DB_PATH=postgres://hugr:password@postgres:5432/hugr_core
-      - CACHE_L1_ENABLED=true
-      - CACHE_L1_MAX_SIZE=512
-      - CACHE_L2_ENABLED=true
-      - CACHE_L2_BACKEND=redis
-      - CACHE_L2_ADDRESSES=redis:6379
-      - CACHE_L2_PASSWORD=redis_password
-    volumes:
-      - ./workspace:/workspace
-    depends_on:
-      - management
-      - postgres
-      - redis
-    restart: unless-stopped
-
-  worker-2:
-    image: ghcr.io/hugr-lab/server:latest
-    environment:
-      - BIND=:15000
-      - ADMIN_UI=false
-      - CLUSTER_SECRET=cluster-secret-key
-      - CLUSTER_MANAGEMENT_URL=http://management:14000
-      - CLUSTER_NODE_NAME=worker-2
-      - CLUSTER_NODE_URL=http://worker-2:15000
-      - CLUSTER_TIMEOUT=5s
-      - CORE_DB_PATH=postgres://hugr:password@postgres:5432/hugr_core
-      - CACHE_L1_ENABLED=true
-      - CACHE_L1_MAX_SIZE=512
-      - CACHE_L2_ENABLED=true
-      - CACHE_L2_BACKEND=redis
-      - CACHE_L2_ADDRESSES=redis:6379
-      - CACHE_L2_PASSWORD=redis_password
-    volumes:
-      - ./workspace:/workspace
-    depends_on:
-      - management
-      - postgres
-      - redis
-    restart: unless-stopped
-
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=hugr_core
-      - POSTGRES_USER=hugr
-      - POSTGRES_PASSWORD=password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    command: redis-server --requirepass redis_password
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-  redis_data:
-```
-
-Create `nginx.conf`:
-
-```nginx
-events {
-    worker_connections 1024;
-}
-
-http {
-    upstream hugr_cluster {
-        least_conn;
-        server worker-1:15000 max_fails=3 fail_timeout=30s;
-        server worker-2:15000 max_fails=3 fail_timeout=30s;
-    }
-
-    server {
-        listen 80;
-        server_name _;
-
-        location / {
-            proxy_pass http://hugr_cluster;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-
-            # WebSocket support
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
-
-            # Timeouts
-            proxy_connect_timeout 60s;
-            proxy_send_timeout 60s;
-            proxy_read_timeout 60s;
+```graphql
+mutation {
+  function {
+    core {
+      cluster {
+        load_source(name: "my-source") {
+          success
+          message
         }
-
-        # Health check endpoint
-        location /health {
-            access_log off;
-            return 200 "healthy\n";
-        }
+      }
     }
+  }
 }
 ```
 
-## Kubernetes Deployment
+**Management behavior:** compiles the source locally, then broadcasts `handle_source_load` to all workers.
 
-For Kubernetes deployments, the [hugr-lab/docker](https://github.com/hugr-lab/docker) repository provides templates in the `k8s/cluster` directory.
+### `unload_source`
 
-### Basic Kubernetes Architecture
+Detach a data source from all nodes without deleting its database record.
 
-A Kubernetes deployment typically includes:
-
-1. **Management Node Deployment** - Single replica StatefulSet
-2. **Worker Node Deployment** - Multi-replica StatefulSet or Deployment
-3. **PostgreSQL StatefulSet** - Persistent core database
-4. **Redis Deployment** - Distributed cache
-5. **Services** - For internal communication
-6. **Ingress** - For external access
-
-### Management Node Deployment
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: hugr-management
-  labels:
-    app: hugr-management
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: hugr-management
-  template:
-    metadata:
-      labels:
-        app: hugr-management
-    spec:
-      containers:
-      - name: management
-        image: ghcr.io/hugr-lab/management:latest
-        ports:
-        - containerPort: 14000
-          name: management
-        env:
-        - name: BIND
-          value: ":14000"
-        - name: CLUSTER_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: hugr-cluster-secret
-              key: cluster-secret
-        - name: TIMEOUT
-          value: "30s"
-        - name: CHECK
-          value: "1m"
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: hugr-management
-spec:
-  selector:
-    app: hugr-management
-  ports:
-  - port: 14000
-    targetPort: 14000
-    name: management
+```graphql
+mutation {
+  function {
+    core {
+      cluster {
+        unload_source(name: "my-source") {
+          success
+          message
+        }
+      }
+    }
+  }
+}
 ```
 
-### Worker Node Deployment
+### `reload_source`
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: hugr-worker
-  labels:
-    app: hugr-worker
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: hugr-worker
-  template:
-    metadata:
-      labels:
-        app: hugr-worker
-    spec:
-      containers:
-      - name: worker
-        image: ghcr.io/hugr-lab/server:latest
-        ports:
-        - containerPort: 15000
-          name: http
-        env:
-        - name: BIND
-          value: ":15000"
-        - name: ADMIN_UI
-          value: "false"
-        - name: CLUSTER_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: hugr-cluster-secret
-              key: cluster-secret
-        - name: CLUSTER_MANAGEMENT_URL
-          value: "http://hugr-management:14000"
-        - name: CLUSTER_NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: CLUSTER_NODE_URL
-          value: "http://$(HOSTNAME).hugr-worker:15000"
-        - name: CLUSTER_TIMEOUT
-          value: "5s"
-        - name: CORE_DB_PATH
-          valueFrom:
-            secretKeyRef:
-              name: hugr-db-secret
-              key: connection-string
-        - name: CACHE_L1_ENABLED
-          value: "true"
-        - name: CACHE_L1_MAX_SIZE
-          value: "512"
-        - name: CACHE_L2_ENABLED
-          value: "true"
-        - name: CACHE_L2_BACKEND
-          value: "redis"
-        - name: CACHE_L2_ADDRESSES
-          value: "redis:6379"
-        - name: CACHE_L2_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: redis-secret
-              key: password
-        volumeMounts:
-        - name: workspace
-          mountPath: /workspace
-        resources:
-          requests:
-            memory: "2Gi"
-            cpu: "1"
-          limits:
-            memory: "4Gi"
-            cpu: "2"
-        livenessProbe:
-          httpGet:
-            path: /admin
-            port: 15000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /admin
-            port: 15000
-          initialDelaySeconds: 10
-          periodSeconds: 5
-      volumes:
-      - name: workspace
-        persistentVolumeClaim:
-          claimName: hugr-workspace
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: hugr-worker
-spec:
-  selector:
-    app: hugr-worker
-  ports:
-  - port: 15000
-    targetPort: 15000
-    name: http
-  type: ClusterIP
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: hugr-worker-headless
-spec:
-  clusterIP: None
-  selector:
-    app: hugr-worker
-  ports:
-  - port: 15000
-    targetPort: 15000
-    name: http
+Unload and re-load a data source across the cluster. Use this after modifying a source's configuration.
+
+```graphql
+mutation {
+  function {
+    core {
+      cluster {
+        reload_source(name: "my-source") {
+          success
+          message
+        }
+      }
+    }
+  }
+}
 ```
 
-### Ingress Configuration
+### `register_storage`
 
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: hugr-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-spec:
-  ingressClassName: nginx
-  rules:
-  - host: hugr.example.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: hugr-worker
-            port:
-              number: 15000
-  tls:
-  - hosts:
-    - hugr.example.com
-    secretName: hugr-tls-secret
+Register an S3-compatible object storage secret across the cluster.
+
+```graphql
+mutation {
+  function {
+    core {
+      cluster {
+        register_storage(
+          type: "s3"
+          name: "my-bucket"
+          scope: "bucket-name"
+          key: "access-key-id"
+          secret: "secret-access-key"
+          region: "us-east-1"
+          endpoint: "https://s3.amazonaws.com"
+          use_ssl: true
+          url_style: "vhost"
+        ) {
+          success
+          message
+        }
+      }
+    }
+  }
+}
 ```
 
-### Secrets
+**Parameters:**
 
-Create the required secrets:
+| Parameter | Type | Description |
+|---|---|---|
+| `type` | `String!` | Storage type (e.g., `"s3"`) |
+| `name` | `String!` | Unique secret name |
+| `scope` | `String!` | Bucket name or sub-path |
+| `key` | `String!` | Access key ID |
+| `secret` | `String!` | Secret access key |
+| `region` | `String` | AWS region (optional) |
+| `endpoint` | `String!` | Storage endpoint URL |
+| `use_ssl` | `Boolean!` | Use HTTPS (default: `true`) |
+| `url_style` | `String!` | `"path"` or `"vhost"` |
 
-```bash
-# Cluster secret
-kubectl create secret generic hugr-cluster-secret \
-  --from-literal=cluster-secret='your-cluster-secret-key'
+### `unregister_storage`
 
-# Database connection
-kubectl create secret generic hugr-db-secret \
-  --from-literal=connection-string='postgres://hugr:password@postgres:5432/hugr_core'
+Remove an object storage secret from all nodes.
 
-# Redis password
-kubectl create secret generic redis-secret \
-  --from-literal=password='redis-password'
+```graphql
+mutation {
+  function {
+    core {
+      cluster {
+        unregister_storage(name: "my-bucket") {
+          success
+          message
+        }
+      }
+    }
+  }
+}
 ```
 
-## Scaling Work Nodes
+### `invalidate_cache`
 
-### Docker Compose
+Invalidate the schema cache across the cluster. Optionally scope to a specific catalog.
 
-Scale work nodes dynamically:
-
-```bash
-# Scale to 5 worker nodes
-docker-compose up -d --scale worker=5
-
-# Scale down to 2 worker nodes
-docker-compose up -d --scale worker=2
+```graphql
+mutation {
+  function {
+    core {
+      cluster {
+        invalidate_cache(catalog: "optional-catalog-name") {
+          success
+          message
+        }
+      }
+    }
+  }
+}
 ```
 
-### Kubernetes
+If `catalog` is omitted (null), all caches are invalidated.
 
-```bash
-# Scale deployment
-kubectl scale deployment hugr-worker --replicas=5
+## Query Functions
 
-# Auto-scaling with HPA
-kubectl autoscale deployment hugr-worker \
-  --cpu-percent=70 \
-  --min=3 \
-  --max=10
+The cluster module also provides query functions:
+
+```graphql
+query {
+  function {
+    core {
+      cluster {
+        # Current schema version counter
+        schema_version
+
+        # This node's cluster role
+        my_role
+
+        # Management node IPC URL
+        management_url
+      }
+    }
+  }
+}
 ```
 
-### Horizontal Pod Autoscaler
-
-```yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: hugr-worker-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: hugr-worker
-  minReplicas: 3
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 80
-```
-
-## Cluster Management
-
-### Cluster Management Operations
-
-In cluster mode, the hugr GraphQL schema is extended with the `core.cluster` module, which provides:
-
-- **Schema Management**: Load/unload data source catalogs across all work nodes
-- **Data Source Configuration**: Add, update, or remove data sources (via core module)
-- **Object Storage**: Register and manage S3/MinIO storage across the cluster
-- **Cluster Monitoring**: Monitor work node health and status
-
-**Note**: Authentication settings are configured via environment variables or configuration files on the management node, not through GraphQL API. The management node automatically distributes these settings to work nodes when they connect.
-
-### GraphQL API for Cluster Management
-
-**Important**: The management node does NOT provide a GraphQL API. All cluster management operations are performed through the **work nodes** GraphQL API.
-
-When you execute a query or mutation in the `core.cluster` module:
-1. You send the GraphQL request to a **work node** (via standard endpoint `http://work-node:15000/graphql` or AdminUI at `http://work-node:15000/admin`)
-2. The work node receives the request
-3. The work node automatically communicates with the management node to perform the cluster operation
-4. The work node returns the result
-
-**Access cluster operations** through any work node's GraphQL interface or AdminUI.
-
-All cluster-specific operations are available in the `core.cluster` module with different access paths depending on the operation type.
-
-#### Query Operations
-
-The `core.cluster` module provides query operations through two approaches:
-
-**1. Direct View Access** - `query { core { cluster { ... } } }`
-
-Views can be queried directly without the `function` wrapper:
-
-**Get registered cluster nodes (view):**
+Registered nodes can be queried directly from the `_cluster_nodes` table:
 
 ```graphql
 query {
   core {
     cluster {
-      cluster_nodes {
+      nodes {
         name
-        version
         url
-        ready
-        last_seen
+        role
+        version
+        started_at
+        last_heartbeat
         error
       }
     }
@@ -778,620 +352,248 @@ query {
 }
 ```
 
-**Get registered object storages (view):**
+## Environment Variables
 
-```graphql
-query {
-  core {
-    cluster {
-      registered_storages {
-        node
-        name
-        type
-        scope
-        Parameters
-      }
-    }
-  }
-}
-```
+| Variable | Type | Default | Description |
+|---|---|---|---|
+| `CLUSTER_ENABLED` | `bool` | `false` | Enable cluster mode |
+| `CLUSTER_ROLE` | `string` | `""` | Node role: `"management"` or `"worker"` |
+| `CLUSTER_NODE_NAME` | `string` | _(required)_ | Unique node identifier |
+| `CLUSTER_NODE_URL` | `string` | _(required)_ | This node's IPC endpoint URL (must be reachable by other nodes) |
+| `CLUSTER_SECRET` | `string` | `""` | Shared secret for inter-node authentication. Must be identical on all nodes. |
+| `CLUSTER_HEARTBEAT` | `duration` | `30s` | Heartbeat interval |
+| `CLUSTER_GHOST_TTL` | `duration` | `2m` | Time after which a node with no heartbeat is removed (management only) |
+| `CLUSTER_POLL_INTERVAL` | `duration` | `30s` | Schema version polling interval (worker only) |
 
-**2. Function Access** - `query { function { core { cluster { ... } } } }`
+:::caution
+`CLUSTER_SECRET` must be the same on all nodes. Workers use it to authenticate requests from the management node, and vice versa.
+:::
 
-The same data can also be accessed through functions:
+## Docker Compose Example
 
-**Get registered cluster nodes (function):**
+Below is a production-ready cluster configuration with nginx, a management node (using `automigrate` for automatic Core DB migrations), two workers, and PostgreSQL.
 
-```graphql
-query {
-  function {
-    core {
-      cluster {
-        nodes {
-          name
-          version
-          url
-          ready
-          last_seen
-          error
-        }
-      }
-    }
-  }
-}
-```
-
-Returns: `[cluster_nodes]` - same as view
-
-**Get registered object storages (function):**
-
-```graphql
-query {
-  function {
-    core {
-      cluster {
-        storages {
-          node
-          name
-          type
-          scope
-          Parameters
-        }
-      }
-    }
-  }
-}
-```
-
-Returns: `[registered_storages]` - same as view
-
-**Get data source status (function only):**
-
-```graphql
-query {
-  function {
-    core {
-      cluster {
-        data_source_status(name: "your-datasource-name") {
-          node
-          status
-          error
-        }
-      }
-    }
-  }
-}
-```
-
-Returns: `[cluster_data_source_status]` - data source status on each node
-
-**Note**: `cluster_nodes` and `registered_storages` can be accessed both as views (direct) and through functions. `data_source_status` is only available as a function.
-
-**List data sources (core module):**
-
-```graphql
-query {
-  core {
-    data_sources {
-      name
-      type
-      description
-      prefix
-      path
-      disabled
-      catalogs {
-        name
-        type
-        path
-      }
-    }
-  }
-}
-```
-
-#### Mutation Operations
-
-All mutation operations are functions and use the path: `mutation { function { core { cluster { ... } } } }`
-
-#### Data Source Management
-
-**Load or reload a data source catalog:**
-
-```graphql
-mutation {
-  function {
-    core {
-      cluster {
-        load_data_source(name: "your-datasource-name") {
-          success
-          message
-        }
-      }
-    }
-  }
-}
-```
-
-This operation loads or reloads the data source catalog across all cluster nodes.
-
-**Unload a data source catalog:**
-
-```graphql
-mutation {
-  function {
-    core {
-      cluster {
-        unload_data_source(name: "your-datasource-name") {
-          success
-          message
-        }
-      }
-    }
-  }
-}
-```
-
-This operation unloads the data source catalog from all cluster nodes without deleting the data source configuration.
-
-**Add a new data source (core module):**
-
-```graphql
-mutation addDataSource($data: data_sources_mut_input_data!) {
-  core {
-    insert_data_sources(data: $data) {
-      name
-      type
-      description
-      path
-      catalogs {
-        name
-        type
-        path
-      }
-    }
-  }
-}
-```
-
-With variables:
-
-```json
-{
-  "data": {
-    "name": "analytics",
-    "type": "postgres",
-    "prefix": "an",
-    "description": "Analytics database",
-    "read_only": false,
-    "as_module": true,
-    "path": "postgres://user:password@postgres:5432/analytics",
-    "catalogs": [
-      {
-        "name": "analytics_schema",
-        "type": "uri",
-        "description": "Analytics schema definitions",
-        "path": "/workspace/analytics/schema"
-      }
-    ]
-  }
-}
-```
-
-After adding a data source, use `load_data_source` to load it across the cluster.
-
-**Update a data source (core module):**
-
-```graphql
-mutation updateDataSource($name: String!, $data: data_sources_mut_data!) {
-  core {
-    update_data_sources(filter: {name: {eq: $name}}, data: $data) {
-      name
-      description
-      path
-      disabled
-    }
-  }
-}
-```
-
-**Delete a data source (core module):**
-
-```graphql
-mutation deleteDataSource($name: String!) {
-  core {
-    delete_data_sources(filter: {name: {eq: $name}}) {
-      name
-    }
-  }
-}
-```
-
-#### Object Storage Management
-
-**Register a new S3/MinIO object storage:**
-
-```graphql
-mutation {
-  function {
-    core {
-      cluster {
-        register_object_storage(
-          type: "s3"
-          name: "minio-storage"
-          scope: "my-bucket"
-          key: "minioadmin"
-          secret: "minioadmin"
-          region: "us-east-1"
-          endpoint: "http://minio:9000"
-          use_ssl: false
-          url_style: "path"
-          url_compatibility: false
-        ) {
-          success
-          message
-        }
-      }
-    }
-  }
-}
-```
-
-**Register object storage with variables:**
-
-```graphql
-mutation RegisterStorage(
-  $type: String!
-  $name: String!
-  $scope: String!
-  $key: String!
-  $secret: String!
-  $endpoint: String!
-  $region: String
-  $use_ssl: Boolean
-  $url_style: String!
-) {
-  function {
-    core {
-      cluster {
-        register_object_storage(
-          type: $type
-          name: $name
-          scope: $scope
-          key: $key
-          secret: $secret
-          endpoint: $endpoint
-          region: $region
-          use_ssl: $use_ssl
-          url_style: $url_style
-        ) {
-          success
-          message
-        }
-      }
-    }
-  }
-}
-```
-
-With variables:
-
-```json
-{
-  "type": "s3",
-  "name": "minio-storage",
-  "scope": "my-bucket",
-  "key": "minioadmin",
-  "secret": "minioadmin",
-  "endpoint": "http://minio:9000",
-  "region": "us-east-1",
-  "use_ssl": false,
-  "url_style": "path"
-}
-```
-
-**Parameters:**
-- `type`: Type of object storage (e.g., "s3")
-- `name`: Unique name for the storage
-- `scope`: Bucket name or bucket sub-path
-- `key`: Access key ID (AWS or S3-compatible)
-- `secret`: Secret access key
-- `region`: AWS region (optional)
-- `endpoint`: Storage endpoint URL
-- `use_ssl`: Whether to use HTTPS (default: true)
-- `url_style`: S3 URL style ("path" or "vhost")
-- `url_compatibility`: URL compatibility mode (optional)
-- `kms_key_id`: AWS KMS key for server-side encryption (optional)
-- `account_id`: Cloudflare R2 account ID (optional)
-
-**Unregister object storage:**
-
-```graphql
-mutation {
-  function {
-    core {
-      cluster {
-        unregister_object_storage(name: "minio-storage") {
-          success
-          message
-        }
-      }
-    }
-  }
-}
-```
-
-**List registered storages (query):**
-
-See the query operation `storages` above for listing registered object storages across the cluster.
-
-#### Authentication Configuration in Cluster Mode
-
-**Important**: Authentication settings in cluster mode are **not** managed via GraphQL API. Instead:
-
-1. **Configuration on Management Node**: Authentication settings are configured on the management node via environment variables or configuration file (same as single-server deployment)
-2. **Automatic Distribution**: When a work node starts, it automatically receives authentication settings from the management node
-3. **Centralized Management**: All work nodes use the same authentication configuration distributed by the management node
-
-**Configure authentication on the management node** using environment variables:
-
-```bash
-# Management Node Environment Variables
-ALLOWED_ANONYMOUS=false
-ANONYMOUS_ROLE=guest
-SECRET_KEY=your-secret-key
-AUTH_CONFIG_FILE=/config/auth.yaml
-
-# OIDC Configuration (optional)
-OIDC_ISSUER=https://accounts.google.com
-OIDC_CLIENT_ID=your-client-id
-OIDC_COOKIE_NAME=hugr_session
-```
-
-Or via configuration file (`/config/auth.yaml`):
+### `docker-compose.yaml`
 
 ```yaml
-authentication:
-  allowed_anonymous: false
-  anonymous_role: guest
-  secret_key: your-secret-key
+services:
+  core-db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: hugr
+      POSTGRES_PASSWORD: hugr
+      POSTGRES_DB: hugr
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hugr"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
-  # OIDC settings
-  oidc:
-    issuer: https://accounts.google.com
-    client_id: your-client-id
-    cookie_name: hugr_session
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+
+  management:
+    image: ghcr.io/hugr-lab/automigrate:latest
+    depends_on:
+      core-db:
+        condition: service_healthy
+    environment:
+      BIND: ":15000"
+      SERVICE_BIND: ":13000"
+      CORE_DB_PATH: "postgres://hugr:hugr@core-db:5432/hugr"
+
+      CLUSTER_ENABLED: "true"
+      CLUSTER_ROLE: "management"
+      CLUSTER_NODE_NAME: "management"
+      CLUSTER_NODE_URL: "http://management:15000/ipc"
+      CLUSTER_SECRET: "${CLUSTER_SECRET:-change-me}"
+      CLUSTER_HEARTBEAT: "30s"
+      CLUSTER_GHOST_TTL: "2m"
+
+      ALLOWED_ANONYMOUS: "${ALLOWED_ANONYMOUS:-true}"
+      ANONYMOUS_ROLE: "${ANONYMOUS_ROLE:-admin}"
+
+      DB_HOME_DIRECTORY: "/db-home"
+    volumes:
+      - management-db-home:/db-home
+      - shared-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:13000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  node1:
+    image: ghcr.io/hugr-lab/server:latest
+    depends_on:
+      core-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      management:
+        condition: service_healthy
+    environment:
+      BIND: ":15000"
+      SERVICE_BIND: ":13000"
+      CORE_DB_PATH: "postgres://hugr:hugr@core-db:5432/hugr"
+
+      CLUSTER_ENABLED: "true"
+      CLUSTER_ROLE: "worker"
+      CLUSTER_NODE_NAME: "node1"
+      CLUSTER_NODE_URL: "http://node1:15000/ipc"
+      CLUSTER_SECRET: "${CLUSTER_SECRET:-change-me}"
+      CLUSTER_POLL_INTERVAL: "30s"
+
+      ALLOWED_ANONYMOUS: "${ALLOWED_ANONYMOUS:-true}"
+      ANONYMOUS_ROLE: "${ANONYMOUS_ROLE:-admin}"
+
+      DB_HOME_DIRECTORY: "/db-home"
+
+      CACHE_L1_ENABLED: "true"
+      CACHE_L1_MAX_SIZE: "256"
+      CACHE_L2_ENABLED: "true"
+      CACHE_L2_BACKEND: "redis"
+      CACHE_L2_ADDRESSES: "redis:6379"
+    volumes:
+      - node1-db-home:/db-home
+      - shared-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:13000/health"]
+      interval: 10s
+
+  node2:
+    image: ghcr.io/hugr-lab/server:latest
+    depends_on:
+      core-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      management:
+        condition: service_healthy
+    environment:
+      BIND: ":15000"
+      SERVICE_BIND: ":13000"
+      CORE_DB_PATH: "postgres://hugr:hugr@core-db:5432/hugr"
+
+      CLUSTER_ENABLED: "true"
+      CLUSTER_ROLE: "worker"
+      CLUSTER_NODE_NAME: "node2"
+      CLUSTER_NODE_URL: "http://node2:15000/ipc"
+      CLUSTER_SECRET: "${CLUSTER_SECRET:-change-me}"
+      CLUSTER_POLL_INTERVAL: "30s"
+
+      ALLOWED_ANONYMOUS: "${ALLOWED_ANONYMOUS:-true}"
+      ANONYMOUS_ROLE: "${ANONYMOUS_ROLE:-admin}"
+
+      DB_HOME_DIRECTORY: "/db-home"
+
+      CACHE_L1_ENABLED: "true"
+      CACHE_L1_MAX_SIZE: "256"
+      CACHE_L2_ENABLED: "true"
+      CACHE_L2_BACKEND: "redis"
+      CACHE_L2_ADDRESSES: "redis:6379"
+    volumes:
+      - node2-db-home:/db-home
+      - shared-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:13000/health"]
+      interval: 10s
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "15000:15000"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - management
+      - node1
+      - node2
+
+volumes:
+  postgres-data:
+  management-db-home:
+  node1-db-home:
+  node2-db-home:
+  shared-data:
 ```
 
-Work nodes automatically receive and apply these settings when they connect to the management node. See [Configuration](./1-config.md) for complete authentication options.
+### `nginx.conf`
 
-#### Complete GraphQL API Reference
+```nginx
+upstream hugr-cluster {
+    server management:15000;
+    server node1:15000;
+    server node2:15000;
+}
 
-**Summary of Cluster Operations:**
+server {
+    listen 15000;
 
-All cluster operations are accessed via work nodes through the `core.cluster` module.
+    location / {
+        proxy_pass http://hugr-cluster;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 
-**Query Operations - Views** (direct access):
-- Path: `query { core { cluster { ... } } }`
-- `cluster_nodes` - Get registered cluster nodes (view)
-- `registered_storages` - Get registered object storages (view)
-
-**Query Operations - Functions**:
-- Path: `query { function { core { cluster { ... } } } }`
-- `nodes` - Get registered cluster nodes (returns `[cluster_nodes]`)
-- `storages` - Get registered object storages (returns `[registered_storages]`)
-- `data_source_status(name)` - Get data source status across nodes (returns `[cluster_data_source_status]`)
-
-**Mutation Operations** (via `function.core.cluster`):
-- Path: `mutation { function { core { cluster { ... } } } }`
-- `load_data_source(name)` - Load/reload data source catalog across cluster
-- `unload_data_source(name)` - Unload data source catalog from cluster
-- `register_object_storage(...)` - Register new S3/object storage across cluster
-- `unregister_object_storage(name)` - Unregister object storage from cluster
-
-**Core Module Operations** (data source CRUD):
-- `core.data_sources` - List data sources
-- `core.insert_data_sources` - Add new data source
-- `core.update_data_sources` - Update data source
-- `core.delete_data_sources` - Delete data source
-
-**Access Patterns:**
-- **Views (direct)**: `query { core { cluster { cluster_nodes, registered_storages } } }`
-- **Query Functions**: `query { function { core { cluster { nodes, storages, data_source_status } } } }`
-- **Mutation Functions**: `mutation { function { core { cluster { load_data_source, ... } } } }`
-
-**Note**: Cluster nodes and storages can be queried in two ways - directly as views or through functions. Both return the same data. Using direct view access is more efficient as it bypasses the function wrapper layer.
-
-**Workflow**:
-1. Execute GraphQL requests through any work node's endpoint or AdminUI
-2. For cluster operations (`core.cluster`), the work node automatically communicates with the management node
-3. After modifying data sources via core module operations, use `load_data_source` or `unload_data_source` to apply changes across the cluster
-
-### Schema Synchronization
-
-The management node automatically synchronizes changes across all work nodes:
-
-1. Schema or data source changes are made via GraphQL mutation through a **work node** (using `core.cluster` operations)
-2. The work node communicates with the management node
-3. Management node updates the shared core database
-4. All work nodes are notified to reload their configurations
-5. L2 cache is invalidated across the cluster to ensure consistency
-
-### Node Health Monitoring
-
-The management node periodically checks work node health:
-
-- **Health Check Interval**: Configured via `CHECK` environment variable
-- **Timeout**: Configured via `TIMEOUT` environment variable
-- **Failure Handling**: Unhealthy nodes are temporarily removed from the cluster
-
-### Adding/Removing Nodes
-
-#### Docker Compose
-
-Add new work nodes to `docker-compose.yml` and restart:
-
-```bash
-docker-compose up -d worker-3
+        # WebSocket support (for subscriptions)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
 ```
 
-Remove nodes:
+Note that the management node is included in the nginx upstream. Because the management node is a full query node, it can serve client traffic alongside workers.
 
-```bash
-docker-compose stop worker-3
-docker-compose rm -f worker-3
-```
+## Kubernetes Overview
 
-#### Kubernetes
+For Kubernetes deployments, the recommended approach is:
 
-Scale the deployment:
+1. **Management node** — a single-replica Deployment (or StatefulSet) with `CLUSTER_ROLE=management`, using the `automigrate` image.
+2. **Worker nodes** — a multi-replica Deployment with `CLUSTER_ROLE=worker`. Use `metadata.name` (via the downward API) as `CLUSTER_NODE_NAME` for automatic unique naming.
+3. **PostgreSQL** — a StatefulSet or managed database service for the shared Core DB.
+4. **Redis** — for L2 cache (optional but recommended).
+5. **Ingress** — routes external traffic to both management and worker services.
 
-```bash
-kubectl scale deployment hugr-worker --replicas=5
-```
+Set `CLUSTER_NODE_URL` using the pod's hostname and a headless Service so the management node can reach each worker for broadcasts.
 
-## Minikube Development Setup
+Templates and examples are available in the [hugr-lab/docker](https://github.com/hugr-lab/docker) repository under `k8s/cluster/`.
 
-For local Kubernetes development with Minikube, see the example configuration in the [hugr-lab/docker](https://github.com/hugr-lab/docker) repository at `examples/minikube-cluster.md`.
+## Migration from the Old Cluster Architecture
 
-Basic Minikube setup:
+Previous versions of hugr used a **separate management binary** (`ghcr.io/hugr-lab/management`) that ran on a different port (14000) and communicated with workers via gRPC. The management node did **not** serve GraphQL in the old architecture.
 
-```bash
-# Start Minikube
-minikube start --cpus=4 --memory=8192
+If you are migrating from that setup, note these changes:
 
-# Enable ingress
-minikube addons enable ingress
+| Aspect | Old Architecture | New Architecture |
+|---|---|---|
+| Management binary | `ghcr.io/hugr-lab/management` (separate) | Same binary as workers (`ghcr.io/hugr-lab/server` or `automigrate`) |
+| Management port | 14000 (gRPC) | Same port as workers (default 15000, HTTP/GraphQL) |
+| Role selection | Separate binaries | `CLUSTER_ROLE` env var |
+| GraphQL on management | Not available | Fully available |
+| Worker config | `CLUSTER_MANAGEMENT_URL` pointing to management | `CLUSTER_NODE_URL` pointing to self; management discovered via `_cluster_nodes` table |
+| Communication protocol | gRPC | GraphQL over HTTP (IPC endpoint) |
+| Health checks | `TIMEOUT` / `CHECK` env vars | `CLUSTER_HEARTBEAT` / `CLUSTER_GHOST_TTL` |
+| Auth distribution | Management pushed auth config to workers | Each node reads auth config independently; share the same env vars or config file |
 
-# Apply configurations
-kubectl apply -f k8s/cluster/
+**Migration steps:**
 
-# Access the service
-minikube service hugr-worker --url
-```
-
-## High Availability Considerations
-
-### Database High Availability
-
-For the shared core database:
-
-**PostgreSQL (Recommended for Production)**:
-- Use PostgreSQL with replication (streaming or logical)
-- Configure automatic failover with tools like Patroni or Stolon
-- Ensure proper backup and recovery procedures
-- Full read/write support for all cluster operations
-
-**DuckDB (Development/Read-Only)**:
-- Can only be used in read-only mode (`CORE_DB_READONLY=true`)
-- DuckDB does not support concurrent writes from multiple processes to the same file
-- Suitable for read-only cluster deployments or development environments
-- Prepare the database file before starting the cluster
-
-### Cache High Availability
-
-- Use Redis Sentinel for automatic failover
-- Or Redis Cluster for distributed setup
-- Configure connection retry logic in work nodes
-
-### Storage High Availability
-
-- Use replicated storage for persistent volumes
-- Consider S3-compatible storage for core database
-- Implement regular backup strategies
-
-### Load Balancing
-
-- Use multiple load balancer instances
-- Configure health checks on all work nodes
-- Implement session affinity if needed (though hugr is stateless)
-
-## Monitoring and Observability
-
-### Metrics to Monitor
-
-1. **Work Node Metrics**:
-   - Request rate and latency
-   - Query execution time
-   - Cache hit ratio
-   - Memory and CPU usage
-
-2. **Management Node Metrics**:
-   - Active work nodes count
-   - Schema synchronization events
-   - Node health check failures
-
-3. **Infrastructure Metrics**:
-   - Database connection pool usage
-   - Redis memory usage
-   - Network latency between nodes
-
-### Logging
-
-Configure centralized logging for all cluster components:
-
-```yaml
-logging:
-  driver: "fluentd"
-  options:
-    fluentd-address: "localhost:24224"
-    tag: "hugr.{{.Name}}"
-```
-
-## Troubleshooting
-
-### Work Node Not Connecting to Management
-
-1. Verify `CLUSTER_MANAGEMENT_URL` is accessible
-2. Check `CLUSTER_SECRET` matches on both nodes
-3. Review network policies in Kubernetes
-4. Check management node logs
-
-### Schema Not Synchronizing
-
-1. Verify core database is accessible by all nodes
-2. Check `CORE_DB_PATH` configuration
-3. Ensure L2 cache is working properly
-4. Review management node logs for sync events
-
-### Uneven Load Distribution
-
-1. Check load balancer configuration
-2. Verify all work nodes are healthy
-3. Review resource limits and actual usage
-4. Consider adjusting load balancing algorithm
-
-### Split Brain Scenarios
-
-- Ensure proper network segmentation
-- Configure appropriate timeouts
-- Use health checks at multiple levels
-- Implement proper failure detection
-
-## Best Practices
-
-1. **Always use PostgreSQL** for the core database in production clusters (DuckDB only supports read-only mode)
-2. **Enable L2 cache** to cache role permissions and improve performance across nodes
-3. **Use separate management node** - don't combine management and work node roles
-4. **Configure proper resource limits** to prevent node starvation
-5. **Implement comprehensive monitoring** for all cluster components
-6. **Use secrets management** for sensitive configuration (cluster secrets, database credentials)
-7. **Regular backup** of core database and configuration
-8. **Test failover scenarios** before production deployment
-9. **Manage cluster operations through management node** - use its GraphQL API for schema updates, data source configuration, and authentication settings
-10. **Cache role permissions** - configure appropriate TTL for permission caching to balance security and performance
-
-## Example Repositories
-
-For complete examples and templates:
-
-- **Docker Repository**: [https://github.com/hugr-lab/docker](https://github.com/hugr-lab/docker)
-  - `compose/example.cluster.docker-compose.yml` - Cluster with Docker Compose
-  - `k8s/cluster/` - Kubernetes templates
-  - `examples/minikube-cluster.md` - Minikube development setup
+1. Replace `ghcr.io/hugr-lab/management` with `ghcr.io/hugr-lab/automigrate` (or `server`) and set `CLUSTER_ROLE=management`.
+2. Replace `CLUSTER_MANAGEMENT_URL` on workers with `CLUSTER_NODE_URL` (pointing to the worker's own address).
+3. Set `CLUSTER_ENABLED=true` on all nodes.
+4. Replace `TIMEOUT` and `CHECK` with `CLUSTER_HEARTBEAT` and `CLUSTER_GHOST_TTL`.
+5. Ensure `CLUSTER_SECRET` and `CLUSTER_NODE_NAME` are set on every node.
+6. Add the management node to your load balancer upstream (it now serves GraphQL).
+7. Set authentication env vars (`ALLOWED_ANONYMOUS`, `SECRET_KEY`, etc.) on **all** nodes, not just management.
 
 ## Next Steps
 
-- Review [Configuration](./1-config.md) for detailed environment variables
-- Configure [Caching](./2-caching.md) for optimal cluster performance
+- Review [Configuration](./1-config.md) for all environment variables
+- Configure [Caching](./2-caching.md) for optimal cluster performance (L2 cache is recommended)
 - Set up [Authentication](./4-auth.md) for cluster security
-- Implement monitoring and alerting for production clusters

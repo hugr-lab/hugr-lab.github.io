@@ -1593,7 +1593,7 @@ curl -X POST http://localhost:8080/jq-query \
 - [Custom JQ Functions](/docs/graphql/jq-custom-functions) - Time manipulation, authentication, and query engine functions
 - [REST API /jq-query Endpoint](/docs/querying/jq-endpoint) - Detailed endpoint documentation
 - [HTTP Data Sources](/docs/engine-configuration/data-sources/http) - JQ in HTTP functions
-- [Overview - Result Transformation](/docs/overview#5-advanced-features) - Platform capabilities
+- [Overview - Result Transformation](/docs/overview#6-advanced-features) - Platform capabilities
 - [Caching Configuration](/docs/deployment/caching) - Configure L1/L2 cache for hugr
 - [Deployment Configuration](/docs/deployment/config) - General configuration options
 
