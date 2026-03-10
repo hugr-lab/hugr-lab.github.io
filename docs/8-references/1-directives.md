@@ -58,6 +58,7 @@ sidebar_position: 2
 | `@wfs` | Makes an object accessible via WFS. |
 | `@wfs_field` | Makes a nested object field flat in the WFS response. |
 | `@wfs_exclude` | Excludes a field from the WFS response. |
+| `@at` | Time-travel queries for DuckLake data sources. |
 
 
 ## Directive Reference
@@ -1588,6 +1589,50 @@ You can use the `@cache`, `@no_cache`, and `@invalidate_cache` directives in que
 
 
 `hugr` provides several directives that can be used at query time to modify the behavior of a query.
+
+### @at
+
+
+The `@at` directive enables time-travel queries for data sources that support snapshot versioning (currently DuckLake). It can be applied at the schema definition level (on data objects) or at query time (on query fields).
+
+Exactly one of `version` or `timestamp` must be provided.
+
+```graphql
+"""
+Time travel directive for DuckLake data sources.
+Exactly one of version or timestamp must be provided.
+"""
+directive @at(
+  version: Int
+  timestamp: String
+) on OBJECT | FIELD
+```
+
+In schema definitions (SDL), pin a table to a specific version:
+
+```graphql
+type historical_prices @table(name: "prices") @at(version: 5) {
+  id: BigInt! @pk
+  price: Float!
+}
+```
+
+At query time, apply time travel on any query field:
+
+```graphql
+query {
+  prices @at(version: 3) {
+    id
+    price
+  }
+  orders @at(timestamp: "2026-01-15T10:30:00Z") {
+    id
+    total
+  }
+}
+```
+
+The `@at` directive is capability-gated — it only works with data sources whose engine supports time travel. Using it on mutations will result in an error. See [DuckLake data source](/docs/engine-configuration/data-sources/ducklake#time-travel-with-at) for details.
 
 ### @stats
 
