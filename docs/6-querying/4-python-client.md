@@ -287,29 +287,31 @@ async def train():
     return model
 ```
 
-## JupyterLab/Hub Integration
+## JupyterLab Integration
 
-### Analytics Hub
+### Perspective Viewer Setup
 
-In [Analytics Hub](/docs/analytics-hub) (JupyterHub), hugr-client is pre-installed in the workspace container. Connection to Hugr is configured automatically — just create a client:
-
-```python
-from hugr import HugrClient
-
-client = HugrClient()  # uses Hub-managed connection with OIDC token
-result = client.query("{ ... }")
-result  # Perspective viewer
-```
-
-Token refresh is handled automatically by the connection service.
-
-### Standalone JupyterLab
+To get interactive Perspective viewer rendering (same as hugr-kernel and duckdb-kernel), install the `hugr-perspective-viewer` extension:
 
 ```bash
-pip install jupyterlab hugr-client hugr-perspective-viewer
+pip install jupyterlab hugr-client hugr-perspective-viewer>=0.3.2
 ```
 
-Configure connection via the connection manager sidebar or environment variables.
+Then set the `HUGR_SPOOL_EXTRA_DIRS` environment variable so the spool proxy can find hugr-client's temporary Arrow files:
+
+```bash
+HUGR_SPOOL_EXTRA_DIRS=hugr-client jupyter lab
+```
+
+Now query results displayed in notebook cells render as interactive Perspective tables with sorting, filtering, column reordering, and map visualization for geometry data.
+
+### Without Perspective Viewer
+
+If `hugr-perspective-viewer` is not installed, results display as HTML tables (pandas `.to_html()`). All data access methods (`df()`, `to_arrow()`, `gdf()`) work regardless.
+
+### Connection Manager
+
+When `hugr-perspective-viewer` is installed, it also provides the Hugr connection manager UI in JupyterLab. Configure connections in the sidebar — hugr-client reads the same `~/.hugr/connections.json`.
 
 ## API Reference
 
@@ -380,4 +382,3 @@ connect_stream(
 - [Hugr IPC Protocol](./3-hugr-ipc.md) — Arrow IPC multipart/mixed protocol
 - [GraphQL API](./2-graphql.md) — GraphQL query reference
 - [hugr-client Repository](https://github.com/hugr-lab/hugr-client) — Source code
-- [Analytics Hub](/docs/analytics-hub) — JupyterHub workspace with pre-configured hugr-client
