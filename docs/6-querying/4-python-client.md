@@ -43,7 +43,7 @@ table = result.parts["data.core.data_sources"].to_arrow()
 
 ### From Connection Manager (recommended)
 
-When using JupyterLab with [hugr-kernel](/docs/kernels/hugr-kernel), connections are managed via the connection manager UI. hugr-client reads the same `~/.hugr/connections.json`:
+When using JupyterLab with [hugr-kernel](https://github.com/hugr-lab/hugr-kernel), connections are managed via the connection manager UI. hugr-client reads the same `~/.hugr/connections.json`:
 
 ```python
 # Default connection
