@@ -17,8 +17,9 @@ const faqItems: FAQItem[] = [
         <p>
           hugr is an open-source Data Mesh platform and high-performance GraphQL backend
           for accessing distributed data sources. It provides a unified GraphQL API across
-          diverse sources including databases (PostgreSQL, MySQL, DuckDB), file formats
-          (Parquet, Iceberg, Delta Lake), and REST APIs.
+          diverse sources including databases (PostgreSQL, MySQL, DuckDB, SQL Server),
+          data lakes (DuckLake, Apache Iceberg), file formats (Parquet, Delta Lake),
+          and REST APIs.
         </p>
         <p>
           hugr enables rapid API development, analytics & BI, geospatial processing,
@@ -56,12 +57,12 @@ const faqItems: FAQItem[] = [
       <>
         <p>hugr supports multiple data source types:</p>
         <ul>
-          <li><strong>Relational Databases:</strong> DuckDB, PostgreSQL (with PostGIS, TimescaleDB, pgvector), MySQL</li>
-          <li><strong>File Formats:</strong> Parquet, Apache Iceberg, Delta Lake, CSV, JSON</li>
+          <li><strong>Relational Databases:</strong> DuckDB, PostgreSQL (with PostGIS, TimescaleDB, pgvector), MySQL, SQL Server / Azure SQL</li>
+          <li><strong>Data Lakes:</strong> DuckLake (snapshot-based time-travel, schema versioning), Apache Iceberg (REST catalogs, AWS Glue, S3 Tables — with time-travel and self-describing schema)</li>
+          <li><strong>File Formats:</strong> Parquet, Delta Lake, CSV, JSON</li>
           <li><strong>Spatial Formats:</strong> GeoParquet, GeoJSON, Shapefiles (GDAL compatible)</li>
           <li><strong>Services:</strong> REST APIs with authentication (HTTP Basic, ApiKey, OAuth2)</li>
           <li><strong>Storage:</strong> Local files and cloud object storage (S3-compatible)</li>
-          <li><strong>Coming Soon:</strong> DuckLake - a data lake solution for managing large volumes of data with snapshot-based schema evolution</li>
         </ul>
         <p>
           <Link to="/docs/engine-configuration/data-sources">Learn more about data sources →</Link>

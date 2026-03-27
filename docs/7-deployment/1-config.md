@@ -50,6 +50,51 @@ Hugr can be configured using environment variables. This page describes all avai
   MAX_DEPTH=7
   ```
 
+### TLS Configuration
+
+Enable HTTPS by providing TLS certificate and key file paths. When both are set, the server serves HTTPS instead of HTTP. When neither is set, the server uses plain HTTP (default).
+
+- **`TLS_CERT_FILE`** - Path to PEM-encoded TLS certificate file (default: empty/disabled)
+  ```bash
+  TLS_CERT_FILE=/etc/ssl/certs/hugr.crt
+  ```
+
+- **`TLS_KEY_FILE`** - Path to PEM-encoded TLS private key file (default: empty/disabled)
+  ```bash
+  TLS_KEY_FILE=/etc/ssl/private/hugr.key
+  ```
+
+Both variables must be set together. Setting only one will cause the server to exit with an error. The server validates the certificate and key at startup and will fail fast with a descriptive error if the files are missing, unreadable, or mismatched.
+
+**HTTPS example:**
+```bash
+TLS_CERT_FILE=/etc/ssl/certs/hugr.crt \
+TLS_KEY_FILE=/etc/ssl/private/hugr.key \
+BIND=:443 \
+./server
+```
+
+**Docker with TLS:**
+```bash
+docker run -d \
+  -v /path/to/certs:/certs:ro \
+  -e TLS_CERT_FILE=/certs/server.crt \
+  -e TLS_KEY_FILE=/certs/server.key \
+  -e BIND=:443 \
+  -p 443:443 \
+  ghcr.io/hugr-lab/server
+```
+
+**Self-signed certificates for development:**
+```bash
+make certs
+```
+This generates a self-signed certificate and key in `.local/certs/` valid for `localhost` and `127.0.0.1` (365 days).
+
+:::note
+The sidecar service endpoint (health checks and metrics on `SERVICE_BIND`) always uses plain HTTP regardless of TLS configuration. This is by design, as health and metrics endpoints typically serve internal infrastructure traffic.
+:::
+
 ### DuckDB Engine Configuration
 
 - **`DB_HOME_DIRECTORY`** - Credential persistence path

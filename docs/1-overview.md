@@ -62,11 +62,15 @@ Schemas are defined using GraphQL SDL with extended directives, offering:
 	- MySQL (through DuckDB without join pushdown)
 	- SQL Server / Azure SQL – Microsoft SQL Server with SQL Server authentication, and Azure Fabric Warehouse / Analytical Endpoints with Azure EntraID (service principal) authentication (through DuckDB without join pushdown)
 
+**Data Lakes**:
+	- DuckLake – data lake with snapshot-based time-travel, schema versioning, and DDL/DML support. Metadata stored in PostgreSQL or DuckDB, data in S3-compatible storage.
+	- Apache Iceberg – open table format with REST catalog support (Apache Polaris, Lakekeeper, AWS Glue, S3 Tables). Provides time-travel queries, self-describing schema, and standard DML operations.
+
 **Files**:
 
 Through DuckDB, hugr provides access to various file formats and storage systems:
 
-- Parquet, Apache Iceberg, Delta Lake, CSV, JSON
+- Parquet, Delta Lake, CSV, JSON
 - Spatial formats: GeoParquet, GeoJSON, Shapefiles (and others GDAL compatible)
 - Hive-style partitioning
 - Stored locally or in cloud object storage (S3-compatible)
@@ -79,7 +83,6 @@ Through DuckDB, hugr provides access to various file formats and storage systems
 
 **Planned**:
 
-- DuckLake
 - SQLite (through DuckDB without join pushdown)
 - ClickHouse
 
