@@ -337,6 +337,21 @@ For authentication with OpenID Connect providers:
   OIDC_CLIENT_ID=your-client-id
   ```
 
+- **`OIDC_CLIENT_SECRET`** - Client secret for OIDC authorization code exchange (default: empty). Required when using the MCP OAuth proxy.
+  ```bash
+  OIDC_CLIENT_SECRET=your-client-secret
+  ```
+
+- **`OIDC_SCOPES`** - Scopes to request from the OIDC provider (default: `openid profile email`)
+  ```bash
+  OIDC_SCOPES=openid profile email
+  ```
+
+- **`OIDC_REDIRECT_URL`** - Optional override for the OAuth callback URL. Auto-derived from the request Host header if not set. Useful when Hugr is behind a reverse proxy or tunnel.
+  ```bash
+  OIDC_REDIRECT_URL=https://hugr.example.com/oauth/callback
+  ```
+
 - **`OIDC_TLS_INSECURE`** - Certificate verification bypass (not recommended for production)
   ```bash
   OIDC_TLS_INSECURE=false
@@ -355,6 +370,28 @@ For authentication with OpenID Connect providers:
   OIDC_USERID_CLAIM=sub
   OIDC_ROLE_CLAIM=roles
   ```
+
+### MCP OAuth Proxy
+
+When MCP is enabled with OIDC authentication, Hugr can act as a stateless OAuth 2.1 proxy so that MCP clients (Claude Desktop, Cursor, etc.) can authenticate via your OIDC provider. The proxy encrypts all transient state into request parameters — no server-side sessions, works identically in standalone and cluster modes.
+
+The proxy activates automatically when `MCP_ENABLED=true`, OIDC is configured, and a client secret is available.
+
+- **`MCP_OAUTH_CLIENT_ID`** - Separate OIDC client ID for the MCP OAuth proxy (default: empty, falls back to `OIDC_CLIENT_ID`)
+  ```bash
+  MCP_OAUTH_CLIENT_ID=hugr-mcp
+  ```
+
+- **`MCP_OAUTH_CLIENT_SECRET`** - Separate OIDC client secret for the MCP OAuth proxy (default: empty, falls back to `OIDC_CLIENT_SECRET`)
+  ```bash
+  MCP_OAUTH_CLIENT_SECRET=your-mcp-client-secret
+  ```
+
+Using separate MCP OAuth credentials is recommended — it gives you control over which claims and scopes are returned to MCP clients independently from the main OIDC client.
+
+:::note
+`SECRET_KEY` must be set when using the MCP OAuth proxy — it is used for AES-256-GCM encryption of OAuth state parameters.
+:::
 
 ## Configuration File Example
 

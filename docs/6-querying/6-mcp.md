@@ -31,11 +31,61 @@ For embedding-based semantic search across schema descriptions, configure an emb
 
 When an embedder is configured, all schema descriptions are indexed as vectors, and discovery tools rank results by semantic relevance.
 
+## Authentication
+
+When OIDC authentication is enabled, MCP clients need to authenticate to access the endpoint. Hugr provides a built-in stateless OAuth 2.1 proxy that handles this automatically.
+
+### How It Works
+
+1. The MCP client connects to `/mcp` and receives `401 Unauthorized`
+2. The client discovers OAuth metadata at `/.well-known/oauth-authorization-server`
+3. The client registers dynamically via `POST /oauth/register`
+4. The client redirects the user to `/oauth/authorize` — Hugr proxies this to your OIDC provider
+5. After login, the OIDC provider's tokens flow back through Hugr to the client
+6. The client uses the token as `Authorization: Bearer <token>` on subsequent requests
+
+Hugr acts as a stateless proxy — it does not issue its own tokens or store sessions. All transient state is encrypted into request parameters using `SECRET_KEY`. This works identically in standalone and cluster modes.
+
+### Setup
+
+1. Create a **confidential** OIDC client for MCP in your identity provider (e.g., Keycloak, EntraID, Auth0):
+   - Enable **Authorization Code** flow
+   - Set **redirect URI** to `https://your-hugr-instance.example.com/oauth/callback`
+   - Note the **client ID** and **client secret**
+
+2. Configure Hugr:
+   ```bash
+   MCP_ENABLED=true
+   MCP_OAUTH_CLIENT_ID=hugr-mcp
+   MCP_OAUTH_CLIENT_SECRET=your-mcp-client-secret
+   OIDC_ISSUER=https://your-idp.example.com/realms/your-realm
+   OIDC_CLIENT_ID=hugr
+   SECRET_KEY=your-secret-key
+   ALLOWED_ANONYMOUS=false
+   ```
+
+See [Configuration → MCP OAuth Proxy](/docs/deployment/config#mcp-oauth-proxy) for all available options.
+
+### Local Development with Cloudflare Tunnel
+
+For testing with Claude Desktop, which requires a publicly accessible HTTPS URL:
+
+```bash
+# Create a named tunnel (one-time)
+cloudflared tunnel create hugr-dev
+cloudflared tunnel route dns hugr-dev hugr-dev.yourdomain.com
+
+# Run the tunnel
+cloudflared tunnel run --url http://localhost:15004 hugr-dev
+```
+
+Register `https://hugr-dev.yourdomain.com/oauth/callback` as a redirect URI in your OIDC provider.
+
 ## Connecting Clients
 
 ### Claude Web (claude.ai)
 
-Add the SSE URL directly in Claude's MCP settings:
+Add the URL directly in Claude's MCP settings:
 
 ```
 https://your-hugr-instance.example.com/mcp
@@ -43,7 +93,7 @@ https://your-hugr-instance.example.com/mcp
 
 ### Claude Desktop
 
-Claude Desktop uses stdio transport, so you need the `@anthropic-ai/mcp-proxy` package to bridge stdio to SSE. Add this to your Claude Desktop configuration file (`claude_desktop_config.json`):
+Claude Desktop uses stdio transport, so you need `mcp-remote` to bridge stdio to HTTP. Add this to your Claude Desktop configuration file (`claude_desktop_config.json`):
 
 ```json
 {
@@ -51,10 +101,7 @@ Claude Desktop uses stdio transport, so you need the `@anthropic-ai/mcp-proxy` p
     "hugr": {
       "command": "npx",
       "args": [
-        "-y",
-        "@anthropic-ai/mcp-proxy",
-        "--transport",
-        "streamable-http",
+        "mcp-remote",
         "https://your-hugr-instance.example.com/mcp"
       ]
     }
@@ -62,9 +109,11 @@ Claude Desktop uses stdio transport, so you need the `@anthropic-ai/mcp-proxy` p
 }
 ```
 
+When OIDC authentication is enabled, `mcp-remote` automatically handles the OAuth flow — it discovers the authorization server, registers, and opens a browser for login.
+
 ### Cursor
 
-In Cursor settings, add the SSE URL under MCP servers:
+In Cursor settings, add the URL under MCP servers:
 
 ```
 https://your-hugr-instance.example.com/mcp
