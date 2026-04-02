@@ -56,6 +56,34 @@ null | unixTime
 # (current UTC unix timestamp)
 ```
 
+### `fromUnixTime`
+
+Converts a Unix timestamp (seconds since epoch) to a time value. Optionally accepts a timezone to display the result in.
+
+**Signatures**:
+- `<unix_seconds> | fromUnixTime`
+- `<unix_seconds> | fromUnixTime(timezone)`
+
+Input can be an integer or a float (sub-second precision is preserved).
+
+```jq
+1718457045 | fromUnixTime
+# "2024-06-15T14:30:45Z"
+
+1718457045 | fromUnixTime("America/New_York")
+# "2024-06-15T10:30:45-04:00"
+
+1718457045.5 | fromUnixTime
+# "2024-06-15T14:30:45.5Z" (sub-second precision)
+```
+
+The result can be chained with other time functions:
+
+```jq
+1718457045 | fromUnixTime("Europe/Berlin") | datePart("hour"; "Europe/Berlin")
+# 16
+```
+
 ### `roundTime`
 
 Truncates or rounds a time value to the given period.

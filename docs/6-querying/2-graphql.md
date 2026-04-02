@@ -44,6 +44,17 @@ Optional authentication:
 Authorization: Bearer <token>
 ```
 
+Optional timezone (applies to `Timestamp`/`TIMESTAMPTZ` values in results):
+```
+X-Hugr-Timezone: America/New_York
+```
+or use the GitHub-style fallback header:
+```
+Time-Zone: Europe/Moscow
+```
+
+When set, all `TIMESTAMPTZ` values in the response are displayed in the specified timezone. `DateTime`/`TIMESTAMP` values are not affected. If no timezone header is sent, the server default (`DB_TIMEZONE`) or system timezone (UTC) is used.
+
 #### Request Body
 
 ```json

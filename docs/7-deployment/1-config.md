@@ -97,6 +97,13 @@ The sidecar service endpoint (health checks and metrics on `SERVICE_BIND`) alway
 
 ### DuckDB Engine Configuration
 
+- **`DB_TIMEZONE`** - Default server timezone (IANA name)
+  ```bash
+  DB_TIMEZONE=Europe/Moscow
+  ```
+
+  Sets the default timezone for all DuckDB connections. When a client does not send a timezone header, this timezone is used for `TIMESTAMPTZ` display. If not set, falls back to the system timezone (typically UTC in containers). Clients can override this per-request using the `X-Hugr-Timezone` HTTP header.
+
 - **`DB_HOME_DIRECTORY`** - Credential persistence path
   ```bash
   DB_HOME_DIRECTORY=/path/to/credentials
@@ -370,6 +377,27 @@ For authentication with OpenID Connect providers:
   OIDC_USERID_CLAIM=sub
   OIDC_ROLE_CLAIM=roles
   ```
+
+### Hugr Apps (Pluggable Applications)
+
+Settings for [hugr-app](/docs/hugr-apps) heartbeat monitoring. Hugr periodically checks connected applications and suspends unavailable ones.
+
+- **`HUGR_APP_HEARTBEAT_INTERVAL`** - Time between health checks (default: `30s`)
+  ```bash
+  HUGR_APP_HEARTBEAT_INTERVAL=30s
+  ```
+
+- **`HUGR_APP_HEARTBEAT_TIMEOUT`** - Timeout per health check (default: `10s`)
+  ```bash
+  HUGR_APP_HEARTBEAT_TIMEOUT=10s
+  ```
+
+- **`HUGR_APP_HEARTBEAT_RETRIES`** - Failed checks before suspending an app (default: `3`)
+  ```bash
+  HUGR_APP_HEARTBEAT_RETRIES=3
+  ```
+
+See the [Hugr Apps](/docs/hugr-apps) section for building pluggable applications.
 
 ### MCP OAuth Proxy
 

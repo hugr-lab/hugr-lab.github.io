@@ -70,6 +70,8 @@ client = HugrClient()
 | `HUGR_TOKEN` | Bearer token for authentication |
 | `HUGR_API_KEY_HEADER` | Custom API key header name (default: `X-Hugr-Api-Key`) |
 | `HUGR_ROLE_HEADER` | Custom role header name (default: `X-Hugr-Role`) |
+| `HUGR_TIMEZONE` | IANA timezone name (e.g., `Europe/Moscow`). Auto-detected from system if not set. |
+| `HUGR_TIMEZONE_HEADER` | Custom timezone header name (default: `X-Hugr-Timezone`) |
 | `HUGR_CONFIG_PATH` | Custom path to connections.json |
 
 ### Explicit Parameters
@@ -84,6 +86,23 @@ client = HugrClient(
 ```
 
 **Priority:** explicit parameters > environment variables > connections.json
+
+### Timezone
+
+The client automatically detects the local system timezone and sends it with every request via the `X-Hugr-Timezone` header. This affects how `Timestamp` (`TIMESTAMPTZ`) values are displayed in query results.
+
+```python
+# Auto-detected from system (default behavior)
+client = HugrClient(url="...")
+
+# Explicit timezone
+client = HugrClient(url="...", timezone="Europe/Moscow")
+
+# Disable timezone (server default will be used)
+client = HugrClient(url="...", timezone="UTC")
+```
+
+`DateTime` values are never affected by the timezone setting.
 
 ### Authentication
 

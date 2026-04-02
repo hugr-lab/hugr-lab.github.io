@@ -15,7 +15,8 @@ scalar Boolean
 
 # Additional Hugr Scalar Types
 scalar BigInt
-scalar Timestamp
+scalar Timestamp    # timezone-aware (maps to TIMESTAMPTZ)
+scalar DateTime     # naive, no timezone (maps to TIMESTAMP)
 scalar Date
 scalar Time
 scalar Interval 
@@ -126,16 +127,31 @@ The `Int`, `BigInt`, and `Float` types are used to represent numeric values. Inp
 - `min` - Finds the minimum non-null value
 - `max` - Finds the maximum non-null value
 
-## DateTime types - Date, Time, TimeStamp
+## Date and Time Types
 
-The `DateTime` types are used to represent date and time values.
+### Timestamp vs DateTime
+
+Hugr provides two scalar types for date-time values:
+
+| Scalar | SQL Type (DuckDB/PostgreSQL) | Timezone-aware | Affected by `SET TimeZone` |
+| ------ | ---------------------------- | -------------- | -------------------------- |
+| **Timestamp** | TIMESTAMPTZ | Yes | Yes — display shifts to client timezone |
+| **DateTime** | TIMESTAMP | No | No — value stays unchanged |
+
+- **Timestamp** represents a timezone-aware instant in time. When a client sends the `X-Hugr-Timezone` header, Timestamp values are displayed in the requested timezone. During schema auto-discovery, database `TIMESTAMPTZ` / `TIMESTAMP WITH TIME ZONE` columns are mapped to `Timestamp`.
+
+- **DateTime** represents a naive date-time value without timezone information (e.g., birth dates, scheduled local times). DateTime values are never affected by timezone settings. During schema auto-discovery, database `TIMESTAMP` / `DATETIME` columns are mapped to `DateTime`.
+
+Both types accept input in the format `YYYY-MM-DDTHH:MM:SSZ07:00` or as UnixTime (`BigInt`).
+
+### Date and Time
+
 Date values must be in the format `YYYY-MM-DD`.
 Time values must be in the format `HH:MM:SS`.
-Timestamp values can be in the format `YYYY-MM-DDTHH:MM:SSZ07:00` or as UnixTime (`BigInt`).
 
 ### Generated arguments
 
-For the `Date` and `Timestamp` fields, the `bucket` argument will be generated. If the `bucket` argument is present, it will be used to transform the data into the specified time bucket. The following values are accepted:
+For the `Date`, `Timestamp`, and `DateTime` fields, the `bucket` argument will be generated. If the `bucket` argument is present, it will be used to transform the data into the specified time bucket. The following values are accepted:
 - minute
 - hour
 - day
@@ -144,14 +160,14 @@ For the `Date` and `Timestamp` fields, the `bucket` argument will be generated. 
 - quarter
 - year
 
-For the `Timestamp` fields, the `bucket_interval` argument will be generated; it accepts Interval values. If the `bucket_interval` argument is present, it will be used to transform the data into the specified time interval.
+For the `Timestamp` and `DateTime` fields, the `bucket_interval` argument will be generated; it accepts Interval values. If the `bucket_interval` argument is present, it will be used to transform the data into the specified time interval.
 For example, `bucket_interval: "15 minutes"`:
 - "2025-08-25T12:03:00Z02:00" -> "2025-08-25T12:00:00Z02:00"
 - "2025-08-25T12:16:00Z02:00" -> "2025-08-25T12:15:00Z02:00"
 
 ### Calculated fields
 
-For each `Date` and `Timestamp` table or view field, a new field will be generated with the name: `_<field_name>_part`, type `BigInt`, and the following parameters:
+For each `Date`, `Timestamp`, and `DateTime` table or view field, a new field will be generated with the name: `_<field_name>_part`, type `BigInt`, and the following parameters:
 - `extract` - The part of the date or timestamp to extract. Possible values are: epoch, minute, hour, day, doy, dow, iso_dow, week, month, year, iso_year, quarter.
 - `extract_divide` - The divider for the extracted part.
 

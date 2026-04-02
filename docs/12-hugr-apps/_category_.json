@@ -1,0 +1,7 @@
+{
+  "label": "Hugr Apps",
+  "position": 12,
+  "collapsible": true,
+  "collapsed": false,
+  "description": "Build pluggable applications that extend hugr with custom functions, tables, and data sources."
+}
