@@ -66,6 +66,9 @@ mutation {
 | `api_key_header` | no | `Authorization: Bearer` | Custom auth header (OpenAI only) |
 | `max_tokens` | no | `4096` | Default max tokens per request |
 | `timeout` | no | `60s` | Request timeout |
+| `rpm` | no | — | Max requests per minute (0 = unlimited) |
+| `tpm` | no | — | Max tokens per minute (0 = unlimited) |
+| `rate_store` | no | — | Name of a `redis` data source for shared rate limit counters. If unset, counters are in-memory per-node |
 
 ## Configuration Examples
 
@@ -130,7 +133,35 @@ All providers return the same `llm_result` structure:
 | `latency_ms` | Request latency |
 | `tool_calls` | JSON string: `[{"id":"...","name":"...","arguments":{...}}]` |
 
+## Rate Limiting
+
+LLM sources support per-minute rate limits for both requests and tokens. Limits are enforced before making API calls.
+
+### In-Memory (Single Node)
+
+```bash
+# Limit to 100 requests/min and 100k tokens/min
+http://api.openai.com/v1/chat/completions?model=gpt-4o&api_key=${secret:OPENAI_KEY}&rpm=100&tpm=100000
+```
+
+Counters are per-node only. Suitable for single-node deployments.
+
+### Shared (Redis)
+
+For multi-node clusters, use a Redis data source for shared counters:
+
+```bash
+# First, register a Redis data source
+# Then reference it in the LLM path:
+http://api.openai.com/v1/chat/completions?model=gpt-4o&api_key=${secret:OPENAI_KEY}&rpm=100&tpm=100000&rate_store=redis
+```
+
+Redis keys auto-expire after 2 minutes. Key format: `ratelimit:{source_name}:rpm:{minute_window}`.
+
+When rate limits are exceeded, requests return an error: `rate limit exceeded: N requests per minute exceeded for source_name`.
+
 ## See Also
 
 - [AI Models Module](/docs/ai-models) — full `core.models` API reference
 - [Embeddings](/docs/engine-configuration/data-sources/embeddings) — vector embedding sources
+- [Redis](/docs/engine-configuration/data-sources/redis) — Redis data source for key-value storage and shared counters

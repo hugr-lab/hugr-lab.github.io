@@ -1,0 +1,7 @@
+{
+  "label": "Key-Value Store",
+  "position": 14,
+  "collapsible": true,
+  "collapsed": false,
+  "description": "Key-value store operations via the core.store runtime module."
+}
