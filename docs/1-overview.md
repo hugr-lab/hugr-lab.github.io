@@ -78,7 +78,7 @@ Through DuckDB, hugr provides access to various file formats and storage systems
 **Services**:
 
 - REST APIs (HTTP). Supports outbound request authentication with OpenAPI flows: HTTP Basic, ApiKey (in headers or parameters), OAuth2 (client credentials, password)
-- Arrow Flight (in development)
+- Arrow Flight gRPC (Airport) — attach remote DuckDB catalogs via the Airport extension
 - GraphQL (in development)
 
 **AI Models**:
@@ -86,6 +86,12 @@ Through DuckDB, hugr provides access to various file formats and storage systems
 - Embeddings (OpenAI-compatible) — vector generation for semantic search
 - LLM completions and chat — OpenAI, Anthropic (Claude), Google Gemini
 - Unified tool calling across providers via `core.models` module
+- Per-source rate limiting (rpm/tpm) with Redis shared counters or in-memory fallback
+
+**Key-Value Store**:
+
+- Redis — key-value operations (get, set, delete, increment, expire, keys) via `core.store` module
+- Used as shared counter backend for LLM rate limiting in cluster deployments
 
 **Pluggable Applications**:
 
