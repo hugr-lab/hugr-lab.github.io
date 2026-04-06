@@ -81,6 +81,16 @@ Through DuckDB, hugr provides access to various file formats and storage systems
 - Arrow Flight (in development)
 - GraphQL (in development)
 
+**AI Models**:
+
+- Embeddings (OpenAI-compatible) — vector generation for semantic search
+- LLM completions and chat — OpenAI, Anthropic (Claude), Google Gemini
+- Unified tool calling across providers via `core.models` module
+
+**Pluggable Applications**:
+
+- [Hugr Apps](/docs/hugr-apps) — external Go applications that connect via Arrow Flight (gRPC) and publish custom functions, tables, and data sources
+
 **Planned**:
 
 - SQLite (through DuckDB without join pushdown)
