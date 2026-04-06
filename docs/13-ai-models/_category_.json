@@ -1,0 +1,7 @@
+{
+  "label": "AI Models",
+  "position": 13,
+  "collapsible": true,
+  "collapsed": false,
+  "description": "Embeddings and LLM completions via the core.models runtime module."
+}
