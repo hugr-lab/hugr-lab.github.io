@@ -396,6 +396,72 @@ connect_stream(
 
 **Optional (`[viz]`):** `keplergl`, `pydeck`, `folium`, `matplotlib`, `mapclassify`
 
+## Subscriptions
+
+The Python client supports GraphQL subscriptions over WebSocket, delivering incremental results as Arrow data.
+
+### Basic Usage
+
+```python
+import asyncio
+from hugr import connect_stream
+
+async def main():
+    client = connect_stream()
+
+    sub = await client.subscribe("""
+        subscription {
+            core { store {
+                subscribe(store: "redis", channel: "events") {
+                    channel message
+                }
+            } }
+        }
+    """)
+
+    async for event in sub.events():
+        # Each event corresponds to one subscription data push
+        df = event.to_pandas()
+        print(df)
+
+    # Or access Arrow data directly
+    async for event in sub.events():
+        for chunk in event.chunks():
+            print(f"Batch: {chunk.num_rows} rows")
+        for row in event.rows():
+            print(row)
+
+asyncio.run(main())
+```
+
+### SubscriptionEvent
+
+Each event yielded by `sub.events()` is a `SubscriptionEvent` representing one push from the server (one path):
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `event.chunks()` | `list[RecordBatch]` | Arrow RecordBatches for this event |
+| `event.rows()` | `list[dict]` | Rows as dictionaries |
+| `event.to_pandas()` | `DataFrame` | Event data as pandas DataFrame |
+
+### Multiple Subscriptions
+
+Multiple subscriptions can run concurrently on the same WebSocket connection. The client uses Arrow schema metadata (`subscription_id`, `path`) to route incoming binary frames to the correct subscription handler -- no text frame markers are needed for demultiplexing.
+
+```python
+async def main():
+    client = connect_stream()
+
+    sub1 = await client.subscribe("subscription { core { store { subscribe(store: \"redis\", channel: \"ch1\") { channel message } } } }")
+    sub2 = await client.subscribe("subscription { core { store { watch(store: \"redis\", pattern: \"user:*\") { key event } } } }")
+
+    async def handle(sub, name):
+        async for event in sub.events():
+            print(f"[{name}]", event.to_pandas())
+
+    await asyncio.gather(handle(sub1, "ch1"), handle(sub2, "watch"))
+```
+
 ## See Also
 
 - [Hugr IPC Protocol](./3-hugr-ipc.md) — Arrow IPC multipart/mixed protocol

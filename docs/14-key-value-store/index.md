@@ -178,6 +178,86 @@ mutation {
 }
 ```
 
+## Pub/Sub Subscriptions
+
+The `core.store` module supports real-time messaging and keyspace event monitoring via GraphQL subscriptions.
+
+### subscribe
+
+Subscribe to messages published on a Pub/Sub channel:
+
+```graphql
+subscription {
+  core {
+    store {
+      subscribe(store: "redis", channel: "events") {
+        channel
+        message
+      }
+    }
+  }
+}
+```
+
+Returns a `store_message` with `channel` (the channel name) and `message` (the published payload) for each received message.
+
+### watch
+
+Watch for keyspace notifications matching a pattern:
+
+```graphql
+subscription {
+  core {
+    store {
+      watch(store: "redis", pattern: "user:*") {
+        key
+        event
+      }
+    }
+  }
+}
+```
+
+Returns a `store_key_event` with `key` (the affected key) and `event` (the operation, e.g., `set`, `del`, `expire`) for each keyspace event.
+
+Keyspace notifications must be enabled in Redis before `watch` will receive events. Use the `configure_keyspace_events` mutation to enable them:
+
+```graphql
+mutation {
+  function {
+    core {
+      store {
+        configure_keyspace_events(store: "redis", events: "KEA") {
+          success
+          message
+        }
+      }
+    }
+  }
+}
+```
+
+The `events` argument follows the Redis `notify-keyspace-events` format (e.g., `KEA` for all events).
+
+### publish
+
+Publish a message to a Pub/Sub channel:
+
+```graphql
+mutation {
+  function {
+    core {
+      store {
+        publish(store: "redis", channel: "events", message: "hello") {
+          success
+          message
+        }
+      }
+    }
+  }
+}
+```
+
 ## Supported Backends
 
 | Type | Backend | Description |

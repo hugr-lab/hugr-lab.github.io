@@ -164,6 +164,89 @@ Tool calls are normalized across all providers into a unified format:
 - **Anthropic**: `content[].input` (object) → used as-is
 - **Gemini**: `parts[].functionCall.args` (object) → used as-is
 
+## Streaming Completions
+
+Streaming completions deliver tokens incrementally via GraphQL subscriptions, allowing clients to display partial results as they arrive.
+
+### Subscription Query
+
+```graphql
+subscription {
+  core {
+    models {
+      completion(
+        model: "my_llm"
+        prompt: "Explain GraphQL in detail"
+        max_tokens: 2048
+        thinking_budget: 1024
+      ) {
+        type
+        content
+        model
+        finish_reason
+        tool_calls
+        prompt_tokens
+        completion_tokens
+      }
+    }
+  }
+}
+```
+
+The `chat_completion` function also supports streaming with the same event structure, including tool calling:
+
+```graphql
+subscription {
+  core {
+    models {
+      chat_completion(
+        model: "claude"
+        messages: [
+          "{\"role\":\"user\",\"content\":\"What is the weather in London?\"}"
+        ]
+        tools: ["{\"name\":\"get_weather\",\"description\":\"Get weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}}"]
+        max_tokens: 1024
+      ) {
+        type
+        content
+        finish_reason
+        tool_calls
+      }
+    }
+  }
+}
+```
+
+### Event Types
+
+Each streamed event has a `type` field indicating what it contains:
+
+| Event Type | Description |
+|------------|-------------|
+| `content_delta` | Regular generated tokens (the main text output) |
+| `reasoning` | Thinking/chain-of-thought tokens (when thinking is enabled) |
+| `tool_use` | Tool call request from the model |
+| `finish` | Final event with usage statistics (`prompt_tokens`, `completion_tokens`) |
+| `error` | Error during generation |
+
+### Thinking Budget
+
+The `thinking_budget` parameter controls extended thinking (chain-of-thought) output:
+
+- Set in the data source URL as the maximum allowed value (e.g., `thinking_budget=4096`)
+- Set per-request via the `thinking_budget` argument (capped at the source-level maximum)
+- Set to `0` or omit to disable thinking
+
+When enabled, the model emits `reasoning` events containing its chain-of-thought before producing `content_delta` events with the final answer.
+
+### Provider Support
+
+| Provider | Thinking Support | Details |
+|----------|-----------------|---------|
+| OpenAI | `reasoning_content` field | Reasoning tokens returned in `reasoning_content`; available on o-series models |
+| Anthropic | `thinking_delta` events | Requires `thinking_budget` to be set; uses `thinking` content blocks |
+| Gemini | `thought` field | Requires `thinking_budget` and `includeThoughts` enabled; uses `thought` flag on parts |
+
 ## See Also
 
 - [LLM Data Sources](/docs/engine-configuration/data-sources/llm) — registering LLM providers

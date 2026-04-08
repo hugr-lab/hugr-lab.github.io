@@ -20,7 +20,7 @@ The hugr GraphQL API automatically generates a comprehensive interface from your
 - **Function Integration**: Direct execution of database functions and custom business logic
 - **Server-Side Transformations**: JQ-based data transformations before returning results
 - **Spatial & Vector Search**: Built-in support for geospatial and semantic search operations
-- **Real-Time Capabilities**: Subscription support for live data updates
+- **Real-Time Capabilities**: [Subscription support](/docs/graphql/subscriptions) for live data updates including streaming LLM completions and Pub/Sub messaging
 - **Role-Based Access**: Fine-grained permissions based on user roles
 
 ## API Sections
@@ -260,6 +260,16 @@ All errors include:
 - Error path in the response structure
 - Additional error extensions for debugging
 
+### 5. Subscriptions
+
+GraphQL subscriptions enable real-time, server-pushed data delivery over WebSocket:
+
+- **Streaming LLM Completions**: Receive tokens incrementally from AI model providers
+- **Pub/Sub Messaging**: Subscribe to Redis channels for real-time notifications
+- **Keyspace Events**: Watch for key changes in Redis stores
+
+Subscriptions use the same Arrow IPC binary format as queries, delivering data as Arrow RecordBatches over WebSocket. See [AI Models - Streaming Completions](/docs/ai-models#streaming-completions) and [Key-Value Store - Pub/Sub Subscriptions](/docs/key-value-store#pubsub-subscriptions) for details.
+
 ## Next Steps
 
 Ready to start using the GraphQL API?
@@ -270,6 +280,7 @@ Ready to start using the GraphQL API?
 4. **Building search features?** Learn about [Vector Search](./1-queries/11-vector-search.md)
 5. **Need to modify data?** Review [Mutations](./2-mutations.md) for create, update, and delete operations
 6. **Want to transform data?** Explore [JQ Transformations](./4-jq-transformations.md)
+7. **Need real-time data?** See [AI Models - Streaming](/docs/ai-models#streaming-completions) and [Key-Value Store - Pub/Sub](/docs/key-value-store#pubsub-subscriptions)
 
 ## External Resources
 

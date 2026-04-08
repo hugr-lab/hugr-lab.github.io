@@ -68,6 +68,7 @@ mutation {
 | `timeout` | no | `60s` | Request timeout |
 | `rpm` | no | — | Max requests per minute (0 = unlimited) |
 | `tpm` | no | — | Max tokens per minute (0 = unlimited) |
+| `thinking_budget` | no | `0` | Maximum thinking tokens for extended reasoning (0 = disabled). Per-request `thinking_budget` argument is capped at this value |
 | `rate_store` | no | — | Name of a `redis` data source for shared rate limit counters. If unset, counters are in-memory per-node |
 
 ## Configuration Examples
@@ -159,6 +160,17 @@ http://api.openai.com/v1/chat/completions?model=gpt-4o&api_key=${secret:OPENAI_K
 Redis keys auto-expire after 2 minutes. Key format: `ratelimit:{source_name}:rpm:{minute_window}`.
 
 When rate limits are exceeded, requests return an error: `rate limit exceeded: N requests per minute exceeded for source_name`.
+
+## Streaming
+
+All LLM providers support streaming completions via GraphQL subscriptions. When a `completion` or `chat_completion` is invoked as a subscription, the server opens a streaming connection to the provider and delivers tokens incrementally to the client using Server-Sent Events (SSE).
+
+```bash
+# Example URL with thinking enabled
+https://api.anthropic.com/v1/messages?model=claude-sonnet-4-20250514&api_key=${secret:ANTHROPIC_KEY}&max_tokens=4096&thinking_budget=2048
+```
+
+See [Streaming Completions](/docs/ai-models#streaming-completions) in the AI Models documentation for the subscription query format and event types.
 
 ## See Also
 

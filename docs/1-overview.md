@@ -44,6 +44,7 @@ hugr provides rapid creation of GraphQL APIs over multiple data sources, similar
 - Complex aggregations, joins, and filtering
 - Cross-source queries and relationships
 - Real-time data access for applications and BI tools
+- Real-time subscriptions for streaming LLM completions, Pub/Sub messaging, and keyspace events
 
 ### 2. Independent and Declarative Schema Management
 
@@ -91,6 +92,7 @@ Through DuckDB, hugr provides access to various file formats and storage systems
 **Key-Value Store**:
 
 - Redis — key-value operations (get, set, delete, increment, expire, keys) via `core.store` module
+- Pub/Sub messaging and keyspace event subscriptions for real-time notifications
 - Used as shared counter backend for LLM rate limiting in cluster deployments
 
 **Pluggable Applications**:

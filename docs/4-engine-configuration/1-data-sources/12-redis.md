@@ -89,6 +89,44 @@ mutation { function { core { store {
 } } } }
 ```
 
+### Pub/Sub Operations
+
+```graphql
+# Publish a message to a channel
+mutation { function { core { store {
+  publish(store: "redis", channel: "notifications", message: "hello world") {
+    success message
+  }
+} } } }
+
+# Configure keyspace notification events (default: KEA = all events)
+mutation { function { core { store {
+  configure_keyspace_events(store: "redis", events: "KEA") {
+    success message
+  }
+} } } }
+```
+
+### Subscriptions
+
+```graphql
+# Subscribe to messages on a Pub/Sub channel
+subscription { core { store {
+  subscribe(store: "redis", channel: "notifications") {
+    channel
+    message
+  }
+} } }
+
+# Watch for keyspace events matching a pattern
+subscription { core { store {
+  watch(store: "redis", pattern: "__keyevent@0__:*") {
+    key
+    event
+  }
+} } }
+```
+
 ## Operations Reference
 
 | Operation | Type | Returns | Description |
@@ -99,6 +137,10 @@ mutation { function { core { store {
 | `del` | mutation | `OperationResult` | Delete a key |
 | `incr` | mutation | `BigInt` | Atomic increment, returns new value |
 | `expire` | mutation | `OperationResult` | Set TTL on existing key |
+| `publish` | mutation | `OperationResult` | Publish message to a Pub/Sub channel |
+| `configure_keyspace_events` | mutation | `OperationResult` | Configure Redis keyspace notifications |
+| `subscribe` | subscription | `store_message` | Subscribe to a Pub/Sub channel |
+| `watch` | subscription | `store_key_event` | Watch keyspace events by pattern |
 
 ## Use with Rate Limiting
 
@@ -109,7 +151,37 @@ Redis is used as a shared counter backend for [LLM rate limiting](/docs/engine-c
 https://api.openai.com/v1/chat/completions?model=gpt-4o&api_key=...&rpm=100&tpm=100000&rate_store=redis
 ```
 
+## Pub/Sub
+
+Redis sources support Pub/Sub messaging and keyspace event notifications via GraphQL subscriptions and mutations.
+
+### Operations
+
+| Operation | Type | Description |
+|-----------|------|-------------|
+| `subscribe` | subscription | Subscribe to messages on a channel |
+| `watch` | subscription | Watch keyspace events matching a pattern |
+| `publish` | mutation | Publish a message to a channel |
+| `configure_keyspace_events` | mutation | Enable Redis keyspace notifications (sets `notify-keyspace-events` config) |
+
+### Keyspace Notifications
+
+To use `watch`, Redis keyspace notifications must be enabled. Use the `configure_keyspace_events` mutation:
+
+```graphql
+mutation { function { core { store {
+  configure_keyspace_events(store: "redis", events: "KEA") {
+    success message
+  }
+} } } }
+```
+
+This sets the Redis `notify-keyspace-events` configuration. Common values: `KEA` (all events), `Kg` (generic key commands), `Ks` (string commands).
+
+See [Pub/Sub Subscriptions](/docs/key-value-store#pubsub-subscriptions) in the Key-Value Store documentation for subscription query examples.
+
 ## See Also
 
+- [Key-Value Store Module](/docs/key-value-store) — full `core.store` API reference
 - [LLM Sources](/docs/engine-configuration/data-sources/llm) — AI model providers with rate limiting
 - [AI Models Module](/docs/ai-models) — `core.models` API reference

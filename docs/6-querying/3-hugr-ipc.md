@@ -954,6 +954,55 @@ Planned improvements include:
 - Built-in compression negotiation
 - Enhanced error reporting with structured error codes
 
+## Subscription Protocol
+
+GraphQL subscriptions are supported over the same WebSocket connection used for streaming queries. Subscriptions deliver incremental results as Arrow IPC binary frames, interleaved with text control frames.
+
+### Subscribe / Unsubscribe
+
+To start a subscription, send a `subscribe` message:
+
+```json
+{
+  "type": "subscribe",
+  "id": "sub-1",
+  "query": "subscription { core { store { subscribe(store: \"redis\", channel: \"events\") { channel message } } } }"
+}
+```
+
+To stop a subscription:
+
+```json
+{
+  "type": "unsubscribe",
+  "id": "sub-1"
+}
+```
+
+### Arrow Schema Metadata
+
+Each binary frame carries Arrow schema metadata for routing:
+
+| Metadata Key | Description |
+|--------------|-------------|
+| `subscription_id` | The subscription ID from the `subscribe` message |
+| `path` | The GraphQL data path (e.g., `data.core.store.subscribe`) |
+
+Clients use these metadata fields to route binary frames to the correct subscription handler when multiple subscriptions share a single connection.
+
+### Control Frames
+
+Text frames signal completion of individual events and subscriptions:
+
+| Frame Type | Description |
+|------------|-------------|
+| `part_complete` | Signals that all Arrow batches for one subscription event have been sent. Payload: `{"type": "part_complete", "id": "sub-1"}` |
+| `subscription_complete` | The subscription has ended (server-side or after unsubscribe). Payload: `{"type": "subscription_complete", "id": "sub-1"}` |
+
+### Multiple Subscriptions
+
+A single WebSocket connection supports multiple concurrent subscriptions. Each subscription is identified by its `id` field. Binary frames are routed via Arrow schema metadata, and text control frames include the subscription `id`.
+
 ## See Also
 
 - **[Python Client](./4-python-client.md)** - Using hugr-client Python library
