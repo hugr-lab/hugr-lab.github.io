@@ -434,6 +434,101 @@ For API keys, the role is determined by:
 - `[$auth.auth_type]` - "apikey"
 - Custom claims from `claims` field: `[$auth.custom_claim_name]`
 
+## Secret Key (Admin Access & Impersonation)
+
+The secret key provides admin-level access and enables **user impersonation** — executing queries and subscriptions on behalf of any user with any role.
+
+### Configuration
+
+Set the `SECRET_KEY` environment variable or `secret_key` in auth config:
+
+```yaml
+# Environment variable
+SECRET_KEY=your-secret-key
+
+# Or in auth config file
+secret_key: "your-secret-key"
+```
+
+When configured, the server registers an API key provider with:
+- Header: `x-hugr-secret-key`
+- Default role: `admin`
+- Override headers: `x-hugr-role`, `x-hugr-user-id`, `x-hugr-user-name`
+
+### Basic Usage
+
+```bash
+curl -H "x-hugr-secret-key: your-secret-key" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "{ core { data_sources { name } } }"}' \
+  http://localhost:15000/query
+```
+
+### User Impersonation
+
+When authenticated via secret key, you can override the user identity by adding headers:
+
+```bash
+curl -H "x-hugr-secret-key: your-secret-key" \
+  -H "x-hugr-user-id: user-123" \
+  -H "x-hugr-user-name: John Doe" \
+  -H "x-hugr-role: viewer" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "{ devices { id name } }"}' \
+  http://localhost:15000/query
+```
+
+The server will:
+1. Authenticate using the secret key (admin)
+2. Override the identity with the provided headers
+3. Load permissions for the `viewer` role
+4. Execute the query with the viewer's field access rules and row-level security filters
+5. `[$auth.user_id]` in RLS filters resolves to `user-123`
+
+### Go Client Impersonation
+
+The [Go Client](/docs/querying/go-client#impersonation-asuser) provides a type-safe API for impersonation:
+
+```go
+c := client.NewClient("http://localhost:15000/ipc",
+    client.WithSecretKeyAuth("your-secret-key"),
+)
+
+// Query as a specific user
+ctx := types.AsUser(ctx, "user-123", "John Doe", "viewer")
+resp, err := c.Query(ctx, `{ devices { id name } }`, nil)
+
+// Subscribe as a specific user (per-subscription, not per-connection)
+sub, err := c.Subscribe(ctx, `subscription { ... }`, nil)
+```
+
+### Introspection
+
+The `me()` function shows impersonation status:
+
+```graphql
+{ function { core { auth { me {
+  user_id                    # "user-123"
+  role                       # "viewer"
+  auth_type                  # "impersonation"
+  impersonated_by_user_id    # "api" (original admin)
+  impersonated_by_user_name  # "api"
+  impersonated_by_user_role  # "admin"
+} } } } }
+```
+
+### Security
+
+- **Only secret key holders can impersonate.** JWT, OIDC, anonymous, and regular API key authentication methods ignore override headers.
+- For IPC subscriptions, identity override fields in the subscribe message are rejected if the connection is not authenticated via secret key.
+- Impersonated requests are marked with `auth_type: "impersonation"` for audit.
+
+**Authentication Variables Available:**
+- `[$auth.user_name]` - Impersonated user name (or "api" if no override)
+- `[$auth.user_id]` - Impersonated user ID (or "api" if no override)
+- `[$auth.role]` - Impersonated role (or "admin" if no override)
+- `[$auth.auth_type]` - "impersonation" when overridden, "apiKey" otherwise
+
 ## Anonymous Access
 
 Anonymous access allows unauthenticated requests with limited permissions.
