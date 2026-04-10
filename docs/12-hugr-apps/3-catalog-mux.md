@@ -86,6 +86,51 @@ The same function is **not** callable via a query operation — it only appears 
 
 `Mutation()` only applies to scalar functions registered via `HandleFunc`. Table functions, tables, and table refs use their own write-enablement mechanisms (see the table sections below).
 
+### Server-injected arguments (ArgFromContext)
+
+Use `app.ArgFromContext(name, type, placeholder)` to declare a function argument whose value is injected from the request's auth context. The argument is hidden from the GraphQL schema — clients cannot see or set it. At handler execution time, read the value via `r.String(name)`, `r.Int64(name)`, etc., the same as a regular argument.
+
+```go
+err := mux.HandleFunc("default", "my_orders",
+    func(w *app.Result, r *app.Request) error {
+        userID := r.String("user_id") // injected from auth context
+        limit := r.Int64("limit")
+        // ... fetch orders for userID ...
+        return w.Set("ok")
+    },
+    app.Arg("limit", app.Int64),
+    app.ArgFromContext("user_id", app.String, "[$auth.user_id]"),
+    app.Return(app.String),
+)
+```
+
+GraphQL call:
+
+```graphql
+{ function { my_app { my_orders(limit: 10) } } }
+```
+
+The `user_id` argument is **not** in the public schema. The hugr planner injects the current user's ID into the SQL function call before invoking your handler.
+
+**Allowed placeholders**:
+
+| Placeholder | Source |
+|-------------|--------|
+| `[$auth.user_id]` | Authenticated user ID (string) |
+| `[$auth.user_id_int]` | Authenticated user ID parsed as integer |
+| `[$auth.user_name]` | Authenticated user display name |
+| `[$auth.role]` | Authenticated role |
+| `[$auth.auth_type]` | Auth method (`apiKey`, `jwt`, `oidc`, etc.) |
+| `[$auth.provider]` | Auth provider name |
+| `[$auth.impersonated_by_role]` | Original role when impersonating |
+| `[$auth.impersonated_by_user_id]` | Original user ID when impersonating |
+| `[$auth.impersonated_by_user_name]` | Original user name when impersonating |
+| `[$catalog]` | Current catalog name |
+
+If the auth context value is unavailable (e.g., anonymous request), the placeholder resolves to `NULL`. Your handler receives an empty/zero value via `r.String()` etc.
+
+`ArgFromContext()` works for both scalar and table functions, in default and named schemas. Clients attempting to set a value for a server-injected argument receive a clear error: `argument "user_id" is server-injected and cannot be set by client`.
+
 ### Direct interface registration
 
 For full control, implement `catalog.ScalarFunction` and register directly:

@@ -78,6 +78,41 @@ extend type Function {
 }
 ```
 
+### Server-injected arguments
+
+You can bind a function argument to a server-side context value (like the authenticated user ID) so the engine injects it automatically — clients never see or set the argument.
+
+Two equivalent mechanisms are supported:
+
+**1. Embedded placeholders in `sql:` templates** — write any of the allowed context placeholders (`[$auth.user_id]`, `[$auth.role]`, `[$catalog]`, etc.) directly in the function's SQL template:
+
+```graphql
+extend type Function {
+  audit_call(action: String!): Boolean
+    @function(
+      name: "audit_log"
+      sql: "audit_log([action], [$auth.user_id], [$auth.role])"
+    )
+}
+```
+
+**2. Declarative `@arg_default` directive** — declare an argument with `@arg_default(value: "[$auth.user_id]")` and the engine hides it from introspection and injects the value at request time:
+
+```graphql
+extend type Function {
+  list_my_orders(
+    limit: Int = 50
+    user_id: String @arg_default(value: "[$auth.user_id]")
+  ): [Order] @function(name: "list_user_orders")
+}
+```
+
+Clients call `list_my_orders(limit: 10)`. The planner generates `list_user_orders(10, '<user_id>')` with the user's ID injected. Attempts to set `user_id` from the client are rejected with a clear error.
+
+Both mechanisms work for scalar functions, table functions, parameterized views (`@view` + `@args`), and `@function_call`/`@table_function_call_join` joins.
+
+See [`@arg_default` directive reference](../../8-references/1-directives.md#arg_default) for the full list of allowed placeholders and validation rules.
+
 You can rename the fields of returned structure types and sets using `@field_source` directive.
 
 ```graphql

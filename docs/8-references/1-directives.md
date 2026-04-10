@@ -12,6 +12,7 @@ sidebar_position: 2
 | `@table` | Defines a table in the data source. |
 | `@view` | Defines a view in the data source. |
 | `@function` | Maps a field to a function call or a database function. |
+| `@arg_default` | Binds a function/view argument to a server-side context placeholder. |
 | `@module` | Organizes queries and mutations into modules. |
 | `@args` | Defines arguments for parameterized views. |
 | `@named` | Marks an input field as a named argument for parameterized views. |
@@ -349,6 +350,87 @@ type sys_info {
   country: String
 }
 ```
+
+### @arg_default
+
+The `@arg_default` directive binds a function/view argument to a server-side context placeholder, such as the authenticated user's ID or role. The argument is hidden from the public GraphQL schema (clients cannot see or set it) and the planner injects the resolved value into the function call SQL at request time.
+
+```graphql
+directive @arg_default(
+  value: String!
+) on ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION
+```
+
+**Allowed placeholders**:
+
+| Placeholder | Source |
+|-------------|--------|
+| `[$auth.user_id]` | Authenticated user ID (string) |
+| `[$auth.user_id_int]` | Authenticated user ID parsed as integer |
+| `[$auth.user_name]` | Authenticated user display name |
+| `[$auth.role]` | Authenticated role |
+| `[$auth.auth_type]` | Auth method (`apiKey`, `jwt`, `oidc`, etc.) |
+| `[$auth.provider]` | Auth provider name |
+| `[$auth.impersonated_by_role]` | Original role when impersonating |
+| `[$auth.impersonated_by_user_id]` | Original user ID when impersonating |
+| `[$auth.impersonated_by_user_name]` | Original user name when impersonating |
+| `[$catalog]` | Current catalog name |
+
+#### On scalar function arguments
+
+```graphql
+extend type Function {
+  list_my_orders(
+    limit: Int = 50,
+    user_id: String @arg_default(value: "[$auth.user_id]")
+  ): [Order] @function(name: "list_user_orders")
+}
+```
+
+Clients call `list_my_orders(limit: 10)`. The planner generates `list_user_orders(10, '<user_id>')`.
+
+#### On parameterized view input fields
+
+```graphql
+input my_dashboard_args {
+  period: String = "month"
+  user_id: String @arg_default(value: "[$auth.user_id]")
+}
+
+type my_dashboard
+  @view(name: "user_dashboard_view")
+  @args(name: "my_dashboard_args")
+{
+  date: Date
+  total: Float
+}
+```
+
+Clients call `{ my_dashboard(args: { period: "week" }) { ... } }`. The planner injects the user's ID into the view's args.
+
+#### Embedded placeholders in `@function(sql:)` templates
+
+You can also embed context placeholders directly in a custom SQL template, without using `@arg_default`:
+
+```graphql
+extend type Function {
+  audit_call(action: String!): Boolean
+    @function(name: "audit", sql: "audit_log([action], [$auth.user_id], [$auth.role])")
+}
+```
+
+The planner substitutes `[$auth.user_id]` and `[$auth.role]` with parameterized values at request time. This works for `@function(sql:)`, `@view(sql:)`, and `@function_call(sql:)` templates uniformly.
+
+#### Validation rules
+
+- The `value:` placeholder must be in the whitelist above (compile-time error otherwise).
+- An argument with `@arg_default` cannot also have a GraphQL `default:` value (compile-time error).
+- The directive is only valid on arguments of fields with `@function`/`@function_call` directives or on input fields of view-args input types.
+- If a client passes a value for an `@arg_default` argument, the request is rejected with `argument "X" is server-injected and cannot be set by client`.
+
+#### Behavior with unauthenticated requests
+
+When the auth context value is unavailable (e.g., anonymous request, no impersonation), the placeholder resolves to SQL `NULL`. The function's own logic is responsible for handling `NULL` identity values.
 
 ### @module
 
