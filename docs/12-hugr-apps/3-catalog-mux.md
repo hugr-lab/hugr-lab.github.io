@@ -131,6 +131,150 @@ If the auth context value is unavailable (e.g., anonymous request), the placehol
 
 `ArgFromContext()` works for both scalar and table functions, in default and named schemas. Clients attempting to set a value for a server-injected argument receive a clear error: `argument "user_id" is server-injected and cannot be set by client`.
 
+### Struct return types
+
+Use `app.Struct(name)` to declare a typed return value. The SDK emits a GraphQL type definition and `@function(json_cast: true)`; the planner casts the JSON output to the typed structure when clients select fields.
+
+```go
+weatherType := app.Struct("weather_result").
+    Desc("Current weather snapshot").
+    Field("temp", app.Float64).
+    Field("humidity", app.Int64).
+    FieldFromSource("city", app.String, "city_name") // GraphQL "city" → JSON "city_name"
+
+mux.HandleFunc("default", "get_weather",
+    func(w *app.Result, r *app.Request) error {
+        return w.SetJSON(map[string]any{
+            "temp":      22.5,
+            "humidity":  60,
+            "city_name": "Berlin",
+        })
+    },
+    app.Arg("lat", app.Float64),
+    app.Arg("lon", app.Float64),
+    app.Return(weatherType.AsType()),
+)
+```
+
+Generated SDL:
+
+```graphql
+"""Current weather snapshot"""
+type weather_result {
+  temp: Float!
+  humidity: BigInt!
+  city: String! @field_source(field: "city_name")
+}
+
+extend type Function {
+  get_weather(lat: Float!, lon: Float!): weather_result
+    @function(name: "...", json_cast: true)
+}
+```
+
+GraphQL clients query:
+
+```graphql
+{ function { my_app { get_weather(lat: 52.5, lon: 13.4) { temp humidity city } } } }
+```
+
+**Field options**:
+- `Field(name, type)` — non-null scalar or struct field.
+- `FieldDesc(name, type, desc)` — with description.
+- `FieldNullable(name, type)` — nullable.
+- `FieldList(name, type)` — non-null list `[Type!]!` (element may be a scalar or another struct).
+- `FieldFromSource(name, type, originalName)` — rename via `@field_source` (output structs only).
+
+**Nesting**: a struct field type may be another struct (via its `AsType()`). Both definitions are emitted in SDL.
+
+**Type deduplication**: the same `StructType` (by name) used in multiple functions is emitted once. Conflict on different fields → registration error.
+
+### Struct input types
+
+Use `app.InputStruct(name)` to declare a typed input argument. The handler reads the value as JSON via `r.JSON(name, &out)`.
+
+```go
+queryInput := app.InputStruct("search_input").
+    Field("query", app.String).
+    Field("limit", app.Int64)
+
+mux.HandleFunc("default", "search",
+    func(w *app.Result, r *app.Request) error {
+        var in struct {
+            Query string `json:"query"`
+            Limit int64  `json:"limit"`
+        }
+        if err := r.JSON("input", &in); err != nil {
+            return err
+        }
+        // ... use in.Query, in.Limit ...
+        return w.SetJSON(results)
+    },
+    app.Arg("input", queryInput.AsType()),
+    app.Return(app.JSON),
+)
+```
+
+Generated SDL:
+
+```graphql
+input search_input {
+  query: String!
+  limit: BigInt!
+}
+
+extend type Function {
+  search(input: search_input!): JSON @function(name: "...")
+}
+```
+
+The hugr planner inlines the structured argument value as a JSON literal automatically. **No `sql:` template required** in the function declaration.
+
+### Raw JSON return / input
+
+Use `app.JSON` for opaque JSON values:
+
+```go
+mux.HandleFunc("default", "raw_data",
+    func(w *app.Result, r *app.Request) error {
+        return w.SetJSON(map[string]any{"anything": "goes"})
+    },
+    app.Return(app.JSON),
+)
+```
+
+### List of scalars return
+
+Use `app.ReturnList(scalar)` for `[String!]!`-style returns. Wire format is native Arrow LIST (not JSON), so the handler returns a Go slice:
+
+```go
+mux.HandleFunc("default", "list_tags",
+    func(w *app.Result, r *app.Request) error {
+        return w.Set([]string{"go", "graphql", "duckdb"})
+    },
+    app.ReturnList(app.String),
+)
+```
+
+Generated SDL:
+
+```graphql
+extend type Function {
+  list_tags: [String!]! @function(name: "...")
+}
+```
+
+**`ReturnList` does NOT support struct elements** — for lists of structs, register a table function via `HandleTableFunc` instead.
+
+### Result and Request helpers
+
+| Method | Usage |
+|--------|-------|
+| `Result.Set(v)` | Generic setter — accepts the Go type matching the return's Arrow type |
+| `Result.SetJSON(v)` | Marshal `v` to JSON; valid only for `app.JSON` or `Struct` returns |
+| `Result.SetJSONValue(v)` | Accepts `string`, `[]byte`, or any value (marshaled); flexible JSON setter |
+| `Request.JSON(name, &out)` | Unmarshal a JSON-string argument into `out` |
+
 ### Direct interface registration
 
 For full control, implement `catalog.ScalarFunction` and register directly:
