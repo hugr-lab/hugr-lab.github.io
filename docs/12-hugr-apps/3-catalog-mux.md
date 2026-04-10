@@ -48,7 +48,43 @@ err := mux.HandleFunc("default", "add",
 - Schema name (`"default"` = top-level module, others = nested modules)
 - Function name
 - Handler function `func(w *Result, r *Request) error`
-- Options: `Arg()`, `ArgDesc()`, `Return()`, `Desc()`
+- Options: `Arg()`, `ArgDesc()`, `Return()`, `Desc()`, `Mutation()`
+
+### Mutation functions
+
+By default, scalar functions are exposed as GraphQL queries (extend the `Function` type) and called via `query { function { ... } }`. To register a function with side effects as a GraphQL mutation, add the `Mutation()` option — the function will extend `MutationFunction` and must be called via `mutation { function { ... } }`.
+
+```go
+err := mux.HandleFunc("default", "send_message",
+    func(w *app.Result, r *app.Request) error {
+        to := r.String("to")
+        body := r.String("body")
+        // perform side effect (send notification, update external system, etc.)
+        return w.Set(fmt.Sprintf("sent to %s: %s", to, body))
+    },
+    app.Desc("Send a message to a recipient"),
+    app.Arg("to", app.String),
+    app.Arg("body", app.String),
+    app.Return(app.String),
+    app.Mutation(),
+)
+```
+
+GraphQL call:
+
+```graphql
+mutation {
+  function {
+    my_app {
+      send_message(to: "alice", body: "hello")
+    }
+  }
+}
+```
+
+The same function is **not** callable via a query operation — it only appears under the `MutationFunction` type. The `Mutation()` option works in any schema, including nested ones (e.g., `schema "admin"` produces `mutation { function { my_app { admin { reset_counter } } } }`).
+
+`Mutation()` only applies to scalar functions registered via `HandleFunc`. Table functions, tables, and table refs use their own write-enablement mechanisms (see the table sections below).
 
 ### Direct interface registration
 
@@ -383,7 +419,9 @@ See [Schema Design](./5-schema-design.md) for details.
 | Registration | GraphQL Path |
 |-------------|-------------|
 | `HandleFunc("default", "add", ...)` | `{ function { app_name { add(...) } } }` |
+| `HandleFunc("default", "send", ..., app.Mutation())` | `mutation { function { app_name { send(...) } } }` |
 | `HandleFunc("admin", "count", ...)` | `{ function { app_name { admin { count } } } }` |
+| `HandleFunc("admin", "reset", ..., app.Mutation())` | `mutation { function { app_name { admin { reset } } } }` |
 | `Table("default", &items{})` | `{ app_name { items { ... } } }` |
 | `HandleTableFunc("default", "search", ...)` | `{ app_name { search(args: {...}) { ... } } }` |
 | `HandleTableFunc("reports", "daily", ...)` | `{ app_name { reports { reports_daily(args: {...}) { ... } } } }` |
