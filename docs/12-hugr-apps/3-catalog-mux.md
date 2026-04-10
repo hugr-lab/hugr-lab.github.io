@@ -24,6 +24,12 @@ func (a *MyApp) Catalog(ctx context.Context) (catalog.Catalog, error) {
 }
 ```
 
+:::note Thread safety
+
+Registration methods (`HandleFunc`, `HandleTableFunc`, `Table`, `TableRef`, `ScalarFunc`, `TableFunc`, `TableFuncInOut`, `WithSDL`, ...) are **not** safe to call concurrently on the same `CatalogMux`. Build the catalog from a single goroutine — typically inside `Application.Catalog` as shown above — and return it. Once the runtime has the catalog, all subsequent reads (SDL generation, function execution, table scans) are safe for any number of goroutines.
+
+:::
+
 ---
 
 ## Scalar Functions
@@ -245,7 +251,7 @@ mux.HandleFunc("default", "raw_data",
 
 ### List of scalars return
 
-Use `app.ReturnList(scalar)` for `[String!]!`-style returns. Wire format is native Arrow LIST (not JSON), so the handler returns a Go slice:
+Use `app.ReturnList(scalar)` for `[String!]`-style returns. Wire format is native Arrow LIST (not JSON), so the handler returns a Go slice via `Set`:
 
 ```go
 mux.HandleFunc("default", "list_tags",
@@ -260,9 +266,11 @@ Generated SDL:
 
 ```graphql
 extend type Function {
-  list_tags: [String!]! @function(name: "...")
+  list_tags: [String!] @function(name: "...")
 }
 ```
+
+The outer list is nullable, matching the scalar-return convention — elements are non-null. Supported slice types match the Arrow scalar types: `[]string`, `[]bool`, `[]int / []int8 / []int16 / []int32 / []int64`, `[]uint8 / []uint16 / []uint32 / []uint64`, `[]float32 / []float64`. For other element types wrap the values in `[]any`.
 
 **`ReturnList` does NOT support struct elements** — for lists of structs, register a table function via `HandleTableFunc` instead.
 
