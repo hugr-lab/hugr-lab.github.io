@@ -140,6 +140,7 @@ Normalized across all providers:
 | `provider` | `String` | `openai`, `anthropic`, or `gemini` |
 | `latency_ms` | `Int` | Request latency in milliseconds |
 | `tool_calls` | `String` | JSON: `[{"id":"...","name":"...","arguments":{...}}]` |
+| `thought_signature` | `String` | Gemini 2.5+: thought signature for tool call verification (see [Tool Call Round-trip](#tool-call-round-trip)) |
 
 ## Supported Providers
 
@@ -163,6 +164,49 @@ Tool calls are normalized across all providers into a unified format:
 - **OpenAI**: `tool_calls[].function.arguments` (string) → parsed to object
 - **Anthropic**: `content[].input` (object) → used as-is
 - **Gemini**: `parts[].functionCall.args` (object) → used as-is
+
+### Tool Call Round-trip
+
+To execute tool calls and send results back to the model, build a multi-turn message history:
+
+1. **Get tool calls** from the initial `chat_completion` response (both `tool_calls` and `thought_signature` fields)
+2. **Build the assistant message** including `tool_calls` and `thought_signature` (Gemini requires this for verification)
+3. **Add tool result messages** with `role: "tool"` and `tool_call_id` matching the tool call `id`
+4. **Send the full history** back to `chat_completion`
+
+```graphql
+# Step 1: Initial request → model returns tool_calls + thought_signature
+{
+  function { core { models { chat_completion(
+    model: "gemini"
+    messages: ["{\"role\":\"user\",\"content\":\"What is the weather in Tokyo?\"}"]
+    tools: ["{\"name\":\"get_weather\",\"description\":\"Get weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"]}}"]
+    max_tokens: 200
+  ) {
+    content finish_reason tool_calls thought_signature
+  } } } }
+}
+
+# Step 2: Send tool results back (include thought_signature in the assistant message)
+{
+  function { core { models { chat_completion(
+    model: "gemini"
+    messages: [
+      "{\"role\":\"user\",\"content\":\"What is the weather in Tokyo?\"}",
+      "{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"abc\",\"name\":\"get_weather\",\"arguments\":{\"city\":\"Tokyo\"}}],\"thought_signature\":\"...\"}",
+      "{\"role\":\"tool\",\"tool_call_id\":\"abc\",\"content\":\"{\\\"temperature\\\":22,\\\"condition\\\":\\\"sunny\\\"}\"}"
+    ]
+    tools: ["{\"name\":\"get_weather\",\"description\":\"Get weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"]}}"]
+    max_tokens: 200
+  ) {
+    content finish_reason
+  } } } }
+}
+```
+
+:::info Gemini Thought Signatures
+Gemini 2.5+ returns a `thought_signature` alongside tool calls. This signature **must** be included in the assistant message when sending tool results back — omitting it causes a 400 error. For OpenAI and Anthropic, `thought_signature` is empty and can be omitted.
+:::
 
 ## Streaming Completions
 
@@ -211,6 +255,7 @@ subscription {
         content
         finish_reason
         tool_calls
+        thought_signature
       }
     }
   }
@@ -226,7 +271,7 @@ Each streamed event has a `type` field indicating what it contains:
 | `content_delta` | Regular generated tokens (the main text output) |
 | `reasoning` | Thinking/chain-of-thought tokens (when thinking is enabled) |
 | `tool_use` | Tool call request from the model |
-| `finish` | Final event with usage statistics (`prompt_tokens`, `completion_tokens`) |
+| `finish` | Final event with usage statistics (`prompt_tokens`, `completion_tokens`, `tool_calls`, `thought_signature`) |
 | `error` | Error during generation |
 
 ### Thinking Budget

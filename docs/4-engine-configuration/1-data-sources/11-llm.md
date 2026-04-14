@@ -51,11 +51,13 @@ mutation {
       name: "gemini"
       type: "llm-gemini"
       prefix: "gemini"
-      path: "https://generativelanguage.googleapis.com/v1beta?model=gemini-2.5-flash&api_key=${secret:GEMINI_KEY}"
+      path: "https://generativelanguage.googleapis.com/v1beta?model=gemini-2.5-flash&api_key=${secret:GEMINI_KEY}&max_tokens=4096&thinking_budget=2048"
     }) { name }
   }
 }
 ```
+
+Gemini 2.5+ models with tool calling return a `thought_signature` that must be included when sending tool results back. See [Tool Call Round-trip](/docs/ai-models#tool-call-round-trip) for details.
 
 ## Path Parameters
 
@@ -133,6 +135,7 @@ All providers return the same `llm_result` structure:
 | `provider` | `openai`, `anthropic`, or `gemini` |
 | `latency_ms` | Request latency |
 | `tool_calls` | JSON string: `[{"id":"...","name":"...","arguments":{...}}]` |
+| `thought_signature` | Gemini 2.5+: thought signature for tool call round-trip (see [Tool Call Round-trip](/docs/ai-models#tool-call-round-trip)) |
 
 ## Rate Limiting
 
