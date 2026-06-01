@@ -2,12 +2,12 @@
 title: "MCP Integration"
 sidebar_position: 6
 description: Model Context Protocol (MCP) endpoint for AI assistant integration
-keywords: [mcp, ai, llm, model-context-protocol, semantic-search, embeddings]
+keywords: [mcp, ai, llm, model-context-protocol, semantic-search, embeddings, mutations]
 ---
 
 # MCP Integration
 
-Hugr exposes a [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) endpoint that enables AI assistants to query and explore the data graph. The endpoint uses SSE (Server-Sent Events) transport and is available at `/mcp`.
+Hugr exposes a [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) endpoint that enables AI assistants to query and explore the data graph. The endpoint uses the Streamable HTTP transport and is available at `/mcp`.
 
 Through MCP, AI clients can discover modules, inspect schemas, validate queries, and execute GraphQL — all through structured tool calls rather than free-form prompting.
 
@@ -121,7 +121,9 @@ https://your-hugr-instance.example.com/mcp
 
 ## Tools Reference
 
-The MCP server exposes 10 tools organized into three categories.
+The MCP server exposes 14 tools organized into three categories.
+
+Discovery and schema tools follow a **list / describe split**: a `search_*` / `type_fields` tool returns a lean candidate set (identity + classification + the handles to drill in), and the matching `describe_*` tool returns the full detail (arguments, descriptions, fields) for the specific items you name. This keeps result payloads small — call `describe_*` only for the few items you will actually use.
 
 ### Discovery Tools
 
@@ -141,7 +143,7 @@ Search modules by natural language. Returns top-K modules ranked by semantic rel
 
 #### `discovery-search_module_data_objects`
 
-Search tables and views within a module. Returns the type name (for schema introspection) and query field names (for GraphQL queries). Each data object has four query fields: `<name>`, `<name>_by_pk`, `<name>_aggregation`, `<name>_bucket_aggregation`.
+Search tables and views within a module — a lean candidate list. Each data object has four query fields: `<name>`, `<name>_by_pk`, `<name>_aggregation`, `<name>_bucket_aggregation`.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
@@ -151,15 +153,33 @@ Search tables and views within a module. Returns the type name (for schema intro
 | `min_score` | Number | No | 0.3 | Minimum relevance score (0–1) |
 | `include_sub_modules` | Boolean | No | true | Include sub-module data objects |
 
-**Returns:** `{ total, returned, items: [{ name, module, description, object_type, score, queries, fields }] }`
+**Returns:** `{ total, returned, items: [{ name, object_type, parameterized, has_geometry, module, catalog, description, fields_count, queries: [{ name, query_type, return_type }], score }] }`
+
+- `object_type` — `table` or `view`.
+- `parameterized` — `true` when the view takes query parameters (a parameterized view). Get the parameter names/types from `discovery-describe_data_objects`.
+- `has_geometry` — the object has at least one geometry field.
+- `catalog` — the data source the object belongs to.
+- `queries[].return_type` — the GraphQL type the query returns; call `schema-type_fields` on it for the result fields.
 
 :::tip
-Use the **query field names** from the `queries` array to build GraphQL, not the type name. Aggregation and bucket aggregation are data object queries, not functions.
+Use the **query field names** from the `queries` array to build GraphQL, not the type name; the `module` is required to nest the query. Aggregation and bucket aggregation are data object queries, not functions.
 :::
+
+#### `discovery-describe_data_objects`
+
+Return the full record for **exact-name** data objects — the describe half of `discovery-search_module_data_objects`. Deterministic (no semantic scoring), **batched**: pass every type name you already know. Type names are globally unique, so no module hint is needed. Beyond the search shape, each query adds its `query_root` (the type hosting the query field) and, for a parameterized view, the `args` argument with its parameter fields.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `names` | [String] | Yes | — | Type names with the catalog prefix (e.g. `prefix_tablename`), as listed in the search result's `name`. |
+
+**Returns:** `{ total, returned, items: [{ name, object_type, parameterized, has_geometry, module, catalog, description, fields_count, queries: [{ name, query_type, return_type, query_root, arguments: [{ name, type, required, fields }] }], score }] }`
+
+The `arguments` carry only the parameterized-view `args` parameter (its `fields` are the view's parameters); the standard relation arguments (`filter`, `order_by`, `limit`, `offset`, `distinct_on`) are universal and omitted.
 
 #### `discovery-search_module_functions`
 
-Search custom functions in a module. Functions are separate from data objects — they are custom computed endpoints called via `query { function { module { func_name(args) { fields } } } }`.
+Search custom functions in a module — a lean candidate list. Functions are separate from data objects — they are custom computed endpoints called via `query { function { module { func_name(args) { fields } } } }`.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
@@ -169,7 +189,18 @@ Search custom functions in a module. Functions are separate from data objects �
 | `include_mutations` | Boolean | No | false | Include mutation functions |
 | `include_sub_modules` | Boolean | No | true | Include sub-module functions |
 
-**Returns:** `{ total, returned, items: [{ name, module, description, is_mutation, is_list, score, arguments, returns }] }`
+**Returns:** `{ total, returned, items: [{ name, module, description, is_mutation, is_list, return_type, arguments_count, score }] }`
+
+#### `discovery-describe_functions`
+
+Return the full signature — arguments (name, type, required, description) plus the return type with its top fields — for **named functions** in a module. The describe half of `discovery-search_module_functions`. **Batched**; function names are not globally unique, so a `module` is required (sub-modules are searched too) and both query and mutation functions are matched.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `module` | String | Yes | — | Module the functions live in (sub-modules included) |
+| `names` | [String] | Yes | — | Function field names, as listed in the search result's `name` |
+
+**Returns:** `{ total, returned, items: [{ name, module, description, is_mutation, is_list, arguments: [{ name, type, required, description }], returns: { type_name, is_list, fields: [{ name, type }] } }] }`
 
 #### `discovery-search_data_sources`
 
@@ -215,7 +246,7 @@ Return high-level metadata for a type: kind, module, catalog, field count, geome
 
 #### `schema-type_fields`
 
-Return fields of a type. **Must call before building any query** — field names cannot be guessed.
+List the fields of a type — a lean field list, no per-field argument trees. **Must call before building any query** — field names cannot be guessed.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
@@ -224,9 +255,8 @@ Return fields of a type. **Must call before building any query** — field names
 | `limit` | Number | No | 50 | Max fields to return (1–200) |
 | `offset` | Number | No | 0 | Pagination offset |
 | `include_description` | Boolean | No | false | Include field descriptions |
-| `include_arguments` | Boolean | No | false | Include argument details for fields with arguments |
 
-**Returns:** `{ total, returned, items: [{ name, field_type, hugr_type, is_list, description, arguments_count, arguments, score }] }`
+**Returns:** `{ total, returned, items: [{ name, field_type, hugr_type, is_list, description, arguments_count, score }] }`
 
 The `hugr_type` field indicates the kind of field:
 - Empty string — scalar field
@@ -235,6 +265,19 @@ The `hugr_type` field indicates the kind of field:
 - `bucket_agg` — bucket (GROUP BY) aggregation of related records
 - `extra_field` — auto-generated field (e.g. timestamp part extraction)
 - `function` — function field
+
+`hugr_type` already classifies a field's argument profile, and `arguments_count` flags which fields take arguments — so the standard relation/aggregate arguments need no lookup. When you need the **exact** arguments of specific fields, call `schema-describe_fields`.
+
+#### `schema-describe_fields`
+
+Return the full detail — arguments (name, type, required, description) plus description — for **specific named fields** of a type. The describe half of `schema-type_fields`. Call this after `type_fields`, once you know which field(s) you will use and need their exact arguments: filter inputs, aggregation/bucket arguments, function parameters, or a parameterized view's query parameters. Scope to the few fields you actually need — this stays small even for the wide operator types (`_join`, `_spatial`).
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `type_name` | String | Yes | — | Full type name (e.g. `prefix_tablename`) |
+| `fields` | [String] | Yes | — | Field names to describe (from `schema-type_fields` output) |
+
+**Returns:** `{ total, returned, items: [{ name, field_type, hugr_type, is_list, description, arguments_count, arguments: [{ name, type, required, description }] }] }`
 
 #### `schema-enum_values`
 
@@ -253,7 +296,7 @@ Common built-in enums:
 
 ### Data Tools
 
-Tools for validating and executing GraphQL queries.
+Tools for validating, executing, and mutating data via GraphQL.
 
 #### `data-validate_graphql_query`
 
@@ -268,16 +311,45 @@ Validate a GraphQL query without executing it. Use before execution to catch err
 
 #### `data-inline_graphql_result`
 
-Execute a GraphQL query and return the JSON result with an optional jq transform.
+Execute a **read-only** GraphQL query and return the JSON result with an optional jq transform. This tool rejects mutation operations — use [`data-execute_mutation`](#data-execute_mutation) to modify data.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `query` | String | Yes | — | GraphQL query |
 | `variables` | Object | No | — | Query variables |
 | `jq_transform` | String | No | — | JQ expression to apply to the result |
-| `max_result_size` | Number | No | 1000 | Max result bytes (100–5000) |
+| `max_result_size` | Number | No | 1000 | Max result bytes (100–10000) |
 
 If the result is truncated (`is_truncated: true`), increase `max_result_size` or use `jq_transform` to reduce output.
+
+#### `data-execute_mutation`
+
+Execute a GraphQL **mutation** — insert/update/delete a data object, or call a mutation function. Call this only when the user explicitly asks to create, update, or delete data. The operation runs with the **caller's permissions**; operations the user is not allowed to perform are rejected by the engine.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `query` | String | Yes | — | GraphQL mutation (the operation must start with `mutation`) |
+| `variables` | Object | No | — | Mutation variables (use for the data payload / filter) |
+| `jq_transform` | String | No | — | JQ expression to apply to the result |
+| `max_result_size` | Number | No | 1000 | Max result bytes (100–10000) |
+
+Mutations mirror queries — modules are nested fields:
+
+- **Insert** returns the new row (select its fields directly):
+  ```graphql
+  mutation { module { insert_<Object>(data: { field: value }) { id } } }
+  ```
+- **Update / delete** take a `filter` and return `OperationResult { affected_rows }`:
+  ```graphql
+  mutation { module { update_<Object>(filter: {...}, data: {...}) { affected_rows } } }
+  mutation { module { delete_<Object>(filter: {...}) { affected_rows } } }
+  ```
+- **Mutation functions** are nested under `function`:
+  ```graphql
+  mutation { function { module { <mutation_func>(args) { ... } } } }
+  ```
+
+Resolve the exact `insert_`/`update_`/`delete_<Object>` field names, the data-input shape, and the `filter` shape from `discovery-describe_data_objects` / `schema-describe_fields` (or `discovery-describe_functions`) before calling.
 
 ## Resources
 
@@ -310,12 +382,16 @@ The MCP tools are designed around a **lazy stepwise introspection** pattern. Rat
 1. **Parse user intent** — identify entities, metrics, filters, and time ranges.
 2. **Find modules** — call `discovery-search_modules` with a natural language query.
 3. **Find data objects** — call `discovery-search_module_data_objects` within the relevant module.
-4. **Inspect fields** — call `schema-type_fields` with the type name (e.g. `prefix_tablename`) before building any query.
+4. **Inspect fields** — call `schema-type_fields` (a lean field list) with the type name (e.g. `prefix_tablename`) before building any query; then `schema-describe_fields` for the exact arguments of the specific fields you'll parameterise. (Likewise, reach for `discovery-describe_data_objects` / `discovery-describe_functions` when you need the full detail of a named object or function.)
 5. **Explore values** — call `discovery-field_values` to understand data distribution and categories.
 6. **Build query** — construct a single comprehensive GraphQL query combining objects, relations, aggregations, and filters with aliases.
 7. **Validate** — call `data-validate_graphql_query` to catch errors before execution.
 8. **Execute** — call `data-inline_graphql_result` with optional jq transforms.
 9. **Present** — reshape results and present tables, charts, or insights.
+
+:::note Mutations
+The workflow above is read-only. To **modify** data, follow the same discovery and inspection steps, then call `data-execute_mutation` instead of `data-inline_graphql_result` (which rejects mutation operations). Mutations run with the caller's permissions.
+:::
 
 ```
 User question
@@ -332,7 +408,7 @@ User question
            |
            v
 +------------------------+
-| type_fields            |  -> Get field names and types
+| type_fields            |  -> List fields; describe_fields for a field's args
 +----------+-------------+
            |
            v
