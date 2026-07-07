@@ -64,12 +64,16 @@ Fine-grained permissions controlling visibility and access to types and fields p
 | Field | Type | Description |
 |-------|------|-------------|
 | `role` | `String!` (PK) | References `roles.name` |
-| `type_name` | `String!` (PK) | Type name (`*` for all types) |
-| `field_name` | `String!` (PK) | Field name (`*` for all fields) |
+| `type_name` | `String!` (PK) | Type name (`*` for all types), or a `data-object:<op>` marker (see below) |
+| `field_name` | `String!` (PK) | Field name (`*` for all fields); for `data-object:*` rows, the data object's GraphQL type name (or `*`) |
 | `hidden` | `Boolean` | Hide from schema introspection (default: `false`) |
 | `disabled` | `Boolean` | Deny access (default: `false`) |
 | `filter` | `JSON` | Required filter values for queries |
 | `data` | `JSON` | Required field values for mutations |
+
+Matching precedence for field-level rows is most-specific first: exact `(type_name, field_name)` > `(type_name, *)` > `(*, field_name)` > `(*, *)`; with no matching row, access is allowed by default.
+
+A `type_name` of the form `data-object:query`, `data-object:insert`, `data-object:update`, or `data-object:delete` makes the row a **table-level** (data-object) rule instead of a field-level one. `field_name` then holds the data object's GraphQL type name (or `*`). These rules apply wherever the table is materialised — direct query, `_by_pk`, relations, `_join`, aggregations, and mutations — and compose with field-level rules (filters by AND, `disabled` by OR, mutation `data` force-stamped last). See [Access Control → Data-Object Permissions](../4-engine-configuration/5-access-control.md#data-object-table-level-permissions).
 
 #### `api_keys`
 
