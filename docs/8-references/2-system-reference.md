@@ -89,7 +89,7 @@ API keys for authentication with optional role binding and expiration.
 | `is_temporal` | `Boolean` | Whether the key expires (default: `false`) |
 | `expires_at` | `Timestamp` | Expiration date (required if `is_temporal` is true) |
 | `headers` | `JSON` | HTTP header mapping for extracting user info: `{"role": "x-role", "user_id": "x-user-id", "user_name": "x-user-name"}` |
-| `claims` | `JSON` | Static claims: `{"role": "role", "user_id": "user-id", "user_name": "user-name"}` |
+| `claims` | `JSON` | Static claims. The `role`/`user_id`/`user_name` keys set the identity; any other scalar key is exposed as an `[$auth.<claim>]` permission variable (see [Custom Claim Variables](../4-engine-configuration/5-access-control.md#custom-claim-variables)) |
 
 ### Functions
 

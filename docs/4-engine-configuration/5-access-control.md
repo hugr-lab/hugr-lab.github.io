@@ -894,7 +894,7 @@ If you previously seeded a filter on every relation edge to isolate a table, rep
 
 ## Authentication Variables
 
-Use authentication variables in filters and default values to create dynamic, user-specific permissions:
+Use authentication variables in filters and default values to create dynamic, user-specific permissions. The following **built-in** variables are always available:
 
 | Variable | Description | Example Value |
 |----------|-------------|---------------|
@@ -905,17 +905,19 @@ Use authentication variables in filters and default values to create dynamic, us
 | `[$auth.auth_type]` | Authentication type | "jwt", "apikey", "oidc" |
 | `[$auth.provider]` | Auth provider | "google", "auth0" |
 
+When a request runs under impersonation, the original identity is also available as `[$auth.impersonated_by_role]`, `[$auth.impersonated_by_user_id]`, and `[$auth.impersonated_by_user_name]`.
+
 ### Custom Claim Variables
 
-You can also access custom claims from JWT/OIDC tokens:
+Any **scalar** claim carried by the authentication credential is exposed as `[$auth.<claim>]`, so you can filter on token-specific attributes such as a tenant or department:
 
 ```graphql
 mutation {
   core {
     insert_role_permissions(data: {
       role: "employee"
-      type_name: "Query"
-      field_name: "departments"
+      type_name: "data-object:query"
+      field_name: "departments"     # the table's GraphQL type name
       filter: {
         department_id: { eq: "[$auth.department_id]" }
       }
@@ -926,6 +928,18 @@ mutation {
   }
 }
 ```
+
+Custom claims come from:
+
+- **JWT / OIDC tokens** — every scalar claim (string, number, boolean) in the verified token. Nested objects and arrays are not exposed.
+- **Managed API keys** — the scalar entries of the `claims` JSON column on the [`api_keys`](../8-references/2-system-reference.md) row (in addition to its `role`/`user_id`/`user_name` identity keys).
+
+Rules:
+
+- Only **scalar** claim values are available; a claim holding an object or array is skipped.
+- A claim **cannot shadow a built-in** — if a token has a claim named `role`, `[$auth.role]` still resolves to the request's effective role, not the raw claim.
+- Custom claims are **not** available under impersonation (the impersonated identity has no token of its own) or for anonymous requests.
+- A placeholder referencing a claim the credential does not carry is left unsubstituted (it will not match rows), so seed filters only on claims your identity provider or API keys are known to issue.
 
 ## Permission Flags
 
