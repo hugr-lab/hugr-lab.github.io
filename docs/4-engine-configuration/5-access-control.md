@@ -648,6 +648,12 @@ mutation {
 
 Apply filters that restrict which rows a role can access. Filters are automatically applied to queries, updates, and deletes.
 
+:::warning Field-level filters do not compose through relations
+A filter seeded on a `Query`/`Mutation` field (as in the examples below) applies **only when that field is queried directly**. If the same table is reached through a **relation** — a forward `@field_references`, a reverse `references_query` edge, or a `_join` — the field-level filter is **not** re-applied, because the relation is a different `(type_name, field_name)` pair. This means a per-field filter is not a complete row-level-security boundary.
+
+For row-level security that holds on **every** path a table is reached (direct, `_by_pk`, relations, `_join`, aggregations, and mutations), use **[Data-Object (Table-Level) Permissions](#data-object-table-level-permissions)** — a filter keyed on the table itself, applied wherever the table is materialised. Field-level filters remain useful for shaping a specific query field; data-object filters are the tool for isolating rows.
+:::
+
 **Example: Users can only see their own records**
 
 ```graphql
@@ -760,6 +766,131 @@ mutation {
 ```
 
 The `data` field uses the same format as GraphQL mutation input types.
+
+:::note Field-level vs. data-object default values
+A field-level `data` rule applies only to the named mutation field. To force a value on **every** insert/update of a table — including nested inserts and many-to-many junction rows — use a [`data-object:insert` / `data-object:update`](#force-stamping-mutation-data) rule instead. When both are present, the data-object value takes precedence (it is applied last).
+:::
+
+## Data-Object (Table-Level) Permissions
+
+Field-level permissions (everything above) are keyed on a GraphQL **field** — a specific list query, mutation, or relation edge. **Data-object permissions** are keyed on the **table or view itself**, so a single rule applies wherever that data object is materialised: the top-level list, `_by_pk`, forward and reverse relations, `_join`, aggregations, and mutations. This is the mechanism for **row-level security that composes** — you seed one filter per table and it holds on every path, instead of enumerating every relation edge.
+
+### How they are stored
+
+Data-object rules are ordinary rows in the `permissions` table (no schema change) that use a synthetic `type_name`:
+
+| `type_name` | `field_name` | Carries | Applies to |
+|---|---|---|---|
+| `data-object:query` | table's GraphQL type name (or `*`) | `filter`, `disabled`, `hidden` | Every read: list, `_by_pk`, relations, `_join`, aggregations — and the fallback for update/delete `WHERE` |
+| `data-object:insert` | table's GraphQL type name (or `*`) | `data`, `disabled` | Insert (force-stamped values; deny) |
+| `data-object:update` | table's GraphQL type name (or `*`) | `data`, `disabled`, `filter` | Update `SET` (force-stamp), update `WHERE` |
+| `data-object:delete` | table's GraphQL type name (or `*`) | `filter`, `disabled` | Delete `WHERE` |
+
+The `field_name` is the **GraphQL type name of the data object** — the source-prefixed name such as `pg_store_products` (what you see in introspection), not the raw SQL table name. Use `*` to apply a rule to every data object.
+
+:::info No migration required
+The `data-object:` prefix cannot collide with a real GraphQL type name (a `:` is not a legal identifier character), so these rows coexist with existing field-level rows. A deployment that uses only field-level rules behaves exactly as before.
+:::
+
+### Row-level security that composes
+
+Seed one `data-object:query` filter and it applies on every path the table is reached:
+
+```graphql
+mutation {
+  core {
+    insert_role_permissions(data: {
+      role: "agent"
+      type_name: "data-object:query"
+      field_name: "pg_store_skills"       # the table's GraphQL type name
+      filter: { agent_id: { eq: "[$auth.user_id]" } }
+    }) {
+      role
+    }
+  }
+}
+```
+
+With this single row, an `agent` sees only their own skills whether they query `skills` directly, reach them through `skill_links.target` (forward reference), through `skills_by_pk(...).outgoing_links` (reverse edge), through a `_join`, or count them via `skills_aggregation`. A field-level filter would have had to be repeated for each of those edges.
+
+### Force-stamping mutation data
+
+`data-object:insert` and `data-object:update` `data` values are applied **over** the client's input — the client cannot override them. This closes the "insert is not filterable" gap: a client cannot create or reassign rows to another principal.
+
+```graphql
+mutation {
+  core {
+    insert_role_permissions(data: {
+      role: "agent"
+      type_name: "data-object:insert"
+      field_name: "pg_store_skills"
+      data: { agent_id: "[$auth.user_id]" }   # stamped on every insert, incl. nested
+    }) {
+      role
+    }
+  }
+}
+```
+
+The stamp is applied to the target table and to every **nested** object created in the same mutation (nested reference inserts and the many-to-many junction rows), so it cannot be bypassed by inserting through a parent object.
+
+### Denying a table
+
+`disabled: true` on a `data-object:query` row denies the table on **every** path — reads and mutations alike. `disabled` on an operation-specific row (`data-object:insert`, etc.) denies just that operation:
+
+```graphql
+mutation {
+  core {
+    insert_role_permissions(data: {
+      role: "agent"
+      type_name: "data-object:query"
+      field_name: "pg_store_audit_log"
+      disabled: true                 # agent can never read audit_log, on any path
+    }) {
+      role
+    }
+  }
+}
+```
+
+`hidden: true` on a `data-object:query` row omits fields returning that object from the introspected schema (the object stays queryable unless also `disabled`).
+
+### Merge semantics
+
+Data-object rules combine with everything else deterministically:
+
+- **Filters** combine by **AND**. `final = user filter AND field-level filter AND data-object filter`. Each term only narrows the result — a field-level rule can never widen past the data-object floor.
+- **Mutation data** overlays in order **client input → field-level `data` → data-object `data`**, so the data-object value is the force-stamp floor.
+- **`disabled`** is **OR** across levels — any level denying wins.
+- For update/delete, an operation-specific `filter` (`data-object:update` / `data-object:delete`) is used when present; otherwise the `data-object:query` filter applies (you cannot delete or update rows you cannot read, unless an operation row explicitly says otherwise).
+
+### Multi-tenant example
+
+Isolating a tenant's rows across a set of tables takes ~3 rows per table instead of one row per relation edge:
+
+```graphql
+mutation {
+  core {
+    insert_roles(data: {
+      name: "tenant_user"
+      description: "Sees and writes only its own tenant's rows"
+      permissions: [
+        { type_name: "data-object:query",  field_name: "app_orders",   filter: { tenant_id: { eq: "[$auth.user_id]" } } }
+        { type_name: "data-object:insert", field_name: "app_orders",   data:   { tenant_id: "[$auth.user_id]" } }
+        { type_name: "data-object:update", field_name: "app_orders",   data:   { tenant_id: "[$auth.user_id]" } }
+        { type_name: "data-object:query",  field_name: "app_invoices", filter: { tenant_id: { eq: "[$auth.user_id]" } } }
+        { type_name: "data-object:insert", field_name: "app_invoices", data:   { tenant_id: "[$auth.user_id]" } }
+      ]
+    }) {
+      name
+    }
+  }
+}
+```
+
+### Migrating from per-field row-level filters
+
+If you previously seeded a filter on every relation edge to isolate a table, replace them with a single `data-object:query` filter on that table plus (for writes) `data-object:insert`/`update` `data`. The data-object rules compose to the edges you were enumerating, and they extend the isolation to inserts and updates, which per-field filters could not reach.
 
 ## Authentication Variables
 
@@ -1402,12 +1533,19 @@ permissions: [
 - Test the filter independently in a query
 - Check for typos in field names
 
+### Filter Works on the Direct Query but Not Through a Relation
+
+A field-level filter (`type_name: "Query"`, `field_name: "<table>"`) is applied only when the table is queried directly. When the table is reached through a forward reference, a reverse `references_query` edge, or a `_join`, the field-level filter does not re-apply — that edge is a different permission surface.
+
+- Use a [`data-object:query`](#data-object-table-level-permissions) filter keyed on the table's GraphQL type name; it composes to every path (direct, `_by_pk`, relations, `_join`, aggregations).
+- The `field_name` must be the **GraphQL type name** (e.g. `pg_store_products`), not the SQL table name.
+
 ### Default Values Not Applied
 
 - Ensure the permission targets the mutation type (e.g., `insert_articles`, not `articles`)
 - Verify the `data` field uses correct input type format
 - Check that authentication variables exist and have values
-- Confirm the field is not explicitly set by the user (defaults don't override)
+- Field-level `data` values are **force-stamped** — they overwrite a value the client supplied. To force a value on nested inserts and many-to-many junction rows as well, use a [`data-object:insert`/`update`](#force-stamping-mutation-data) rule.
 
 ## See Also
 
