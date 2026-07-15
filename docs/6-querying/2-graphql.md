@@ -294,14 +294,14 @@ query TypeIntrospection {
 
 ### Role-Based Schema Visibility
 
-Introspection results respect access control rules defined in the `role_permissions` table:
+Introspection results respect access control rules defined in the `role_permissions` table. The two flags are independent: `hidden` controls introspection visibility, `disabled` controls query access:
 - **Fields with `hidden: false`** (default): Visible in schema and queries
-- **Fields with `hidden: true`**: Not shown in introspection, but can be explicitly requested
-- **Fields with `disabled: true`**: Completely inaccessible and not visible in introspection
+- **Fields with `hidden: true`**: Not shown in introspection, but can still be explicitly requested
+- **Fields with `disabled: true`**: Querying returns a `forbidden` error; the field stays visible in introspection unless also `hidden: true`
+
+To make a field both inaccessible and invisible, set both flags: `hidden: true, disabled: true`.
 
 Each role sees only the types and fields permitted by their permissions. If a type/field has no permission entry for a role, it is accessible by default (unless restricted by a wildcard permission).
-
-This ensures that the schema exposed to clients matches their actual access permissions.
 
 ## Examples
 
