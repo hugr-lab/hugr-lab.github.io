@@ -296,7 +296,7 @@ query TypeIntrospection {
 
 Standard GraphQL introspection exposes the *generated* schema — hundreds of types including filters, aggregations, and mutation inputs. The `_catalog` meta-query family exposes hugr's **logical data model** directly: the module tree, data objects (tables and views) with their relations, and functions — without reverse-engineering generated type names.
 
-Four meta queries are available (resolved like `__schema`/`__type`, never executed as data queries):
+These meta queries are available (resolved like `__schema`/`__type`, never executed as data queries):
 
 | Query | Returns | Purpose |
 |-------|---------|---------|
@@ -304,6 +304,8 @@ Four meta queries are available (resolved like `__schema`/`__type`, never execut
 | `_module(name: String!)` | `_Module` | Direct module lookup; `""` = root |
 | `_dataObject(name: String!)` | `_DataObject` | Data object by GraphQL type name |
 | `_function(module: String!, name: String!)` | `_Function` | Function/mutation/subscription lookup; `module: ""` = root |
+| `_dataSources` | `[_DataSource!]` | Attached data sources contributing anything visible to the caller |
+| `_dataSource(name: String!)` | `_DataSource` | Data source lookup by name |
 | `_types(scope: _TypeScope = SOURCE)` | `[__Type!]` | Logical-model type definitions: `SOURCE` — residual base types defined by data sources (structs, inputs, enums; excludes data objects, module roots and generated helper types); `SYSTEM` — engine-defined types |
 
 Unknown names resolve to `null` (never an error).
@@ -367,7 +369,7 @@ Relations show the logical link graph from both ends: `FORWARD`/`FK` for the obj
 }
 ```
 
-The meta-types themselves (`_Module`, `_DataObject`, `_DataObjectProperties`, `_Relation`, `_Function` and the enums `_DataObjectType`, `_FunctionType`, `_RelationDirection`, `_RelationKind`) are registered in the schema, so `__type(name: "_Module")` describes them. The four root queries are ordinary system fields of `Query` (single-underscore names, like `_join` and `jq`) — they appear in standard introspection, so GraphiQL autocompletes them and code generators handle them like any other field. GraphQL reserves double-underscore names for the built-in introspection system, which is why the family uses a single underscore.
+The meta-types themselves (`_Module`, `_DataObject`, `_DataObjectProperties`, `_Relation`, `_Function`, `_DataSource` and the enums `_DataObjectType`, `_FunctionType`, `_RelationDirection`, `_RelationKind`) are registered in the schema, so `__type(name: "_Module")` describes them. The meta root queries are ordinary system fields of `Query` (single-underscore names, like `_join` and `jq`) — they appear in standard introspection, so GraphiQL autocompletes them and code generators handle them like any other field. GraphQL reserves double-underscore names for the built-in introspection system, which is why the family uses a single underscore.
 
 `_catalog` results respect the same role-based visibility rules as `__schema` (see below): hidden objects disappear from every path — including other objects' `relations` — while disabled ones stay visible; modules left with no visible content are omitted from `modules` listings.
 
