@@ -385,9 +385,9 @@ DuckDB's Iceberg extension does not support MERGE operations. Use separate INSER
 
 DuckDB's Iceberg extension requires all columns to be specified in INSERT operations. Partial column inserts (targeted inserts) are not yet supported.
 
-### No Incremental Schema Compilation
+### Full Re-introspection on Schema Change
 
-Unlike DuckLake, Iceberg data sources do not support incremental schema compilation. Schema changes in the Iceberg catalog trigger a full re-introspection. The schema version is based on a content hash of the discovered tables and columns.
+Unlike DuckLake, Iceberg data sources cannot detect a partial schema change: any change in the Iceberg catalog triggers a full re-introspection. The schema version is based on a content hash of the discovered tables and columns, so an unchanged catalog still reloads for free.
 
 ### `CREATE OR REPLACE` Not Supported
 

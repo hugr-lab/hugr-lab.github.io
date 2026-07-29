@@ -52,13 +52,26 @@ Response:
 
 ## Aggregation Functions by Type
 
+:::warning `count` counts DISTINCT values
+
+`count` on a field compiles to `COUNT(DISTINCT field)` and takes no arguments —
+there is no `count(distinct: ...)`. The plain number of rows is `_rows_count`,
+a member of the aggregation object itself. `distinct` is an argument of `list`
+and `string_agg` only.
+
+There is no `stddev`, no `variance` and no `first` — the full per-type surface
+is listed in the [aggregations
+reference](/docs/engine-configuration/schema-definition/data-objects/aggregations#available-aggregation-functions).
+
+:::
+
 ### Numeric Fields (Int, Float, BigInt)
 
 ```graphql
 query {
   products_aggregation {
     price {
-      count      # Count non-null values
+      count      # COUNT(DISTINCT price) — takes no arguments
       sum        # Sum of all values
       avg        # Average value
       min        # Minimum value
@@ -77,8 +90,8 @@ query {
 query {
   customers_aggregation {
     name {
-      count                           # Count non-null values
-      string_agg(separator: ", ")     # Concatenate with separator
+      count                           # COUNT(DISTINCT name)
+      string_agg(sep: ", ")           # Concatenate with separator
       list(distinct: true)            # Array of values
       any                             # Any non-null value
       last                            # Last non-null value
@@ -93,7 +106,7 @@ query {
 query {
   products_aggregation {
     in_stock {
-      count       # Count non-null values
+      count       # COUNT(DISTINCT in_stock)
       bool_and    # Logical AND of all values
       bool_or     # Logical OR of all values
     }
@@ -107,7 +120,7 @@ query {
 query {
   orders_aggregation {
     created_at {
-      count    # Count non-null values
+      count    # COUNT(DISTINCT created_at)
       min      # Earliest date/time
       max      # Latest date/time
     }
@@ -127,7 +140,7 @@ query {
       min(path: "price")               # Minimum value
       max(path: "price")               # Maximum value
       list(path: "tags", distinct: true)  # Array of values
-      string_agg(path: "name", separator: ", ")  # Concatenate strings
+      string_agg(path: "name", sep: ", ")  # Concatenate strings
       bool_and(path: "active")         # Logical AND
       bool_or(path: "enabled")         # Logical OR
       any(path: "status")              # Any non-null value
@@ -341,6 +354,10 @@ Available time buckets:
 - `month`
 - `quarter`
 - `year`
+
+`bucket` works on `Timestamp`, `DateTime` and `Date` fields alike; on a `Date`
+the result stays a `Date`. `bucket_interval` (below) is declared on `Timestamp`
+and `DateTime` only.
 
 ### Extract Time Parts
 

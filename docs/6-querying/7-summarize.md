@@ -7,6 +7,22 @@ keywords: [summarize, schema, llm, ai, documentation, hugr-tools]
 
 # Schema Summarization
 
+:::danger Deprecated
+
+The `hugr-tools` CLI is **deprecated** and is moving out of the query engine.
+It has not been ported to the catalog storage of CoreDB 0.0.20: it reads the
+compiled-schema views and `_schema_*` functions that version removed, so its
+commands **fail against a current engine**. The page is kept as a reference for
+the summarization pipeline itself.
+
+The engine-side surface it used is described in the
+[system reference](/docs/references/system-reference#curation-functions):
+`core.catalog.annotate_*` writes descriptions, `core.catalog.reindex_embeddings`
+re-embeds after an embedder model change, and the `core.entity_*` views expose
+the entities to summarize.
+
+:::
+
 ## Overview
 
 The `summarize` command is an AI-powered schema documentation generator, part of the `hugr-tools` CLI. It connects to a running hugr instance via GraphQL, reads schema metadata (types, fields, functions, modules, and data sources), and uses a large language model (LLM) to generate human-readable descriptions for every entity in the schema.
@@ -117,6 +133,15 @@ When running the full pipeline (no single-entity flags), summarization proceeds 
 4. **Modules** — Module-level summaries generated from the types, functions, and sources they contain.
 
 Each phase processes only entities that have not yet been summarized, making it safe to re-run the command incrementally.
+
+## Description Durability and Re-summarization
+
+Generated and hand-curated descriptions land in the **annotations overlay** — storage that data-source load/unload/reload never touches — so summaries **survive reloads by construction** and reloading an unchanged source costs nothing.
+
+Summarization progress is tracked by the summarizer itself (tool-side state) — the engine stores the curated text and its embedding only. Consequences:
+
+- The server-side `_schema_reset_summarized` function was **removed**: what to (re-)summarize is a summarizer-side decision.
+- Embedding vectors are recomputed **on every description write**, so there is no reindex step in the normal flow. `core.catalog.reindex_embeddings` remains for the one case that needs it — an embedder model change, which invalidates every stored vector at once.
 
 ## Additional Flags
 

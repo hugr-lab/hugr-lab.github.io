@@ -59,6 +59,7 @@ sidebar_position: 2
 | `@wfs` | Makes an object accessible via WFS. |
 | `@wfs_field` | Makes a nested object field flat in the WFS response. |
 | `@wfs_exclude` | Excludes a field from the WFS response. |
+| `@exclude_mcp` | Hides a field from the MCP endpoint. |
 | `@at` | Time-travel queries for DuckLake data sources. |
 
 
@@ -799,6 +800,31 @@ query {
 ```
 
 
+
+### @exclude_mcp
+
+Hides a field from the [MCP endpoint](/docs/querying/mcp). Use it on fields an AI assistant has no business exploring — an internal surrogate key, a blob column, a field whose values are noise in a semantic index.
+
+```graphql
+directive @exclude_mcp on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+```
+
+Example usage:
+
+```graphql
+type documents @table(name: "documents") {
+  id: BigInt! @pk
+  content: String!
+  "internal bookkeeping — of no use to an assistant"
+  etl_batch_id: String @exclude_mcp
+}
+```
+
+An excluded field is never embedded for semantic search, never returned by `catalog-search`, and never listed by `catalog-object_fields`. 
+
+:::caution
+This is **ergonomics, not access control** — it keeps noise out of the assistant's context, it does not protect data. The field remains in the GraphQL schema and remains queryable by anyone whose role allows it, including through the MCP endpoint's own query tools. To actually restrict access, use [role permissions](/docs/engine-configuration/access-control).
+:::
 
 ### @hypertable and @timescale_key
 

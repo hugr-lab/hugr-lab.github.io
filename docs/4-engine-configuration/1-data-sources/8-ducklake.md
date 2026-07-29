@@ -122,9 +122,9 @@ The type mapping from DuckDB to GraphQL:
 | JSON | JSON |
 | GEOMETRY | Geometry |
 
-### Incremental Schema Compilation
+### Schema Change Detection
 
-DuckLake tracks schema changes via snapshot versions. When the schema version changes, hugr performs an incremental re-introspect, detecting only added, dropped, or modified tables. This is significantly faster than full re-introspection for large schemas.
+DuckLake tracks schema changes via snapshot versions, and hugr uses that version as its own schema version. Data-only snapshots (inserts, compaction) leave it unchanged, so reloading the source is a no-op; a DDL snapshot bumps it and triggers re-introspection, which rewrites the stored logical model.
 
 ## Time Travel with `@at`
 
@@ -350,7 +350,7 @@ mutation {
 
 Allowed column types: `BOOLEAN`, `TINYINT`, `SMALLINT`, `INTEGER`, `BIGINT`, `HUGEINT`, `FLOAT`, `DOUBLE`, `DECIMAL`, `VARCHAR`, `CHAR`, `BLOB`, `DATE`, `TIME`, `TIMESTAMP`, `TIMESTAMPTZ`, `INTERVAL`, `UUID`, `JSON`, `GEOMETRY`.
 
-DDL operations trigger incremental schema recompilation — the new table or column is immediately available in the GraphQL schema.
+DDL operations bump the DuckLake schema version and trigger re-introspection — the new table or column is immediately available in the GraphQL schema.
 
 ### Query Functions
 

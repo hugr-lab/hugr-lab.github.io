@@ -188,213 +188,40 @@ Returns: `String` (schema description)
 
 ## core.catalog Module
 
-The `core.catalog` module provides read-only views over the compiled schema metadata stored in the core database. All views support relationship navigation via `@references` and `@field_references` directives. When `EMBEDDER_URL` is configured, catalogs, types, fields, and modules also include `@embeddings` support for vector similarity search.
+The `core.catalog` module is the **curation and maintenance** surface of the
+catalog: it holds the `annotate_*` mutation functions and the schema-maintenance
+operations. See [Curation Functions](#curation-functions) and
+[Catalog Maintenance Functions](#catalog-maintenance-functions).
 
-### Views
+Reading the catalog has two surfaces instead:
 
-#### `catalogs`
+- **[`core.entity_*` views](#entity-views)** — the logical model as
+  plain rows, an administrative surface that executes entirely inside the CoreDB
+  engine and supports semantic search.
+- **[`_catalog` meta queries](#logical-model-introspection-meta-queries)** —
+  request-scoped, permission-filtered introspection for clients.
 
-Schema catalogs representing compiled data sources.
+:::note Replaced in CoreDB 0.0.20
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | `String!` (PK) | Catalog name |
-| `version` | `String!` | Schema version hash |
-| `description` | `String!` | Short description |
-| `long_description` | `String!` | Detailed description |
-| `type` | `String` | Data source type (from catalog or data_sources table) |
-| `prefix` | `String` | Type prefix |
-| `as_module` | `Boolean` | Whether exposed as module |
-| `read_only` | `Boolean` | Read-only flag |
-| `disabled` | `Boolean!` | Disabled flag |
-| `suspended` | `Boolean!` | Suspended flag (dependency unavailable) |
-| `is_summarized` | `Boolean!` | Whether AI summarization has been applied |
-| `vec` | `Vector` | Embedding vector (when embeddings enabled) |
+The read-only views this module used to publish over the compiled schema
+(`catalogs`, `types`, `fields`, `arguments`, `modules`, `module_catalogs`,
+`data_objects`, `data_object_queries`, `module_intro`, `enum_values`) are
+**gone**, together with the `_schema_*` tables behind them. A schema is no
+longer compiled and stored as GraphQL type rows: the logical model is stored
+instead, and the served surface is generated from it on read.
 
-**Relationships:**
-- Referenced by `catalog_dependencies`, `types`, `fields`, `module_catalogs`, `module_intro`
+Migration at a glance:
 
-#### `catalog_dependencies`
+| Was | Now |
+|-----|-----|
+| `core.catalog.catalogs` | `core.entity_data_sources`, `core.entity_catalogs` |
+| `core.catalog.catalog_dependencies` | `core.entity_catalog_dependencies` |
+| `core.catalog.modules`, `module_catalogs`, `module_intro` | `core.entity_modules`, `core.entity_module_data_sources`, `core.entity_functions` |
+| `core.catalog.types` | `core.entity_data_objects` (tables/views) and `core.entity_types` (source-declared types) |
+| `core.catalog.fields`, `arguments`, `enum_values` | `core.entity_fields`; function arguments are structured in `core.entity_functions.args` |
+| `core.catalog.data_objects`, `data_object_queries` | generated on read — query the GraphQL schema through `__schema` / `_catalog` |
 
-Tracks dependencies between catalogs (e.g., extension sources depending on base sources).
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `catalog` | `String!` (PK) | The dependent catalog |
-| `depends_on` | `String!` (PK) | The catalog being depended on |
-
-**Relationships:**
-- `catalog_info` -> `catalogs` (the dependent catalog)
-- `depends_on_info` -> `catalogs` (the dependency target)
-- Reverse: `catalogs.dependencies`, `catalogs.dependents`
-
-#### `types`
-
-All type definitions in the compiled schema.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | `String!` (PK) | Type name |
-| `kind` | `String!` | GraphQL type kind (OBJECT, INPUT_OBJECT, ENUM, SCALAR, etc.) |
-| `description` | `String!` | Short description |
-| `long_description` | `String!` | Detailed description |
-| `hugr_type` | `String!` | Hugr-specific type classification |
-| `module` | `String!` | Module this type belongs to |
-| `catalog` | `String` | Catalog this type belongs to |
-| `is_summarized` | `Boolean!` | Whether AI summarization has been applied |
-| `vec` | `Vector` | Embedding vector (when embeddings enabled) |
-
-**Relationships:**
-- `module_info` -> `modules` (owning module)
-- `catalog_info` -> `catalogs` (owning catalog)
-- Reverse: `fields.root_type`, `data_objects.type`, `arguments.argument_type`, `enum_values.type`
-
-#### `fields`
-
-All field definitions across all types.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `type_name` | `String!` (PK) | Parent type name |
-| `name` | `String!` (PK) | Field name |
-| `description` | `String!` | Short description |
-| `long_description` | `String!` | Detailed description |
-| `field_type` | `String!` | Full GraphQL type signature |
-| `field_type_name` | `String!` | Base type name (unwrapped) |
-| `hugr_type` | `String!` | Hugr-specific field classification |
-| `catalog` | `String` | Catalog this field belongs to |
-| `dependency_catalog` | `String` | Extension source catalog (for cross-source fields) |
-| `is_pk` | `Boolean!` | Whether this is a primary key field |
-| `is_summarized` | `Boolean!` | Whether AI summarization has been applied |
-| `ordinal` | `Int!` | Field position order |
-| `vec` | `Vector` | Embedding vector (when embeddings enabled) |
-
-**Relationships:**
-- `root_type` -> `types` (parent type)
-- `type` -> `types` (field's GraphQL type)
-- `catalog_info` -> `catalogs` (owning catalog)
-- `dependency_catalog_info` -> `catalogs` (extension source)
-- Reverse: `arguments.field`, `data_object_queries.field`
-
-#### `arguments`
-
-Field arguments for parameterized fields (queries, functions).
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `type_name` | `String!` (PK) | Parent type name |
-| `field_name` | `String!` (PK) | Parent field name |
-| `name` | `String!` (PK) | Argument name |
-| `description` | `String!` | Description |
-| `arg_type` | `String!` | Full argument type signature |
-| `arg_type_name` | `String!` | Base argument type name |
-| `is_list` | `Boolean!` | Whether the argument is a list |
-| `is_non_null` | `Boolean!` | Whether the argument is required |
-| `default_value` | `String` | Default value |
-
-**Relationships:**
-- `field` -> `fields` (parent field, composite key: `type_name` + `field_name`)
-- `argument_type` -> `types` (argument's type definition)
-
-#### `modules`
-
-Schema modules grouping types and operations.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | `String!` (PK) | Module name |
-| `description` | `String!` | Short description |
-| `long_description` | `String!` | Detailed description |
-| `query_root` | `String` | Root query type name |
-| `mutation_root` | `String` | Root mutation type name |
-| `function_root` | `String` | Root function type name |
-| `mut_function_root` | `String` | Root mutation function type name |
-| `is_summarized` | `Boolean!` | Whether AI summarization has been applied |
-| `vec` | `Vector` | Embedding vector (when embeddings enabled) |
-
-**Relationships:**
-- `query` -> `types` (root query type)
-- `mutation` -> `types` (root mutation type)
-- `function` -> `types` (root function type)
-- `mut_function` -> `types` (root mutation function type)
-- Reverse: `types.module_info`, `module_catalogs.module_info`, `module_intro.module_info`
-
-#### `module_catalogs`
-
-Many-to-many associations between modules and catalogs.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `module` | `String!` (PK) | Module name |
-| `catalog` | `String!` (PK) | Catalog name |
-
-**Relationships:**
-- `module_info` -> `modules`
-- `catalog_info` -> `catalogs`
-
-#### `data_objects`
-
-Data objects represent tables and views that have query capabilities.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | `String!` (PK) | Data object name (matches a type name) |
-| `filter_type_name` | `String` | Filter input type for this data object |
-| `args_type_name` | `String` | Args input type for this data object |
-
-**Relationships:**
-- `type` -> `types` (the type definition)
-- `filter_type` -> `types` (filter input type)
-- `args_type` -> `types` (args input type)
-- Reverse: `data_object_queries.data_object`
-
-#### `data_object_queries`
-
-Query fields available for each data object (e.g., list, by PK, aggregation).
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | `String!` (PK) | Query field name |
-| `object_name` | `String!` (PK) | Data object name |
-| `query_root` | `String!` | Root type containing this query |
-| `query_type` | `String!` | Query type classification |
-
-**Relationships:**
-- `data_object` -> `data_objects` (the data object)
-- `field` -> `fields` (composite key: `query_root` + `name`)
-- `module_query_type` -> `types` (root query type)
-
-#### `module_intro`
-
-Aggregated SQL view providing a flat listing of all module operations (queries, mutations, functions, mutation functions).
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `module` | `String!` | Module name |
-| `type_type` | `String!` | Operation kind: `queries`, `mutation`, `function`, `mut_function` |
-| `type_name` | `String!` | Root type name |
-| `field_name` | `String!` | Operation field name |
-| `field_description` | `String!` | Field description |
-| `hugr_type` | `String!` | Hugr type classification |
-| `catalog` | `String` | Owning catalog |
-
-**Relationships:**
-- `module_info` -> `modules`
-- `catalog_info` -> `catalogs`
-
-#### `enum_values`
-
-Values for enum type definitions.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `type_name` | `String!` (PK) | Enum type name |
-| `name` | `String!` (PK) | Enum value name |
-| `description` | `String!` | Value description |
-| `ordinal` | `Int!` | Value position order |
-
-**Relationships:**
-- `type` -> `types` (the enum type)
+:::
 
 ---
 
@@ -872,84 +699,168 @@ Returns: `NodeVersion!` with fields `version: String!` and `build_date: String!`
 
 ---
 
+## Logical-Model Introspection (Meta Queries)
+
+Four meta queries expose hugr's logical data model (module tree, data objects with relations, functions) beside the standard `__schema`/`__type` introspection. They are resolved on the metadata path — never planned or executed as data queries — and respect the same role-based visibility rules as `__schema` (hidden elements are absent everywhere, disabled elements stay visible). Unknown names resolve to `null`, never an error. See [GraphQL API — Logical Model Introspection](/docs/querying/graphql#logical-model-introspection-_catalog) for usage examples.
+
+### Meta Queries
+
+| Query | Returns | Description |
+|-------|---------|-------------|
+| `_catalog` | `_Module` | The root module (`name: ""`) — entry point to the whole tree |
+| `_module(name: String!)` | `_Module` | Module by full dotted name; `""` = root module |
+| `_dataObject(name: String!)` | `_DataObject` | Data object by GraphQL type name; `null` for non-data-object types |
+| `_function(module: String!, name: String!)` | `_Function` | Callable member (function/mutation/subscription); `module: ""` = root-level functions |
+| `_types(scope: _TypeScope = SOURCE)` | `[__Type!]` | Logical-model type definitions: `SOURCE` — residual base types defined by data sources (structs, inputs, enums; excludes data objects, module roots and generated helper types); `SYSTEM` — engine-defined types. Compiler-derived types belong to neither scope |
+
+### `_Module`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `String!` | Full dotted module name; empty string for the root module |
+| `description` | `String` | Module description |
+| `longDescription` | `String` | Curated/summarized long description |
+| `dataSources` | `[String!]!` | Distinct data sources contributing this module's direct members |
+| `modules` | `[_Module!]` | Direct child modules; children with no visible content are omitted |
+| `dataObjects` | `[_DataObject!]` | Member data objects (root: objects without `@module`) |
+| `functions` | `[_Function!]` | All callable members, including subscriptions |
+| `queryType` / `mutationType` / `subscriptionType` / `functionType` / `mutationFunctionType` | `__Type` | The module's generated root types (root module: `Query`/`Mutation`/`Subscription`/`Function`/`MutationFunction`); `null` when absent |
+
+### `_DataObject`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `String!` | GraphQL type name (source-prefixed, globally unique) |
+| `type` | `_DataObjectType!` | `TABLE` or `VIEW` |
+| `properties` | `_DataObjectProperties!` | Extensible flag bag: `isCube`, `isM2M`, `isHypertable`, `softDelete`, `hasVectors` |
+| `description` / `longDescription` | `String` | Descriptions |
+| `moduleName` / `module` | `String!` / `_Module` | Owning module (name / back-reference) |
+| `primaryKey` | `[String!]!` | `@pk` field names; empty when none |
+| `args` | `[__InputValue!]` | Parameterized-view arguments; `null` when not parameterized |
+| `fields` | `[__Field!]` | Fields (permission-filtered, same rules as `__Type.fields`) |
+| `relations` | `[_Relation!]` | Logical edges to other data objects, both directions |
+| `dataSourceName` | `String!` | Owning data source |
+| `dataSources` | `[String!]!` | Owner plus sources that contributed extension fields |
+
+### `_Relation`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `String!` | Relation name (`@references(name:)`) or the join field name |
+| `direction` | `_RelationDirection!` | `FORWARD` (viewed object is the source) or `BACK` (it is the destination) |
+| `kind` | `_RelationKind!` | `FK`, `M2M`, or `JOIN` (`JOIN` is one-directional, always `FORWARD`) |
+| `fieldName` | `String` | The field on the viewed object materializing the edge |
+| `description` | `String` | Per-endpoint description |
+| `dataObject` | `_DataObject` | The far object (M2M: the far leg, not the junction) |
+| `through` | `_DataObject` | M2M junction; `null` otherwise |
+| `sourceKeys` / `destinationKeys` | `[String!]!` | Key field mappings in canonical source→destination orientation |
+| `dataSource` | `String` | Declaring data source (cross-source edges visible) |
+
+Relation SQL (`@join(sql:)` and similar) is never exposed.
+
+### `_Function`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `String!` | Field name on the module's function root type |
+| `type` | `_FunctionType!` | `FUNCTION`, `MUTATION`, or `SUBSCRIPTION` |
+| `description` / `longDescription` | `String` | Descriptions |
+| `moduleName` / `module` | `String!` / `_Module` | Owning module |
+| `args` | `[__InputValue!]` | Client-facing arguments (`@arg_default` server-injected arguments excluded) |
+| `returns` | `__Type` | Return type |
+| `isTable` | `Boolean!` | `true` when the function returns a row set |
+| `dataSourceName` | `String` | Owning data source |
+
+### Enums
+
+| Enum | Values |
+|------|--------|
+| `_TypeScope` | `SOURCE`, `SYSTEM` |
+| `_DataObjectType` | `TABLE`, `VIEW` |
+| `_FunctionType` | `FUNCTION`, `MUTATION`, `SUBSCRIPTION` |
+| `_RelationDirection` | `FORWARD`, `BACK` |
+| `_RelationKind` | `FK`, `M2M`, `JOIN` |
+
+All meta-types resolve through standard introspection (`__type(name: "_Module")`), and the four root queries are ordinary system fields of `Query` (single-underscore names, like `_join` and `jq`) visible in `__schema` output — GraphiQL autocomplete and code generators work with them out of the box. GraphQL reserves double-underscore names for the built-in introspection system, which is why the family uses a single underscore.
+
+---
+
+## Entity Views
+
+The logical model is also queryable as plain rows: the `core` module publishes `entity_*` views over the CoreDB `catalog` schema, written on every catalog load/reload. They are the SQL half of the logical model (the `_catalog` meta queries are the GraphQL half). The views are hosted on the core data source, so they execute **entirely inside the CoreDB engine** — full pushdown on a PostgreSQL CoreDB, ready for pgvector/HNSW-backed semantic search.
+
+| View | Content |
+|------|---------|
+| `core.entity_modules` | Module tree nodes (name, parent, effective description) — only modules with at least one active data source |
+| `core.entity_module_data_sources` | Module → contributing data sources, as a closure over submodules |
+| `core.entity_data_sources` | Data sources with their runtime state; configuration joined in when present |
+| `core.entity_catalogs` | Registered catalog (schema definition) sources |
+| `core.entity_catalog_dependencies` | Declared dependency edges between stored catalogs |
+| `core.entity_data_objects` | Tables/views: name, data source, module, kind, parsed properties |
+| `core.entity_fields` | Data-object fields: type, properties, attribution, `is_pk`, ordinal — including declared `@join` / `@function_call` fields |
+| `core.entity_relations` | ONE row per logical `@references` edge (`fk` / `m2m`), keyed `(source, name)`, with both generated nav fields (`source_field` / `destination_field`) and key mappings |
+| `core.entity_functions` | Functions, mutations and subscriptions with structured `args` |
+| `core.entity_types` | Residual source-defined types as raw SDL |
+| `core.entity_annotations` | The curation overlay: descriptions, audit fields, the embedding vector — including *orphans* (curation of currently unloaded entities) and load-time seed rows |
+
+The views apply **no row-level permission filtering** — they are an *administrative* surface. Access is governed by the ordinary data-object permission rules applied to the views themselves (grant, hide or disable `core.entity_*` per role exactly like any other data object); request-scoped, permission-filtered catalog introspection is exclusively the job of the `_catalog` meta queries. The views' only built-in filter is the **data-source state semi-join**: entities of unloaded, disabled or suspended data sources are hidden (their rows stay in storage — unloading is a flag flip, and loading an unchanged source back is instant; rows are physically deleted only when a source is *unregistered*). Effective descriptions COALESCE the annotations overlay over the source-provided text; raw SQL (view definitions, computed-field expressions, join conditions, default expressions, function SQL) is never projected. When an embedder is configured the views project the annotation-joined `vec` and carry `@embeddings` — semantic search pushes down into the CoreDB engine (pgvector/HNSW on PostgreSQL), and the engine **seeds** vector-only annotation rows from the source-schema descriptions during every load, so a just-connected source is semantically searchable immediately; curation and summarization refine on top and always win. Relation-generated navigation fields are curated as ordinary **field** annotations keyed by the owning object and the field name (`source.source_field` / `destination.destination_field` — set with `annotate_field`); `entity_relations` projects the curated text in its `*_field_description` columns.
+
+---
+
 ## Schema Management Functions
 
-These mutation functions manage schema metadata in the core database. They are used by the AI summarizer, embedding indexer, and administrative tools.
+These mutation functions manage schema metadata in the core database. They are used by the AI summarizer and administrative tools.
 
-### `_schema_update_type_desc`
+### Curation Functions
 
-Update a type's description and mark it as summarized.
+Descriptions are curated through the mutation functions of the `core.catalog` module. Writes land in the **annotations overlay** (`catalog.annotations`) — storage the data-source load/unload/reload machinery never touches — so curated descriptions **survive unload and reload by construction**. When an embedder is configured, the embedding vector is recomputed on every write.
 
-| Argument | Type | Description |
-|----------|------|-------------|
-| `name` | `String!` | Type name |
-| `description` | `String!` | Short description |
-| `long_description` | `String!` | Detailed description |
+An **empty** description clears the curation: the source-provided (generated) text shows through again.
 
-### `_schema_update_field_desc`
+```graphql
+mutation {
+  function { core { catalog {
+    annotate_data_object(
+      name: "customers"
+      description: "CRM customers"
+      long_description: ""
+    ) { success }
+  } } }
+}
+```
 
-Update a field's description and mark it as summarized.
+Curation has two surfaces. Prefer the **logical** one — a curated logical entity also shows through on everything generation derives from it (its filter, aggregation and mutation-input fields):
 
-| Argument | Type | Description |
-|----------|------|-------------|
-| `type_name` | `String!` | Parent type name |
-| `name` | `String!` | Field name |
-| `description` | `String!` | Short description |
-| `long_description` | `String!` | Detailed description |
+| Function | Arguments |
+|----------|-----------|
+| `annotate_module` | `name`, `description`, `long_description` |
+| `annotate_data_source` | `name`, `description`, `long_description` |
+| `annotate_data_object` | `name`, `description`, `long_description` |
+| `annotate_field` | `type_name`, `name`, `description`, `long_description` — also covers relation navigation fields |
+| `annotate_type` | `name` (a source-declared struct or input type), `description`, `long_description` |
+| `annotate_function` | `module` (`""` = root), `name`, `kind` (`"function"` \| `"mutation"` \| `"subscription"`, default `"function"`), `description`, `long_description` |
 
-### `_schema_update_module_desc`
+The **generated** GraphQL surface is reachable only where a single generated type, field or argument has no logical entity to key on:
 
-Update a module's description and mark it as summarized.
+| Function | Arguments |
+|----------|-----------|
+| `annotate_gql_type` | `name`, `description`, `long_description` |
+| `annotate_gql_field` | `type_name`, `name`, `description`, `long_description` |
+| `annotate_gql_argument` | `type_name`, `field_name`, `name`, `description`, `long_description` |
 
-| Argument | Type | Description |
-|----------|------|-------------|
-| `name` | `String!` | Module name |
-| `description` | `String!` | Short description |
-| `long_description` | `String!` | Detailed description |
+Summarization progress is tracked by the summarizer tool itself — the engine stores the curated text and its embedding only.
 
-### `_schema_update_catalog_desc`
+### Catalog Maintenance Functions
 
-Update a catalog's description and mark it as summarized.
+| Function | Arguments | Description |
+|----------|-----------|-------------|
+| `remove_data_source_schema` | `name: String!` | Delete a data source's stored schema entirely; curation is kept. Rejected while the source is still loaded — unload it first. |
+| `reset_data_source_version` | `name: String!` | Reset the stored schema version so the next load re-reads the source and rewrites its schema instead of reusing the stored one. |
+| `reindex_embeddings` | `name: String = ""`, `batch_size: Int = 50` | Recompute embedding vectors; empty `name` means every entity. Requires a configured embedder. |
 
-| Argument | Type | Description |
-|----------|------|-------------|
-| `name` | `String!` | Catalog name |
-| `description` | `String!` | Short description |
-| `long_description` | `String!` | Detailed description |
+`_schema_reset_summarized` was **removed** — what to re-summarize is a summarizer-side decision now.
 
-### `_schema_reset_summarized`
-
-Reset the `is_summarized` flag so the AI summarizer re-processes entities.
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `name` | `String` | `""` | Entity name (empty for all) |
-| `scope` | `String` | `"all"` | Scope: `all`, `catalog`, or `type` |
-
-### `_schema_reindex`
-
-Recompute embedding vectors. When `name` is empty, reindexes all entities.
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `name` | `String` | `""` | Entity name (empty for all) |
-| `batch_size` | `Int` | `50` | Batch size for embedding computation |
-
-### `_schema_hard_remove`
-
-Hard-delete a catalog and all its schema objects from the core database. Rejects the operation if the catalog has an active engine.
-
-| Argument | Type | Description |
-|----------|------|-------------|
-| `name` | `String!` | Catalog name to remove |
-
-### `_schema_version_clean`
-
-Reset a catalog's version to force recompilation on next startup.
-
-| Argument | Type | Description |
-|----------|------|-------------|
-| `name` | `String!` | Catalog name |
+The older `_schema_*` names survive only as the internal DuckDB UDFs these fields are bound to; they are no longer part of the GraphQL surface.
 
 ---
 
@@ -957,146 +868,34 @@ Reset a catalog's version to force recompilation on next startup.
 
 These are the underlying SQL tables in the core database that back the system. They are managed automatically by the engine and should not be modified directly.
 
-### `_schema_catalogs`
+### The `catalog` namespace — logical model storage
 
-Stores compiled catalog metadata.
+A data source's schema is stored as a **logical model** in the `catalog` schema; the served GraphQL surface (filters, aggregations, mutation inputs, navigation fields, module roots) is generated from these rows **on read**. There is no compiled-schema table.
 
-```sql
-CREATE TABLE _schema_catalogs (
-    name VARCHAR NOT NULL PRIMARY KEY,
-    version VARCHAR NOT NULL DEFAULT '',
-    description VARCHAR NOT NULL DEFAULT '',
-    long_description VARCHAR NOT NULL DEFAULT '',
-    source_type VARCHAR NOT NULL DEFAULT '',
-    prefix VARCHAR NOT NULL DEFAULT '',
-    as_module BOOLEAN NOT NULL DEFAULT FALSE,
-    read_only BOOLEAN NOT NULL DEFAULT FALSE,
-    is_summarized BOOLEAN NOT NULL DEFAULT FALSE,
-    disabled BOOLEAN NOT NULL DEFAULT FALSE,
-    suspended BOOLEAN NOT NULL DEFAULT FALSE,
-    vec FLOAT[<vector_size>]
-);
-```
+Property bags are typed `STRUCT` columns on a DuckDB CoreDB and `JSONB` on PostgreSQL — the writer sends the same JSON text to both. Raw SQL that the engine executes (view definitions, computed-field expressions, join conditions, function bodies) lives in those bags and is never projected by the [`core.entity_*` views](#entity-views).
 
-### `_schema_types`
+| Table | Primary key | Content |
+|-------|-------------|---------|
+| `catalog.data_source_meta` | `data_source` | Per-source load state: content-hash `version`, `engine`, `prefix`, `as_module`, `read_only`, `is_extension`, and the flags `loaded` / `disabled` / `suspended`. Unloading is a **flag flip** — rows stay, so reloading an unchanged source is instant. A pseudo-row `_embedder` fingerprints the embedder configuration. |
+| `catalog.modules` | `name` | Module tree; `parent` is derived from the dotted name at write time. |
+| `catalog.module_data_sources` | `module`, `data_source` | Module → contributing source **closure**, with `has_*` flags recording which root kinds (query, mutation, function, mutation function, subscription) the source contributes. Module visibility is a plain semi-join against `data_source_meta`. |
+| `catalog.data_objects` | `name` | Tables/views/cubes: prefixed GraphQL `name`, `original_name`, `data_source`, `module`, `kind`, property bag. |
+| `catalog.fields` | `type_name`, `name` | Data-object fields, including declared `@join` / `@function_call` fields, with `ordinal`, `deprecation_reason` and a property bag. Struct and input types live in `catalog.types` as SDL instead. |
+| `catalog.relations` | `source`, `name` | One row per logical `@references` edge (`fk` \| `m2m`), readable from both sides: `destination`, `m2m_object`, key mappings, and the generated navigation field names. |
+| `catalog.functions` | `module`, `name`, `kind` | Functions, mutation functions and subscriptions. `kind` is part of the identity — the same name may exist in more than one root namespace. |
+| `catalog.types` | `name` | Residual source-defined base types (structs, inputs, enums) kept as raw SDL. |
+| `catalog.annotations` | `entity_kind`, `entity_key` | The **curation overlay**: `description`, `long_description`, audit columns and the embedding `vec`. Load/unload/reload never touch it, so curated text survives by construction; orphan rows (curation of an unloaded entity) are legal, and rows with a vector but no text are load-time seeds. |
+| `catalog.data_source_dependencies` | `data_source`, `depends_on` | Declared cross-source dependency edges. |
 
-Stores all compiled type definitions.
+On PostgreSQL the `vector` extension is created and `catalog.annotations.vec` gets an HNSW cosine index; on DuckDB the vector is a `FLOAT[N]` array.
 
-```sql
-CREATE TABLE _schema_types (
-    name VARCHAR NOT NULL PRIMARY KEY,
-    kind VARCHAR NOT NULL,
-    description VARCHAR NOT NULL DEFAULT '',
-    long_description VARCHAR NOT NULL DEFAULT '',
-    hugr_type VARCHAR NOT NULL DEFAULT '',
-    module VARCHAR NOT NULL DEFAULT '',
-    catalog VARCHAR,
-    directives JSON NOT NULL DEFAULT '[]',
-    interfaces VARCHAR NOT NULL DEFAULT '',
-    union_types VARCHAR NOT NULL DEFAULT '',
-    is_summarized BOOLEAN NOT NULL DEFAULT FALSE,
-    vec FLOAT[<vector_size>]
-);
-```
+:::info Removed in CoreDB 0.0.20
 
-**Indexes:** `catalog`, `hugr_type`, `kind`
+The eleven compiled-schema tables — `_schema_catalogs`, `_schema_types`, `_schema_fields`, `_schema_arguments`, `_schema_enum_values`, `_schema_directives`, `_schema_modules`, `_schema_data_objects`, `_schema_data_object_queries`, `_schema_catalog_dependencies` and `_schema_module_type_catalogs` — were **dropped**. `_schema_settings` is not one of them: it survives and still holds the `schema_version` counter.
 
-### `_schema_fields`
+An existing database must be migrated before an engine of this version will start — see [CoreDB version and migrations](#coredb-version-and-migrations).
 
-Stores all compiled field definitions.
-
-```sql
-CREATE TABLE _schema_fields (
-    type_name VARCHAR NOT NULL,
-    name VARCHAR NOT NULL,
-    field_type VARCHAR NOT NULL,
-    field_type_name VARCHAR NOT NULL DEFAULT '',
-    description VARCHAR NOT NULL DEFAULT '',
-    long_description VARCHAR NOT NULL DEFAULT '',
-    hugr_type VARCHAR NOT NULL DEFAULT '',
-    catalog VARCHAR,
-    dependency_catalog VARCHAR,
-    directives JSON NOT NULL DEFAULT '[]',
-    is_pk BOOLEAN NOT NULL DEFAULT FALSE,
-    is_summarized BOOLEAN NOT NULL DEFAULT FALSE,
-    vec FLOAT[<vector_size>],
-    ordinal INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (type_name, name)
-);
-```
-
-**Indexes:** `type_name`, `catalog`, `hugr_type`, `dependency_catalog`
-
-### `_schema_arguments`
-
-Stores field argument definitions.
-
-```sql
-CREATE TABLE _schema_arguments (
-    type_name VARCHAR NOT NULL,
-    field_name VARCHAR NOT NULL,
-    name VARCHAR NOT NULL,
-    arg_type VARCHAR NOT NULL,
-    arg_type_name VARCHAR NOT NULL DEFAULT '',
-    default_value VARCHAR,
-    description VARCHAR NOT NULL DEFAULT '',
-    directives JSON NOT NULL DEFAULT '[]',
-    ordinal INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (type_name, field_name, name)
-);
-```
-
-**Indexes:** `type_name`, `(type_name, field_name)`
-
-### `_schema_enum_values`
-
-Stores enum value definitions.
-
-```sql
-CREATE TABLE _schema_enum_values (
-    type_name VARCHAR NOT NULL,
-    name VARCHAR NOT NULL,
-    description VARCHAR NOT NULL DEFAULT '',
-    directives JSON NOT NULL DEFAULT '[]',
-    ordinal INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (type_name, name)
-);
-```
-
-**Indexes:** `type_name`
-
-### `_schema_directives`
-
-Stores custom directive definitions.
-
-```sql
-CREATE TABLE _schema_directives (
-    name VARCHAR NOT NULL PRIMARY KEY,
-    description VARCHAR NOT NULL DEFAULT '',
-    locations VARCHAR NOT NULL DEFAULT '',
-    is_repeatable BOOLEAN NOT NULL DEFAULT FALSE,
-    arguments VARCHAR NOT NULL DEFAULT '[]'
-);
-```
-
-### `_schema_modules`
-
-Stores module definitions.
-
-```sql
-CREATE TABLE _schema_modules (
-    name VARCHAR NOT NULL PRIMARY KEY,
-    description VARCHAR NOT NULL DEFAULT '',
-    long_description VARCHAR NOT NULL DEFAULT '',
-    query_root VARCHAR,
-    mutation_root VARCHAR,
-    function_root VARCHAR,
-    mut_function_root VARCHAR,
-    is_summarized BOOLEAN NOT NULL DEFAULT FALSE,
-    disabled BOOLEAN NOT NULL DEFAULT FALSE,
-    vec FLOAT[<vector_size>]
-);
-```
+:::
 
 ### `_schema_settings`
 
@@ -1125,11 +924,15 @@ CREATE TABLE _cluster_nodes (
 );
 ```
 
-### Other Internal Tables
+### CoreDB version and migrations
 
-| Table | Description |
-|-------|-------------|
-| `_schema_catalog_dependencies` | Tracks catalog-to-catalog dependencies (PK: `catalog_name`, `depends_on`) |
-| `_schema_data_objects` | Stores data object metadata (PK: `name`) with `filter_type_name` and `args_type_name` |
-| `_schema_data_object_queries` | Stores query fields for data objects (PK: `name`, `object_name`) |
-| `_schema_module_type_catalogs` | Module-type-catalog associations (PK: `type_name`, `catalog_name`) |
+The core database carries its own version in a one-row `version` table. The current version is **`0.0.20`**, and the engine compares it **for equality** at startup — a database at any other version is refused, in either direction. An engine upgrade therefore requires migrating the core database first.
+
+A **new** database is created at the current version directly, so a fresh install needs no migration step.
+
+For an **existing** database:
+
+- The [`ghcr.io/hugr-lab/automigrate` image](/docs/deployment/container#1-automigrate-image-recommended) applies pending migrations on startup — the recommended path, and the reason most deployments never run a migration by hand.
+- The standalone `migrate` binary from the [`hugr`](https://github.com/hugr-lab/hugr) repository does the same job out of band: `migrate -core-db <path-or-postgres-url> -path ./migrations`.
+
+Migrations support both CoreDB backends (embedded DuckDB and PostgreSQL). **Back the core database up first** — it holds curation, permissions and API keys, none of which can be regenerated from a data source.
