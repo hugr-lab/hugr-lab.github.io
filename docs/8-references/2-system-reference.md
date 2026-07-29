@@ -701,7 +701,7 @@ Returns: `NodeVersion!` with fields `version: String!` and `build_date: String!`
 
 ## Logical-Model Introspection (Meta Queries)
 
-Four meta queries expose hugr's logical data model (module tree, data objects with relations, functions) beside the standard `__schema`/`__type` introspection. They are resolved on the metadata path — never planned or executed as data queries — and respect the same role-based visibility rules as `__schema` (hidden elements are absent everywhere, disabled elements stay visible). Unknown names resolve to `null`, never an error. See [GraphQL API — Logical Model Introspection](/docs/querying/graphql#logical-model-introspection-_catalog) for usage examples.
+A family of meta queries exposes hugr's logical data model (module tree, data objects with relations, functions, data sources) beside the standard `__schema`/`__type` introspection. They are resolved on the metadata path — never planned or executed as data queries — and respect the same role-based visibility rules as `__schema` (hidden elements are absent everywhere, disabled elements stay visible). Unknown names resolve to `null`, never an error. See [GraphQL API — Logical Model Introspection](/docs/querying/graphql#logical-model-introspection-_catalog) for usage examples.
 
 ### Meta Queries
 
@@ -711,6 +711,8 @@ Four meta queries expose hugr's logical data model (module tree, data objects wi
 | `_module(name: String!)` | `_Module` | Module by full dotted name; `""` = root module |
 | `_dataObject(name: String!)` | `_DataObject` | Data object by GraphQL type name; `null` for non-data-object types |
 | `_function(module: String!, name: String!)` | `_Function` | Callable member (function/mutation/subscription); `module: ""` = root-level functions |
+| `_dataSources` | `[_DataSource!]` | The attached data sources that contribute anything visible to the caller |
+| `_dataSource(name: String!)` | `_DataSource` | Data source by name; `null` when absent, inactive, or contributing nothing visible |
 | `_types(scope: _TypeScope = SOURCE)` | `[__Type!]` | Logical-model type definitions: `SOURCE` — residual base types defined by data sources (structs, inputs, enums; excludes data objects, module roots and generated helper types); `SYSTEM` — engine-defined types. Compiler-derived types belong to neither scope |
 
 ### `_Module`
@@ -725,6 +727,18 @@ Four meta queries expose hugr's logical data model (module tree, data objects wi
 | `dataObjects` | `[_DataObject!]` | Member data objects (root: objects without `@module`) |
 | `functions` | `[_Function!]` | All callable members, including subscriptions |
 | `queryType` / `mutationType` / `subscriptionType` / `functionType` / `mutationFunctionType` | `__Type` | The module's generated root types (root module: `Query`/`Mutation`/`Subscription`/`Function`/`MutationFunction`); `null` when absent |
+
+### `_DataSource`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `String!` | Data source name (the `@catalog` name) |
+| `engine` | `String` | The source's engine type string |
+| `description` / `longDescription` | `String` | Descriptions |
+| `readOnly` | `Boolean!` | Mutations are not generated for this source |
+| `asModule` | `Boolean!` | The source is exposed as a module of its own |
+| `isExtension` | `Boolean!` | The source extends other sources' objects |
+| `modules` | `[String!]!` | Modules this source places members in; `""` is the root module |
 
 ### `_DataObject`
 
@@ -781,7 +795,7 @@ Relation SQL (`@join(sql:)` and similar) is never exposed.
 | `_RelationDirection` | `FORWARD`, `BACK` |
 | `_RelationKind` | `FK`, `M2M`, `JOIN` |
 
-All meta-types resolve through standard introspection (`__type(name: "_Module")`), and the four root queries are ordinary system fields of `Query` (single-underscore names, like `_join` and `jq`) visible in `__schema` output — GraphiQL autocomplete and code generators work with them out of the box. GraphQL reserves double-underscore names for the built-in introspection system, which is why the family uses a single underscore.
+All meta-types resolve through standard introspection (`__type(name: "_Module")`), and the meta root queries are ordinary system fields of `Query` (single-underscore names, like `_join` and `jq`) visible in `__schema` output — GraphiQL autocomplete and code generators work with them out of the box. GraphQL reserves double-underscore names for the built-in introspection system, which is why the family uses a single underscore.
 
 ---
 
