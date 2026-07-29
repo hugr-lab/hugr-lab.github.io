@@ -38,9 +38,9 @@ For each data object, Hugr automatically generates:
 - `update_<object_name>` - Update existing records
 - `delete_<object_name>` - Delete records
 
-## Schema Compilation
+## Schema Generation
 
-During compilation, Hugr enhances data objects with:
+When the GraphQL surface is generated from a stored data object, Hugr enhances it with:
 - Additional calculated fields for certain data types
 - Subquery fields for related objects
 - Aggregation and grouping capabilities for related data

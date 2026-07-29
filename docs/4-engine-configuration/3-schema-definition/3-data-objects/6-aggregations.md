@@ -30,31 +30,34 @@ query {
 
 ### Available Aggregation Functions
 
-**Numeric fields (Int, Float, BigInt):**
-- `count` - Count of non-null values
-- `sum` - Sum of values
-- `avg` - Average value
-- `min` - Minimum value
-- `max` - Maximum value
-- `stddev` - Standard deviation
-- `variance` - Variance
+The set of functions is fixed per scalar type — a field offers exactly what its
+type declares, and nothing else. `_rows_count` is not a field function: it is a
+member of the aggregation object itself and counts rows (`COUNT(*)`).
 
-**String fields:**
-- `count` - Count of non-null values
-- `min` - Alphabetically first value
-- `max` - Alphabetically last value
-- `string_agg(separator: String!)` - Concatenate with separator
-- `list(distinct: Boolean)` - Array of values
+:::warning `count` counts DISTINCT values
 
-**Boolean fields:**
-- `count` - Count of non-null values
-- `bool_and` - Logical AND of all values
-- `bool_or` - Logical OR of all values
+`count` on a field compiles to `COUNT(DISTINCT field)`, and it takes no
+arguments — there is no `count(distinct: ...)`. For the plain number of rows
+use `_rows_count`. The `distinct` argument exists only on `list` and
+`string_agg`.
 
-**Date/Timestamp fields:**
-- `count` - Count of non-null values
-- `min` - Earliest date/time
-- `max` - Latest date/time
+:::
+
+| Field type | Functions |
+|------------|-----------|
+| `Int`, `BigInt`, `Float` | `count`, `sum`, `avg`, `min`, `max`, `list(distinct: Boolean = false)`, `any`, `last` |
+| `String` | `count`, `string_agg(sep: String!, distinct: Boolean = false)`, `list(distinct: Boolean = false)`, `any`, `last` |
+| `Boolean` | `count`, `bool_and`, `bool_or`, `list(distinct: Boolean = false)`, `any`, `last` |
+| `Date`, `DateTime`, `Timestamp` | `count`, `min`, `max`, `list(distinct: Boolean = false)`, `any`, `last` |
+| `Geometry` | `count`, `list(distinct: Boolean = false)`, `any`, `last`, `intersection`, `union`, `extent` |
+| `JSON` | see [JSON Field Aggregation](#json-field-aggregation) |
+
+`any` returns an arbitrary value from the group, `last` the value of the last
+row in the group. There is no `stddev`, no `variance` and no `first`.
+
+Note that `String` has **no** `min` / `max`, and the date-like types have no
+`sum` / `avg` — the aggregation object simply does not declare those fields, so
+asking for them is a validation error, not an empty result.
 
 ## Filtered Aggregation
 
@@ -149,18 +152,22 @@ query {
 }
 ```
 
-Available time buckets:
-- `minute`
-- `hour`
-- `day`
-- `week`
-- `month`
-- `quarter`
-- `year`
+Available time buckets (`TimeBucket` enum): `minute`, `hour`, `day`, `week`,
+`month`, `quarter`, `year`.
+
+`bucket` is available on `Timestamp`, `DateTime` and `Date` fields. On a `Date`
+field the truncated value stays a `Date` — sub-day buckets (`minute`, `hour`)
+are meaningless there and truncate to the day.
+
+The companion `_<field>_part(extract: ...)` extra field extracts a part as a
+`BigInt` instead of truncating; its `TimeExtract` enum is wider than
+`TimeBucket` (`epoch`, `doy`, `dow`, `iso_dow`, …), and `extract_divide: Int`
+divides the extracted value.
 
 ### Custom Intervals
 
-Use custom time intervals:
+Use custom time intervals. `bucket_interval` is declared on `Timestamp` and
+`DateTime` fields only — a `Date` field takes `bucket` alone:
 
 ```graphql
 query {
@@ -240,16 +247,29 @@ query {
 
 ## JSON Field Aggregation
 
+A `JSON` field carries every function, each taking a JSON path:
+
+| Function | Path argument |
+|----------|---------------|
+| `count`, `list`, `any`, `last` | `path: String` — optional; without it the whole value is aggregated |
+| `sum`, `avg`, `min`, `max` (return `Float`) | `path: String!` |
+| `string_agg(sep: String!, distinct: Boolean = false)` | `path: String!` |
+| `bool_and`, `bool_or` | `path: String!` |
+
+The path is a **dotted key path** relative to the field
+(`"user_id"`, `"details.category"`) — not a JSONPath expression, so no leading
+`$.`.
+
 Aggregate data within JSON fields:
 
 ```graphql
 query {
   events_aggregation {
     metadata {
-      count(path: "$.user_id")
-      sum(path: "$.score")
-      avg(path: "$.duration")
-      list(path: "$.tags", distinct: true)
+      count(path: "user_id")
+      sum(path: "score")
+      avg(path: "duration")
+      list(path: "tags", distinct: true)
     }
   }
 }
@@ -273,7 +293,20 @@ query {
 
 ## Sub-aggregations
 
-For aggregated fields, apply additional aggregation functions:
+For aggregated fields, apply additional aggregation functions. The sub-level is
+narrower than the top level — it exposes only the functions that make sense over
+an already-aggregated value:
+
+| Field type | Sub-aggregation functions |
+|------------|---------------------------|
+| `Int`, `BigInt`, `Float` | `count`, `sum`, `avg`, `min`, `max` |
+| `String` | `count`, `string_agg` |
+| `Boolean` | `count`, `bool_and`, `bool_or` |
+| `Date`, `DateTime`, `Timestamp` | `count`, `min`, `max` |
+| `Geometry` | `count`, `intersection`, `union`, `extent` |
+
+`count` always sub-aggregates as a `BigIntAggregation`, so `count { sum }` (the
+total of the per-group distinct counts) is available for every type.
 
 ```graphql
 query {

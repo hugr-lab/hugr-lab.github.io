@@ -9,7 +9,7 @@ keywords: [mcp, ai, llm, model-context-protocol, semantic-search, embeddings, mu
 
 Hugr exposes a [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) endpoint that enables AI assistants to query and explore the data graph. The endpoint uses the Streamable HTTP transport and is available at `/mcp`.
 
-Through MCP, AI clients can discover modules, inspect schemas, validate queries, and execute GraphQL — all through structured tool calls rather than free-form prompting.
+Through MCP, AI clients can explore the catalog, inspect schemas, validate queries, and execute GraphQL — all through structured tool calls rather than free-form prompting.
 
 ## Enabling MCP
 
@@ -29,7 +29,7 @@ For embedding-based semantic search across schema descriptions, configure an emb
 | `EMBEDDER_URL` | URL of the embedding service (e.g. an OpenAI-compatible endpoint) | — |
 | `EMBEDDER_VECTOR_SIZE` | Embedding vector dimensions (must match the model output) | — |
 
-When an embedder is configured, all schema descriptions are indexed as vectors, and discovery tools rank results by semantic relevance.
+When an embedder is configured, schema descriptions are indexed as vectors and [`catalog-search`](#catalog-search) ranks results by semantic relevance. Without one the endpoint still works: search falls back to substring matching and says so, returning `lexical: true` in the result.
 
 ## Authentication
 
@@ -121,173 +121,172 @@ https://your-hugr-instance.example.com/mcp
 
 ## Tools Reference
 
-The MCP server exposes 14 tools organized into three categories.
+The MCP server exposes 12 tools in two families plus the data tools.
 
-Discovery and schema tools follow a **list / describe split**: a `search_*` / `type_fields` tool returns a lean candidate set (identity + classification + the handles to drill in), and the matching `describe_*` tool returns the full detail (arguments, descriptions, fields) for the specific items you name. This keeps result payloads small — call `describe_*` only for the few items you will actually use.
+**`catalog-*` is the logical model** — the modules, data sources, tables, views and functions this deployment actually holds, under their curated names and descriptions. Use it when you are looking for data.
 
-### Discovery Tools
+**`schema-*` is the generated GraphQL schema** — filter inputs, aggregation types, mutation inputs, module root types. Use it when you are writing the query, or when you are holding a bare type name from an error message and need to know what it is.
 
-Tools for finding modules, data objects, functions, and data sources via natural-language semantic search.
+Both families follow a **list / describe split**: a list or search call returns a lean candidate set, and a describe call returns the full detail for the specific items you name. Every list is paginated with the same envelope — `{ items, total, limit, offset, has_more }`, default `limit` 50, maximum 200 — and `total` counts only what the caller is permitted to see.
 
-#### `discovery-search_modules`
+### Catalog Tools
 
-Search modules by natural language. Returns top-K modules ranked by semantic relevance. Use as the **first step** to find which module contains the data you need.
+#### `catalog-search`
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `query` | String | Yes | — | Natural language search query |
-| `top_k` | Number | No | 5 | Number of results (1–50) |
-| `min_score` | Number | No | 0.3 | Minimum relevance score (0–1) |
-
-**Returns:** `{ total, returned, items: [{ name, description, score }] }`
-
-#### `discovery-search_module_data_objects`
-
-Search tables and views within a module — a lean candidate list. Each data object has four query fields: `<name>`, `<name>_by_pk`, `<name>_aggregation`, `<name>_bucket_aggregation`.
+Find things by **meaning** when you know what you want but not what this deployment calls it. Searches modules, data sources, data objects, functions **and fields** at once.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `module` | String | Yes | — | Module name to search within |
-| `query` | String | Yes | — | Natural language query |
-| `top_k` | Number | No | 5 | Number of results (1–50) |
-| `min_score` | Number | No | 0.3 | Minimum relevance score (0–1) |
-| `include_sub_modules` | Boolean | No | true | Include sub-module data objects |
+| `query` | String | Yes | — | Natural-language description of the data you are looking for |
+| `kinds` | [String] | No | all | Restrict to `module`, `data_source`, `data_object`, `function`, `field` |
+| `field_kinds` | [String] | No | all | For field hits: `column`, `relation`, `extra` |
+| `module` | String | No | — | Restrict to this module's subtree. A field hit is scoped by the module of the data object that owns it |
+| `limit` | Number | No | 50 | Page size (1–200) |
+| `offset` | Number | No | 0 | Hits to skip |
+| `min_score` | Number | No | 0 | Drop hits below this score (0–1) |
 
-**Returns:** `{ total, returned, items: [{ name, object_type, parameterized, has_geometry, module, catalog, description, fields_count, queries: [{ name, query_type, return_type }], score }] }`
+**Returns:** `{ items: [{ kind, name, module, data_source, description, score, object, field_kind, hugr_type, ref_object, next_call }], limit, offset, has_more, filtered_out, lexical, lexical_reason }`
 
-- `object_type` — `table` or `view`.
-- `parameterized` — `true` when the view takes query parameters (a parameterized view). Get the parameter names/types from `discovery-describe_data_objects`.
-- `has_geometry` — the object has at least one geometry field.
-- `catalog` — the data source the object belongs to.
-- `queries[].return_type` — the GraphQL type the query returns; call `schema-type_fields` on it for the result fields.
+- `next_call` — the exact tool to run next for that hit.
+- `filtered_out` — candidates dropped because the caller may not see them. Non-zero distinguishes "nothing matches" from "nothing you may see matches".
+- `lexical` — `true` when there is no vector index and ranking fell back to substring matching; `lexical_reason` says why.
+- Field hits carry `object` (the data object the field belongs to) and `field_kind`. A `relation` field is a **path**: `ref_object` names the object it navigates to.
+
+#### `catalog-list`
+
+Enumerate what exists — the complete map rather than the relevant few.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `kind` | String | Yes | — | `module`, `data_source`, `data_object` or `function` |
+| `module` | String | No | `""` (all) | Restrict to this module's subtree, sub-modules included. Rejected for `kind: data_source` — a source contributes to several modules rather than belonging to one |
+| `prefix` | String | No | — | Case-insensitive name prefix filter |
+| `limit` | Number | No | 50 | Page size (1–200) |
+| `offset` | Number | No | 0 | Items to skip |
+
+**Returns:** `{ items: [{ kind, name, type, module, data_source, description, ... }], total, limit, offset, has_more }`
+
+Per kind, each item adds:
+
+- `module` — a **flat** list of dotted paths (`sales`, `sales.reports`; `""` is the root), with `data_objects`, `functions` and `submodules` counts. The dots are GraphQL nesting: `query { sales { reports { … } } }`.
+- `data_source` — `read_only`, `as_module`, `is_extension` and `modules` (the modules the source contributes to). `read_only: null` means the catalog storage does not record it — **not** that mutations are allowed.
+- `data_object` — `name` is the GraphQL **type** name, `module` is where to nest the query.
+- `function` — `type` is `FUNCTION` (query), `MUTATION` or `SUBSCRIPTION`.
+
+#### `catalog-describe`
+
+Describe exact names you already have — this is where you learn how to **call** them. Batched: pass every name you care about in one call.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `kind` | String | Yes | — | `module`, `data_source`, `data_object` or `function` |
+| `names` | [String] | Yes | — | Exact names, copied verbatim from a previous result |
+| `module` | String | No | — | Owning module — **required** for `kind: "function"`, whose identity is (module, name) |
+| `relations_limit` | Number | No | 50 | Relations per described object (1–200) |
+| `relations_offset` | Number | No | 0 | Relations to skip, per described object |
+
+**Returns:** `{ items: [{ kind, name, description, long_description, module, data_source, … }], not_found }`
+
+For a data object the record carries:
+
+- `queries[]` — **the query field names to write in GraphQL**, each with `type` (`SELECT`, `SELECT_ONE`, `AGGREGATION`, `BUCKET_AGGREGATION`), `root_type_name` and `args`. An object may have several `SELECT_ONE` queries — one per primary or unique key; the arguments say which.
+- `primary_key`, `properties` (`is_cube`, `is_m2m`, `is_hypertable`, `soft_delete`, `has_vectors`), and `args` for a parameterized view.
+- `relations[]` — `direction` (`FORWARD` / `BACK`), `kind` (`FK` / `M2M` / `JOIN`) and `field_name`, the field on this object that traverses the edge. Paginated via `relations_total` / `relations_has_more`.
+- `fields_count` — the fields themselves come from [`catalog-object_fields`](#catalog-object_fields).
+
+For a function: `args`, `returns` and `is_table` (true when it returns a row set you select fields from).
 
 :::tip
-Use the **query field names** from the `queries` array to build GraphQL, not the type name; the `module` is required to nest the query. Aggregation and bucket aggregation are data object queries, not functions.
+An object's **type** name and its **query** name differ: the type carries the data source prefix (`shop_orders`), the query does not (`orders`, inside module `shop`). Copy from `queries[]` verbatim. Aggregations are data object queries, not functions.
 :::
 
-#### `discovery-describe_data_objects`
+Names that do not exist and names the caller may not see both come back in `not_found` — the tool cannot tell you which.
 
-Return the full record for **exact-name** data objects — the describe half of `discovery-search_module_data_objects`. Deterministic (no semantic scoring), **batched**: pass every type name you already know. Type names are globally unique, so no module hint is needed. Beyond the search shape, each query adds its `query_root` (the type hosting the query field) and, for a parameterized view, the `args` argument with its parameter fields.
+#### `catalog-object_fields`
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `names` | [String] | Yes | — | Type names with the catalog prefix (e.g. `prefix_tablename`), as listed in the search result's `name`. |
-
-**Returns:** `{ total, returned, items: [{ name, object_type, parameterized, has_geometry, module, catalog, description, fields_count, queries: [{ name, query_type, return_type, query_root, arguments: [{ name, type, required, fields }] }], score }] }`
-
-The `arguments` carry only the parameterized-view `args` parameter (its `fields` are the view's parameters); the standard relation arguments (`filter`, `order_by`, `limit`, `offset`, `distinct_on`) are universal and omitted.
-
-#### `discovery-search_module_functions`
-
-Search custom functions in a module — a lean candidate list. Functions are separate from data objects — they are custom computed endpoints called via `query { function { module { func_name(args) { fields } } } }`.
+List the fields of a **data object** — what you can actually select.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `module` | String | Yes | — | Module name to search within |
-| `query` | String | Yes | — | Natural language query |
-| `top_k` | Number | No | 10 | Number of results (1–50) |
-| `include_mutations` | Boolean | No | false | Include mutation functions |
-| `include_sub_modules` | Boolean | No | true | Include sub-module functions |
+| `object` | String | Yes | — | The data object's GraphQL type name |
+| `relevance_query` | String | No | — | Rank fields by relevance to this description instead of schema order |
+| `prefix` | String | No | — | Case-insensitive name prefix filter |
+| `include_description` | Boolean | No | true | Include field descriptions |
+| `limit` | Number | No | 50 | Page size (1–200) |
+| `offset` | Number | No | 0 | Fields to skip |
 
-**Returns:** `{ total, returned, items: [{ name, module, description, is_mutation, is_list, return_type, arguments_count, score }] }`
+**Returns:** `{ items: [{ name, type, field_kind, ref_object, is_pk, args_count, description }], total, limit, offset, has_more }`
 
-#### `discovery-describe_functions`
+`field_kind` says what each field **is**, and they are not all columns:
 
-Return the full signature — arguments (name, type, required, description) plus the return type with its top fields — for **named functions** in a module. The describe half of `discovery-search_module_functions`. **Batched**; function names are not globally unique, so a `module` is required (sub-modules are searched too) and both query and mutation functions are matched.
+- `column` — a stored value.
+- `extra` — computed (timestamp part extraction, geometry measurement, vector distance, JSON struct extraction). These usually take arguments.
+- `relation` — a **path**; `ref_object` names the object it leads to, so selecting the field is how you traverse there.
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `module` | String | Yes | — | Module the functions live in (sub-modules included) |
-| `names` | [String] | Yes | — | Function field names, as listed in the search result's `name` |
+`args_count` flags fields that take arguments — call [`schema-field_args`](#schema-field_args) for the few you will parameterise. Fields marked `@exclude_mcp` by the operator are never listed.
 
-**Returns:** `{ total, returned, items: [{ name, module, description, is_mutation, is_list, arguments: [{ name, type, required, description }], returns: { type_name, is_list, fields: [{ name, type }] } }] }`
-
-#### `discovery-search_data_sources`
-
-Search data sources by natural language. Returns sources with their type (`duckdb`, `postgres`, `http`) and read-only status.
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `query` | String | Yes | — | Natural language search query |
-| `top_k` | Number | No | 5 | Number of results (1–50) |
-| `min_score` | Number | No | 0.3 | Minimum relevance score (0–1) |
-
-**Returns:** `{ total, returned, items: [{ name, description, type, read_only, as_module, score }] }`
-
-#### `discovery-field_values`
-
-Return top distinct values and optional statistics for a scalar field. Use to understand data distribution before building filters.
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `object_name` | String | Yes | — | Data object type name (e.g. `prefix_tablename`) |
-| `field_name` | String | Yes | — | Field name to analyze |
-| `limit` | Number | No | 10 | Number of top values (1–100) |
-| `calculate_stats` | Boolean | No | false | Include min/max/avg/distinct_count (numeric/timestamp only) |
-| `filter` | Object | No | — | Optional filter to narrow data before aggregation |
-
-**Returns:** `{ stats: { min, max, avg, distinct_count }, values: [{ value, count }] }`
+:::tip
+On a wide table (100+ columns) the default page is a head, not an inventory. Either pass `relevance_query` to rank by meaning, or paginate until `has_more` is false — never conclude that a field is missing from one bare call.
+:::
 
 ### Schema Tools
 
-Tools for inspecting types, fields, and enums in the GraphQL schema.
+#### `schema-describe_types`
 
-#### `schema-type_info`
-
-Return high-level metadata for a type: kind, module, catalog, field count, geometry/argument presence.
+Identify bare **type** names — the ones that turn up in an error message, in a field's type, or in an argument like `shop_orders_filter`. Batched.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `type_name` | String | Yes | — | Full type name (e.g. `prefix_tablename`) |
-| `with_description` | Boolean | No | true | Include short description |
-| `with_long_description` | Boolean | No | false | Include long description |
+| `names` | [String] | Yes | — | Type names, copied verbatim |
 
-**Returns:** `{ name, kind, module, hugr_type, catalog, fields_total, has_geometry_field, has_field_with_arguments, description, long_description }`
+**Returns:** `{ items: [{ name, kind, description, fields_count, input_fields_count, enum_values_count, logical_kind, module, derived_from, role, next_call }], not_found }`
+
+This is also the router between the two families:
+
+- The name is a data object → `logical_kind: "data_object"` and `next_call` points at `catalog-describe`.
+- The name was **generated** from one (a filter, an aggregation, an insert/update input) → `derived_from` names the base object and `role` says what the type is for, so you learn which object you are actually filtering.
+- The name is a module root type (`_module_<mod>_query` and friends) → `logical_kind: "module_root"`.
 
 #### `schema-type_fields`
 
-List the fields of a type — a lean field list, no per-field argument trees. **Must call before building any query** — field names cannot be guessed.
+List the members of **any** generated type — a filter input, an aggregation, a mutation input, a module root. For a data object use [`catalog-object_fields`](#catalog-object_fields) instead, which also ranks by meaning.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `type_name` | String | Yes | — | Full type name (e.g. `prefix_tablename`) |
-| `relevance_query` | String | No | — | Rank fields by semantic relevance to this query |
-| `limit` | Number | No | 50 | Max fields to return (1–200) |
-| `offset` | Number | No | 0 | Pagination offset |
-| `include_description` | Boolean | No | false | Include field descriptions |
+| `type_name` | String | Yes | — | Full type name (not a module name) |
+| `prefix` | String | No | — | Case-insensitive name prefix filter |
+| `include_description` | Boolean | No | true | Include descriptions |
+| `limit` | Number | No | 50 | Page size (1–200) |
+| `offset` | Number | No | 0 | Members to skip |
 
-**Returns:** `{ total, returned, items: [{ name, field_type, hugr_type, is_list, description, arguments_count, score }] }`
+**Returns:** `{ items: [{ name, type, args_count, description }], total, limit, offset, has_more }`
 
-The `hugr_type` field indicates the kind of field:
-- Empty string — scalar field
-- `select` — relation to another type
-- `aggregate` — aggregation of related records
-- `bucket_agg` — bucket (GROUP BY) aggregation of related records
-- `extra_field` — auto-generated field (e.g. timestamp part extraction)
-- `function` — function field
+Returns fields for an `OBJECT` and input fields for an `INPUT_OBJECT` — the same question either way.
 
-`hugr_type` already classifies a field's argument profile, and `arguments_count` flags which fields take arguments — so the standard relation/aggregate arguments need no lookup. When you need the **exact** arguments of specific fields, call `schema-describe_fields`.
+#### `schema-field_args`
 
-#### `schema-describe_fields`
-
-Return the full detail — arguments (name, type, required, description) plus description — for **specific named fields** of a type. The describe half of `schema-type_fields`. Call this after `type_fields`, once you know which field(s) you will use and need their exact arguments: filter inputs, aggregation/bucket arguments, function parameters, or a parameterized view's query parameters. Scope to the few fields you actually need — this stays small even for the wide operator types (`_join`, `_spatial`).
+Return the **argument trees** of the few named fields of a type.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `type_name` | String | Yes | — | Full type name (e.g. `prefix_tablename`) |
-| `fields` | [String] | Yes | — | Field names to describe (from `schema-type_fields` output) |
+| `type_name` | String | Yes | — | Full type name |
+| `fields` | [String] | Yes | — | Field names, copied from a field listing |
 
-**Returns:** `{ total, returned, items: [{ name, field_type, hugr_type, is_list, description, arguments_count, arguments: [{ name, type, required, description }] }] }`
+**Returns:** `{ type_name, items: [{ field, args: [{ name, type, description }] }], not_found }`
+
+Kept separate from the field lists on purpose: a field's own line is about ten tokens, its argument tree one to two orders of magnitude more — a relation field carries a whole filter input for the far object plus `order_by` / `limit` / `offset`, and `_join` carries the widest argument set in the schema. Name only the fields you will actually parameterise.
 
 #### `schema-enum_values`
 
-Return enum values for a GraphQL enum type.
+Return the values of a GraphQL enum. Call before writing one into a query — invalid values fail validation.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `type_name` | String | Yes | — | Enum type name |
+| `limit` | Number | No | 50 | Page size (1–200) |
+| `offset` | Number | No | 0 | Values to skip |
 
-**Returns:** `{ name, description, values: [{ name, description }] }`
+**Returns:** `{ items: [{ name, description, deprecated }], total, limit, offset, has_more }`
 
 Common built-in enums:
 - `OrderDirection` — `ASC`, `DESC`
@@ -296,7 +295,23 @@ Common built-in enums:
 
 ### Data Tools
 
-Tools for validating, executing, and mutating data via GraphQL.
+Tools for exploring values and for validating, executing, and mutating data via GraphQL.
+
+#### `data-field_values`
+
+Show what is actually **in** a field: its most common values with row counts, and optionally min/max/avg. Use before writing a filter, so you match values that exist instead of guessing their spelling or range.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `object_name` | String | Yes | — | Data object type name (e.g. `prefix_tablename`) |
+| `field_name` | String | Yes | — | Field to summarise |
+| `limit` | Number | No | 10 | Distinct values to return (1–100) |
+| `calculate_stats` | Boolean | No | false | Also compute min/max/avg where the type allows |
+| `filter` | Object | No | — | Scope the summary, same shape as the object's query filter |
+
+**Returns:** `{ object, field, values: [{ value, rows }], stats }`
+
+Unlike the catalog and schema tools, this one **runs a query** over the data under the caller's permissions — it is not schema introspection.
 
 #### `data-validate_graphql_query`
 
@@ -349,7 +364,7 @@ Mutations mirror queries — modules are nested fields:
   mutation { function { module { <mutation_func>(args) { ... } } } }
   ```
 
-Resolve the exact `insert_`/`update_`/`delete_<Object>` field names, the data-input shape, and the `filter` shape from `discovery-describe_data_objects` / `schema-describe_fields` (or `discovery-describe_functions`) before calling.
+Before calling, resolve the pieces: [`catalog-describe`](#catalog-describe) names the object and its module, [`schema-type_fields`](#schema-type_fields) on the module's mutation root type gives the exact `insert_`/`update_`/`delete_<Object>` field, and `schema-type_fields` on the data input and filter types gives their shape ([`schema-describe_types`](#schema-describe_types) identifies a type name you do not recognise).
 
 ## Resources
 
@@ -377,20 +392,22 @@ The MCP server provides four prompt templates that guide the AI assistant throug
 
 ## Workflow
 
-The MCP tools are designed around a **lazy stepwise introspection** pattern. Rather than loading the entire schema up front, the AI assistant progressively discovers only what it needs:
+The MCP tools are designed around a **lazy stepwise introspection** pattern. Rather than loading the entire schema up front, the AI assistant progressively discovers only what it needs. One rule spans the two families: **`catalog-*` when you are looking for data, `schema-*` when you are writing the query.**
 
 1. **Parse user intent** — identify entities, metrics, filters, and time ranges.
-2. **Find modules** — call `discovery-search_modules` with a natural language query.
-3. **Find data objects** — call `discovery-search_module_data_objects` within the relevant module.
-4. **Inspect fields** — call `schema-type_fields` (a lean field list) with the type name (e.g. `prefix_tablename`) before building any query; then `schema-describe_fields` for the exact arguments of the specific fields you'll parameterise. (Likewise, reach for `discovery-describe_data_objects` / `discovery-describe_functions` when you need the full detail of a named object or function.)
-5. **Explore values** — call `discovery-field_values` to understand data distribution and categories.
+2. **Find what you need** — call `catalog-search` with a natural-language description; it ranks modules, data objects, functions and fields together, and each hit carries a `next_call`. Use `catalog-list` instead when you want the complete map rather than the relevant few.
+3. **Learn how to call it** — call `catalog-describe` with the exact names. For a data object this is where `queries[]` comes from: the query field names to write, plus the primary key, parameterized-view arguments and relations.
+4. **Get the columns** — call `catalog-object_fields` with the type name (e.g. `prefix_tablename`). Pass `relevance_query` on a wide table; call `schema-field_args` for the exact arguments of the few fields you will parameterise.
+5. **Explore values** — call `data-field_values` to understand data distribution and categories.
 6. **Build query** — construct a single comprehensive GraphQL query combining objects, relations, aggregations, and filters with aliases.
 7. **Validate** — call `data-validate_graphql_query` to catch errors before execution.
 8. **Execute** — call `data-inline_graphql_result` with optional jq transforms.
 9. **Present** — reshape results and present tables, charts, or insights.
 
+Holding a bare **type** name instead — from an error, from a field's type, from an argument like `shop_orders_filter`? Start at `schema-describe_types`: it says what the name is and routes you back to the right family.
+
 :::note Mutations
-The workflow above is read-only. To **modify** data, follow the same discovery and inspection steps, then call `data-execute_mutation` instead of `data-inline_graphql_result` (which rejects mutation operations). Mutations run with the caller's permissions.
+The workflow above is read-only. To **modify** data, follow the same exploration and inspection steps, then call `data-execute_mutation` instead of `data-inline_graphql_result` (which rejects mutation operations). Mutations run with the caller's permissions.
 :::
 
 ```
@@ -398,126 +415,121 @@ User question
     |
     v
 +------------------------+
-| search_modules         |  -> Find relevant module(s)
+| catalog-search         |  -> What is relevant? (modules, objects,
++----------+-------------+     functions, FIELDS — ranked by meaning)
+           |                   catalog-list for the complete map
+           v
++------------------------+
+| catalog-describe       |  -> How do I call it? (queries[], relations)
 +----------+-------------+
            |
            v
 +------------------------+
-| search_data_objects    |  -> Find tables/views in module
+| catalog-object_fields  |  -> Which columns? (schema-field_args for
++----------+-------------+     a field's arguments)
+           |
+           v
++------------------------+
+| data-field_values      |  -> Understand data distribution
 +----------+-------------+
            |
            v
 +------------------------+
-| type_fields            |  -> List fields; describe_fields for a field's args
+| data-validate_graphql_query |  -> Check query before running
 +----------+-------------+
            |
            v
 +------------------------+
-| field_values           |  -> Understand data distribution
-+----------+-------------+
-           |
-           v
-+------------------------+
-| validate_graphql       |  -> Check query before running
-+----------+-------------+
-           |
-           v
-+------------------------+
-| inline_graphql         |  -> Execute and get results
+| data-inline_graphql_result  |  -> Execute and get results
 +------------------------+
 ```
 
 ## Schema Descriptions and Embeddings
 
-Hugr maintains descriptions for all schema entities (types, fields, modules, catalogs) in its core database. These descriptions power the semantic search used by discovery tools.
+Hugr maintains descriptions for all schema entities (types, fields, modules, catalogs) in its core database. These descriptions power the semantic search behind `catalog-search`.
 
 ### How Descriptions Work
 
 - Each type, field, module, and catalog can have a **short description** and a **long description**.
 - Descriptions can come from the GraphQL schema definitions (doc strings) or be updated manually.
 - When an embedder service is configured, descriptions are converted to vector embeddings and stored alongside the schema metadata.
-- Discovery tools use these embeddings to rank results by semantic relevance to the user's natural language query.
+- `catalog-search` uses these embeddings to rank results by semantic relevance to the user's natural language query, then filters the ranked candidates down to what the caller is permitted to see.
+
+### What Gets Indexed
+
+Embeddings are computed for the entities the search actually offers: **data sources, modules, data objects, functions**, and **every field of a data object** — including relation and generated fields, since a relation is often the best answer to "where do I get the customer's name".
+
+Not indexed: types that are not data objects (function result types, input types) and their fields, and anything marked [`@exclude_mcp`](/docs/references/directives). A field excluded that way is never embedded, never returned by search, and never listed by `catalog-object_fields`.
 
 ### AI Summarization
 
-Hugr can automatically generate descriptions using AI summarization:
-
-- The `is_summarized` flag tracks whether an entity has been processed by the summarizer.
-- Use `_schema_reset_summarized` to re-trigger summarization for specific entities or all entities.
-- After updating descriptions, call `_schema_reindex` to recompute embeddings.
+Hugr can generate the missing descriptions with an AI summarizer. Generated text lands in the same **curation overlay** as a hand-written one and is never overwritten by a data-source reload, so summarizing is a one-off cost per entity. Which entities still need a pass is tracked by the summarizer itself — the engine stores only the text and its embedding.
 
 ## Manual Schema Updates
 
-You can update schema descriptions through GraphQL mutations. These mutations are available as `MutationFunction` fields:
+Descriptions are curated through the `core.catalog` mutation functions. An **empty** description clears the curation and lets the schema's own doc string show through again. When an embedder is configured, the vector is recomputed on every write — there is no separate reindex step to remember.
 
 ### Update Descriptions
 
 ```graphql
-# Update a type description
+# A data object (table / view / cube)
 mutation {
-  mutation_function {
-    _schema_update_type_desc(
+  function { core { catalog {
+    annotate_data_object(
       name: "prefix_tablename"
       description: "Short description"
-      long_description: "Detailed description of the type and its purpose"
+      long_description: "Detailed description of the object and its purpose"
     ) { success message }
-  }
+  } } }
 }
 
-# Update a field description
+# A field — including a relation navigation field
 mutation {
-  mutation_function {
-    _schema_update_field_desc(
+  function { core { catalog {
+    annotate_field(
       type_name: "prefix_tablename"
       name: "field_name"
       description: "Short description"
       long_description: "Detailed description of the field"
     ) { success message }
-  }
+  } } }
 }
 
-# Update a module description
+# A module
 mutation {
-  mutation_function {
-    _schema_update_module_desc(
+  function { core { catalog {
+    annotate_module(
       name: "module_name"
       description: "Short description"
       long_description: "Detailed description of the module"
     ) { success message }
-  }
+  } } }
 }
 
-# Update a catalog description
+# A data source
 mutation {
-  mutation_function {
-    _schema_update_catalog_desc(
-      name: "catalog_name"
+  function { core { catalog {
+    annotate_data_source(
+      name: "data_source_name"
       description: "Short description"
-      long_description: "Detailed description of the catalog"
+      long_description: "Detailed description of the data source"
     ) { success message }
-  }
+  } } }
 }
 ```
 
-### Re-process Descriptions and Embeddings
+Curating a **logical** entity this way also improves everything the engine derives from it — its filter, aggregation and mutation-input fields. Types and fields that exist only in the generated GraphQL surface have their own `annotate_gql_type` / `annotate_gql_field` / `annotate_gql_argument` functions; the full list is in the [system reference](/docs/references/system-reference#curation-functions).
+
+### Recompute Embeddings
+
+Only needed after an embedder model change — ordinary writes embed as they go:
 
 ```graphql
-# Reset summarized flag so AI re-processes entities
-# scope: "all", "catalog", or "type"
 mutation {
-  mutation_function {
-    _schema_reset_summarized(name: "", scope: "all") {
+  function { core { catalog {
+    reindex_embeddings(name: "", batch_size: 50) {
       success message
     }
-  }
-}
-
-# Recompute embeddings (empty name = all entities)
-mutation {
-  mutation_function {
-    _schema_reindex(name: "", batch_size: 50) {
-      success message
-    }
-  }
+  } } }
 }
 ```

@@ -38,6 +38,9 @@ query {
 - `quarter` - Round down to the quarter
 - `year` - Round down to the year
 
+On a `Date` field the bucketed value stays a `Date` (`"2024-01-01"`), so sub-day
+buckets have no effect there.
+
 #### Example: Sales by Month
 
 ```graphql
@@ -321,7 +324,7 @@ query {
       min(path: "details.score")
       max(path: "details.score")
       # String aggregation
-      string_agg(path: "details.category", separator: ", ")
+      string_agg(path: "details.category", sep: ", ")
       # Boolean aggregation
       bool_and(path: "is_valid")
       bool_or(path: "is_active")

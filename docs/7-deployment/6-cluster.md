@@ -109,18 +109,18 @@ Schema consistency across nodes is maintained through two complementary mechanis
 
 When a schema change occurs on the management node (via `load_source`, `unload_source`, `reload_source`), the management node:
 
-1. Executes the operation locally (compile + attach/detach).
+1. Executes the operation locally: validates the source's schema, writes the resulting logical model to the core database, and attaches or detaches the source.
 2. The catalog manager automatically increments `schema_version` in `_schema_settings`.
 3. Broadcasts the corresponding `handle_source_load` or `handle_source_unload` internal mutation to all active workers in parallel.
 
-Workers receiving the broadcast attach or detach the data source without recompilation — schema compilation is the management node's responsibility.
+Workers receiving the broadcast attach or detach the data source and generate their GraphQL surface from the stored logical model — reading and validating a source's schema is the management node's responsibility.
 
 ### Pull — Workers Poll `schema_version`
 
 Workers periodically poll `schema_version` from the Core Database at `CLUSTER_POLL_INTERVAL` (default: 30s). If the version has changed since the last check, the worker:
 
 1. Invalidates all cached catalogs.
-2. **Reconciles** loaded sources: compares the `_schema_catalogs` table with locally attached sources, loading any missing and unloading any extra.
+2. **Reconciles** loaded sources: compares the sources the management node marks active in `catalog.data_source_meta` with the ones attached locally, loading any missing and unloading any extra.
 
 This pull mechanism ensures recovery from missed broadcasts (e.g., due to transient network issues or a worker restarting after a broadcast was sent).
 

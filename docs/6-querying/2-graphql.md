@@ -292,6 +292,85 @@ query TypeIntrospection {
 }
 ```
 
+### Logical Model Introspection (`_catalog`)
+
+Standard GraphQL introspection exposes the *generated* schema — hundreds of types including filters, aggregations, and mutation inputs. The `_catalog` meta-query family exposes hugr's **logical data model** directly: the module tree, data objects (tables and views) with their relations, and functions — without reverse-engineering generated type names.
+
+Four meta queries are available (resolved like `__schema`/`__type`, never executed as data queries):
+
+| Query | Returns | Purpose |
+|-------|---------|---------|
+| `_catalog` | `_Module` | The root module tree (`name: ""`) |
+| `_module(name: String!)` | `_Module` | Direct module lookup; `""` = root |
+| `_dataObject(name: String!)` | `_DataObject` | Data object by GraphQL type name |
+| `_function(module: String!, name: String!)` | `_Function` | Function/mutation/subscription lookup; `module: ""` = root |
+| `_types(scope: _TypeScope = SOURCE)` | `[__Type!]` | Logical-model type definitions: `SOURCE` — residual base types defined by data sources (structs, inputs, enums; excludes data objects, module roots and generated helper types); `SYSTEM` — engine-defined types |
+
+Unknown names resolve to `null` (never an error).
+
+**Explore the whole model as a tree:**
+
+```graphql
+{
+  _catalog {
+    name                # "" — the root module
+    dataSources
+    modules {
+      name
+      dataObjects { name type description }
+      functions { name type isTable }     # type: FUNCTION | MUTATION | SUBSCRIPTION
+      modules { name }                    # nested submodules
+    }
+    dataObjects { name type }             # root-level objects (no @module)
+  }
+}
+```
+
+**Inspect one data object — properties, keys, arguments, relations:**
+
+```graphql
+{
+  _dataObject(name: "orders") {
+    type                                  # TABLE | VIEW
+    properties { isCube isM2M isHypertable softDelete hasVectors }
+    primaryKey                            # @pk field names
+    args { name type { name } }           # parameterized-view arguments
+    dataSourceName                        # owning data source
+    dataSources                           # owner + sources extending this object
+    relations {
+      name
+      direction                           # FORWARD | BACK
+      kind                                # FK | M2M | JOIN
+      fieldName                           # the field materializing the edge
+      dataObject { name }                 # the far object
+      through { name }                    # M2M junction (null otherwise)
+      sourceKeys
+      destinationKeys
+    }
+  }
+}
+```
+
+Relations show the logical link graph from both ends: `FORWARD`/`FK` for the object's own references, `BACK`/`FK` for objects referencing it, `M2M` with the junction in `through`, and one-directional `JOIN` edges for `@join` fields.
+
+**Module and function lookups:**
+
+```graphql
+{
+  mod: _module(name: "core.cache") {
+    functions { name type }
+    subscriptionType { name }             # per-module generated root types
+  }
+  fn: _function(module: "core", name: "load_data_source") {
+    type isTable args { name } returns { name }
+  }
+}
+```
+
+The meta-types themselves (`_Module`, `_DataObject`, `_DataObjectProperties`, `_Relation`, `_Function` and the enums `_DataObjectType`, `_FunctionType`, `_RelationDirection`, `_RelationKind`) are registered in the schema, so `__type(name: "_Module")` describes them. The four root queries are ordinary system fields of `Query` (single-underscore names, like `_join` and `jq`) — they appear in standard introspection, so GraphiQL autocompletes them and code generators handle them like any other field. GraphQL reserves double-underscore names for the built-in introspection system, which is why the family uses a single underscore.
+
+`_catalog` results respect the same role-based visibility rules as `__schema` (see below): hidden objects disappear from every path — including other objects' `relations` — while disabled ones stay visible; modules left with no visible content are omitted from `modules` listings.
+
 ### Role-Based Schema Visibility
 
 Introspection results respect access control rules defined in the `role_permissions` table. The two flags are independent: `hidden` controls introspection visibility, `disabled` controls query access:
