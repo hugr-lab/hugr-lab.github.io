@@ -29,7 +29,7 @@ For embedding-based semantic search across schema descriptions, configure an emb
 | `EMBEDDER_URL` | URL of the embedding service (e.g. an OpenAI-compatible endpoint) | — |
 | `EMBEDDER_VECTOR_SIZE` | Embedding vector dimensions (must match the model output) | — |
 
-When an embedder is configured, schema descriptions are indexed as vectors and [`catalog-search`](#catalog-search) ranks results by semantic relevance. Without one the endpoint still works: search falls back to substring matching and says so, returning `lexical: true` in the result.
+When an embedder is configured, schema descriptions are indexed as vectors and [`catalog-search`](#catalog-search) ranks results by semantic relevance. Without one the endpoint still works: search falls back to substring matching and says so, returning `lexical: true` in the result. The tool is a thin adapter over the engine's [`_search`](/docs/querying/graphql#searching-the-model-_search) meta query, which is also callable directly over GraphQL.
 
 ## Authentication
 
@@ -149,7 +149,7 @@ Find things by **meaning** when you know what you want but not what this deploym
 
 - `next_call` — the exact tool to run next for that hit.
 - `filtered_out` — candidates dropped because the caller may not see them. Non-zero distinguishes "nothing matches" from "nothing you may see matches".
-- `lexical` — `true` when there is no vector index and ranking fell back to substring matching; `lexical_reason` says why.
+- `lexical` — `true` when there is no vector index and ranking fell back to substring matching; `lexical_reason` says why. Lexical scoring requires **every** word of the query to appear somewhere, so a multi-word query narrows rather than widens — prefer exact terms when this is set. Field hits are ranked on this path too.
 - Field hits carry `object` (the data object the field belongs to) and `field_kind`. A `relation` field is a **path**: `ref_object` names the object it navigates to.
 
 #### `catalog-list`

@@ -701,7 +701,9 @@ Returns: `NodeVersion!` with fields `version: String!` and `build_date: String!`
 
 ## Logical-Model Introspection (Meta Queries)
 
-A family of meta queries exposes hugr's logical data model (module tree, data objects with relations, functions, data sources) beside the standard `__schema`/`__type` introspection. They are resolved on the metadata path — never planned or executed as data queries — and respect the same role-based visibility rules as `__schema` (hidden elements are absent everywhere, disabled elements stay visible). Unknown names resolve to `null`, never an error. See [GraphQL API — Logical Model Introspection](/docs/querying/graphql#logical-model-introspection-_catalog) for usage examples.
+A family of meta queries exposes hugr's logical data model (module tree, data objects with relations, functions, data sources) beside the standard `__schema`/`__type` introspection. They are resolved on the metadata path — never planned or executed as data queries — and what they *return* respects the same role-based visibility rules as `__schema` (hidden elements are absent everywhere, disabled elements stay visible). Unknown names resolve to `null`, never an error.
+
+They are **meta-fields**, like `__schema` and `__typename`, with the two consequences that follow from it. They are not listed in `Query.fields` and their result types are not listed in `__schema.types`, so tooling that reads the schema does not see them (they stay callable, and `__type(name:)` still resolves the meta-types — that is the capability probe). And they sit **outside the role permission rules**: a wildcard permission row (`type_name: "*"`, `field_name: "*"`) does not remove logical-model introspection, nor standard `__schema` introspection, which is governed by the same rule. Only the entry point is exempt — the content is filtered per role as described above, and a **disabled role** is refused everywhere. See [GraphQL API — Logical Model Introspection](/docs/querying/graphql#logical-model-introspection-_catalog) for usage examples.
 
 ### Meta Queries
 
@@ -714,6 +716,56 @@ A family of meta queries exposes hugr's logical data model (module tree, data ob
 | `_dataSources` | `[_DataSource!]` | The attached data sources that contribute anything visible to the caller |
 | `_dataSource(name: String!)` | `_DataSource` | Data source by name; `null` when absent, inactive, or contributing nothing visible |
 | `_types(scope: _TypeScope = SOURCE)` | `[__Type!]` | Logical-model type definitions: `SOURCE` — residual base types defined by data sources (structs, inputs, enums; excludes data objects, module roots and generated helper types); `SYSTEM` — engine-defined types. Compiler-derived types belong to neither scope |
+| `_search(query: String!, …)` | `_SearchResult` | Rank the logical model by relevance to a natural-language description — modules, data sources, data objects, functions and fields |
+
+#### `_search` arguments
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `query` | `String!` | — | Natural-language description of what you are looking for |
+| `kinds` | `[_SearchKind!]` | all | `MODULE`, `DATA_SOURCE`, `DATA_OBJECT`, `FUNCTION`, `FIELD` |
+| `module` | `String` | `""` | Restrict to this module's SUBTREE. A field hit takes the module of the object that owns it. `DATA_SOURCE` hits ignore it — a source contributes to several modules |
+| `object` | `String` | — | Restrict `FIELD` hits to one data object |
+| `limit` | `Int` | 50 | Page size, clamped to 1–200 |
+| `offset` | `Int` | 0 | Hits to skip |
+| `minScore` | `Float` | — | Drop hits scoring below this (0–1) |
+| `includeMcpExcluded` | `Boolean` | `true` | Include fields marked `@exclude_mcp` — an AI-tooling policy, not an access rule |
+
+#### `_SearchResult`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `items` | `[_SearchHit!]!` | The page, ordered by score |
+| `limit` / `offset` | `Int!` | The page actually served |
+| `hasMore` | `Boolean!` | More hits past this page, or candidates left unverified |
+| `filteredOut` | `Int!` | Candidates dropped because the caller may not see them — non-zero distinguishes "nothing matches" from "nothing you may see matches" |
+| `lexical` | `Boolean!` | `true` when ranking fell back to substring matching |
+| `lexicalReason` | `String` | Why the vector index was unusable; `null` when it was used |
+
+There is deliberately **no total**: the permission filter runs after ranking, so an honest total would mean scanning the whole index on every query.
+
+#### `_SearchHit`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `kind` | `_SearchKind!` | What the hit is |
+| `name` | `String!` | Module: dotted path. Data object: GraphQL type name. Function: field name in its module. Field: field name on its object |
+| `moduleName` | `String!` | Owning module — required to nest the query; `""` for `DATA_SOURCE` |
+| `dataSourceName` | `String` | Owning data source; `null` for `MODULE` |
+| `description` | `String` | Curated description where one exists, the source's otherwise |
+| `score` | `Float!` | 0–1, higher is better. Lexical scores are coarse |
+| `objectName` | `String` | `FIELD` only: the data object the field belongs to |
+| `type` | `String` | `FIELD` only: the field's GraphQL type, SDL spelling (`String!`, `[Int]`) |
+| `hugrType` | `String` | `FIELD` only: what the field IS — same vocabulary as `__Field.hugr_type` |
+| `refObjectName` | `String` | `FIELD` only: for a declared `@join`, the data object it navigates to |
+| `module` / `dataObject` / `function` / `dataSource` | meta types | Drill-down through the ordinary `_catalog` resolvers — exactly one is non-null, matching `kind`. Costs nothing unless selected |
+| `field` | `__Field` | `FIELD` only: the field definition |
+
+**Ranking and its fallback.** With an embedder the ranking is semantic, over the annotation vectors the engine seeds and `reindex_embeddings` refreshes. Without one it falls back to substring matching and reports it (`lexical`, `lexicalReason`) — a silent fallback would be indistinguishable from a broken ranking query. Lexical scoring requires **every** word of the query to appear, so a multi-word query narrows rather than widens.
+
+**What a `FIELD` hit can be.** Only four `hugrType` values reach a hit: `column` (a stored value), `calculated` (`@sql`), `function` (`@function_call` or a table-function join) and `select` (a declared `@join`, with `refObjectName` set). Relation navigation fields and `@extra_field` companions are generated when the GraphQL type is built rather than stored, so they are never search hits.
+
+**Permissions.** Ranking reads the annotation index with full access — the index lives in the `core.entity_*` views, and a role may hold no rights on them — but nothing reaches the caller without passing the same visibility predicates `_catalog` applies. Search cannot surface anything `_dataObject` would then refuse to show.
 
 ### `_Module`
 
@@ -817,7 +869,7 @@ The logical model is also queryable as plain rows: the `core` module publishes `
 | `core.entity_types` | Residual source-defined types as raw SDL |
 | `core.entity_annotations` | The curation overlay: descriptions, audit fields, the embedding vector — including *orphans* (curation of currently unloaded entities) and load-time seed rows |
 
-The views apply **no row-level permission filtering** — they are an *administrative* surface. Access is governed by the ordinary data-object permission rules applied to the views themselves (grant, hide or disable `core.entity_*` per role exactly like any other data object); request-scoped, permission-filtered catalog introspection is exclusively the job of the `_catalog` meta queries. The views' only built-in filter is the **data-source state semi-join**: entities of unloaded, disabled or suspended data sources are hidden (their rows stay in storage — unloading is a flag flip, and loading an unchanged source back is instant; rows are physically deleted only when a source is *unregistered*). Effective descriptions COALESCE the annotations overlay over the source-provided text; raw SQL (view definitions, computed-field expressions, join conditions, default expressions, function SQL) is never projected. When an embedder is configured the views project the annotation-joined `vec` and carry `@embeddings` — semantic search pushes down into the CoreDB engine (pgvector/HNSW on PostgreSQL), and the engine **seeds** vector-only annotation rows from the source-schema descriptions during every load, so a just-connected source is semantically searchable immediately; curation and summarization refine on top and always win. Relation-generated navigation fields are curated as ordinary **field** annotations keyed by the owning object and the field name (`source.source_field` / `destination.destination_field` — set with `annotate_field`); `entity_relations` projects the curated text in its `*_field_description` columns.
+The views apply **no row-level permission filtering** — they are an *administrative* surface. Access is governed by the ordinary data-object permission rules applied to the views themselves (grant, hide or disable `core.entity_*` per role exactly like any other data object); request-scoped, permission-filtered catalog introspection is exclusively the job of the `_catalog` meta queries (`_search` included). The views' only built-in filter is the **data-source state semi-join**: entities of unloaded, disabled or suspended data sources are hidden (their rows stay in storage — unloading is a flag flip, and loading an unchanged source back is instant; rows are physically deleted only when a source is *unregistered*). Effective descriptions COALESCE the annotations overlay over the source-provided text; raw SQL (view definitions, computed-field expressions, join conditions, default expressions, function SQL) is never projected. When an embedder is configured the views project the annotation-joined `vec` and carry `@embeddings` — semantic search pushes down into the CoreDB engine (pgvector/HNSW on PostgreSQL), and the engine **seeds** vector-only annotation rows from the source-schema descriptions during every load, so a just-connected source is semantically searchable immediately; curation and summarization refine on top and always win. Relation-generated navigation fields are curated as ordinary **field** annotations keyed by the owning object and the field name (`source.source_field` / `destination.destination_field` — set with `annotate_field`); `entity_relations` projects the curated text in its `*_field_description` columns.
 
 ---
 
