@@ -307,6 +307,7 @@ These meta queries are available (resolved like `__schema`/`__type`, never execu
 | `_dataSources` | `[_DataSource!]` | Attached data sources contributing anything visible to the caller |
 | `_dataSource(name: String!)` | `_DataSource` | Data source lookup by name |
 | `_types(scope: _TypeScope = SOURCE)` | `[__Type!]` | Logical-model type definitions: `SOURCE` — residual base types defined by data sources (structs, inputs, enums; excludes data objects, module roots and generated helper types); `SYSTEM` — engine-defined types |
+| `_search(query: String!, …)` | `_SearchResult` | Rank the logical model by relevance to a natural-language description — see [Searching the model](#searching-the-model-_search) |
 
 Unknown names resolve to `null` (never an error).
 
@@ -369,9 +370,65 @@ Relations show the logical link graph from both ends: `FORWARD`/`FK` for the obj
 }
 ```
 
-The meta-types themselves (`_Module`, `_DataObject`, `_DataObjectProperties`, `_Relation`, `_Function`, `_DataSource` and the enums `_DataObjectType`, `_FunctionType`, `_RelationDirection`, `_RelationKind`) are registered in the schema, so `__type(name: "_Module")` describes them. The meta root queries are ordinary system fields of `Query` (single-underscore names, like `_join` and `jq`) — they appear in standard introspection, so GraphiQL autocompletes them and code generators handle them like any other field. GraphQL reserves double-underscore names for the built-in introspection system, which is why the family uses a single underscore.
+These are **meta-fields**, in the same sense `__schema` and `__typename` are: resolved on the metadata path, never planned as data queries, and not members of the served schema. Like `__schema`, they are therefore **not listed** in `Query.fields`, and their result types are not listed in `__schema.types` — so a GraphQL IDE will not autocomplete them and a code generator will not emit them. They remain fully callable, and `__type(name: "_Module")` still describes the meta-types by name, which is how a client probes for the capability:
 
-`_catalog` results respect the same role-based visibility rules as `__schema` (see below): hidden objects disappear from every path — including other objects' `relations` — while disabled ones stay visible; modules left with no visible content are omitted from `modules` listings.
+```graphql
+{ __type(name: "_SearchResult") { name } }   # null on an engine without _search
+```
+
+GraphQL reserves double-underscore names for its own introspection system, which is why the family uses a single underscore.
+
+Being meta-fields also puts them **outside the role permission rules**. Nobody writes a permission row for `__typename`, and the same applies here: a deployment that locks down with a wildcard rule (`type_name: "*"`, `field_name: "*"`) and grants back explicitly does not lose logical-model introspection — nor standard `__schema` introspection, which is subject to the same rule. A **disabled role** is still refused everywhere.
+
+What the meta queries *return* is filtered per role exactly as `__schema` is (see below): hidden objects disappear from every path — including other objects' `relations` — while disabled ones stay visible; modules left with no visible content are omitted from `modules` listings. Only the entry point is exempt from the rules, never the content.
+
+### Searching the Model (`_search`)
+
+`_catalog` answers *what exists*. `_search` answers *what is relevant*: give it a description in your own words and it ranks modules, data sources, data objects, functions and **fields** by meaning.
+
+```graphql
+{
+  _search(query: "customer orders with payment status", kinds: [DATA_OBJECT, FIELD], limit: 20) {
+    lexical
+    lexicalReason
+    hasMore
+    filteredOut
+    items {
+      kind          # MODULE | DATA_SOURCE | DATA_OBJECT | FUNCTION | FIELD
+      name
+      moduleName    # where to nest the query
+      dataSourceName
+      description
+      score         # 0..1, higher is better
+
+      # FIELD hits
+      objectName    # the data object the field belongs to
+      type          # the field's GraphQL type — "String!", "[Int]"
+      hugrType      # what it IS: column | calculated | function | select
+      refObjectName # for a declared @join: the object it navigates to
+
+      # drill down through the ordinary _catalog resolvers, in the same round trip
+      dataObject { name type primaryKey queries { name type } }
+    }
+  }
+}
+```
+
+| Argument | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `query` | `String!` | — | Natural-language description of what you are looking for |
+| `kinds` | `[_SearchKind!]` | all | `MODULE`, `DATA_SOURCE`, `DATA_OBJECT`, `FUNCTION`, `FIELD` |
+| `module` | `String` | `""` (all) | Restrict to this module's subtree. A field hit is scoped by the module of the object that owns it. Data sources are not module-scoped — a source contributes to several |
+| `object` | `String` | — | Restrict FIELD hits to one data object |
+| `limit` / `offset` | `Int` | 50 / 0 | Page size (1–200) and hits to skip |
+| `minScore` | `Float` | — | Drop hits below this score |
+| `includeMcpExcluded` | `Boolean` | `true` | Include fields marked `@exclude_mcp` — an AI-tooling policy, not an access rule |
+
+**Ranking degrades, it does not disappear.** With an embedder configured the ranking is semantic. Without one it falls back to substring matching and says so: `lexical: true`, and `lexicalReason` names the cause — a silent fallback would be indistinguishable from a broken ranking query. Lexical scoring requires **every** word of the query to appear somewhere, so a multi-word query narrows rather than widens; prefer exact terms when `lexical` is set.
+
+**There is no `total`.** The permission filter runs after ranking, so an honest total would mean scanning the whole index on every keystroke. Page with `hasMore`. `filteredOut` counts candidates dropped because the caller may not see them — non-zero distinguishes "nothing matches" from "nothing you may see matches".
+
+**What a FIELD hit can be.** Only four `hugrType` values reach a hit: `column` (a stored value), `calculated` (`@sql`), `function` (`@function_call` or a table-function join) and `select` (a declared `@join`, whose `refObjectName` names where it leads). Relation navigation fields and `@extra_field` companions (`_<f>_part`, `_<f>_measurement`) are generated when the GraphQL type is built rather than stored, so they are never search hits — reach them through `_dataObject`.
 
 ### Role-Based Schema Visibility
 
