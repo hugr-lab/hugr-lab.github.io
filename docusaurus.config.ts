@@ -153,6 +153,10 @@ const config: Config = {
           title: 'Community',
           items: [
             {
+              label: 'DuckDB MSSQL Extension',
+              href: 'https://hugr-lab.github.io/mssql-extension/',
+            },
+            {
               label: 'GitHub',
               href: 'https://github.com/hugr-lab/hugr/',
             },

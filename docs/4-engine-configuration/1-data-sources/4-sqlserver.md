@@ -13,7 +13,7 @@ The SQL Server data source is a powerful feature of the Hugr engine, allowing yo
 ## Technical details
 
 
-The SQL Server data source is an attached database in the DuckDB computation engine used by the `hugr` query engine. The connection is provided by the [DuckDB MSSQL extension](https://duckdb.org/docs/extensions/mssql.html), which uses the TDS (Tabular Data Stream) protocol to communicate with SQL Server and Azure SQL databases.
+The SQL Server data source is an attached database in the DuckDB computation engine used by the `hugr` query engine. The connection is provided by the [DuckDB MSSQL extension](https://hugr-lab.github.io/mssql-extension/), which uses the TDS (Tabular Data Stream) protocol to communicate with SQL Server and Azure SQL databases. Full extension documentation — connection options, authentication (SQL, Azure Entra ID, Kerberos), bulk loading and settings — lives at [hugr-lab.github.io/mssql-extension](https://hugr-lab.github.io/mssql-extension/).
 
 ## Setting up SQL Server data source (SQL Server authentication)
 
