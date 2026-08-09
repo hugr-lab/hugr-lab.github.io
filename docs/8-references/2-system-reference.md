@@ -195,7 +195,7 @@ operations. See [Curation Functions](#curation-functions) and
 
 Reading the catalog has two surfaces instead:
 
-- **[`core.entity_*` views](#entity-views)** — the logical model as
+- **[`core.catalog.*` views](#catalog-views)** — the logical model as
   plain rows, an administrative surface that executes entirely inside the CoreDB
   engine and supports semantic search.
 - **[`_catalog` meta queries](#logical-model-introspection-meta-queries)** —
@@ -212,14 +212,29 @@ instead, and the served surface is generated from it on read.
 
 Migration at a glance:
 
-| Was | Now |
+| Was (compiled schema) | Now (logical model) |
 |-----|-----|
-| `core.catalog.catalogs` | `core.entity_data_sources`, `core.entity_catalogs` |
-| `core.catalog.catalog_dependencies` | `core.entity_catalog_dependencies` |
-| `core.catalog.modules`, `module_catalogs`, `module_intro` | `core.entity_modules`, `core.entity_module_data_sources`, `core.entity_functions` |
-| `core.catalog.types` | `core.entity_data_objects` (tables/views) and `core.entity_types` (source-declared types) |
-| `core.catalog.fields`, `arguments`, `enum_values` | `core.entity_fields`; function arguments are structured in `core.entity_functions.args` |
+| `core.catalog.catalogs` | `core.catalog.active_sources`, `core.catalog.stored_catalogs` |
+| `core.catalog.catalog_dependencies` | `core.catalog.catalog_dependencies` |
+| `core.catalog.modules`, `module_catalogs`, `module_intro` | `core.catalog.modules`, `core.catalog.module_data_sources`, `core.catalog.functions` |
+| `core.catalog.types` | `core.catalog.data_objects` (tables/views) and `core.catalog.types` (source-declared types) |
+| `core.catalog.fields`, `arguments`, `enum_values` | `core.catalog.fields`; function arguments are structured in `core.catalog.functions.args` |
 | `core.catalog.data_objects`, `data_object_queries` | generated on read — query the GraphQL schema through `__schema` / `_catalog` |
+
+:::warning Same names, different rows
+
+Several names appear on **both** sides. The `core.catalog` module was rebuilt on
+the logical model, and the views that live there now answer a different question
+than the compiled-schema views of the same name did: `core.catalog.types` used
+to list every generated GraphQL type and now lists the residual
+**source-declared** types; `core.catalog.fields` used to be GraphQL field rows
+and is now data-object fields; `core.catalog.modules` is the module tree rather
+than compiled module records.
+
+A query written against the old views will not error — it will return different
+data, or fail on a column that moved. Check the column lists below rather than
+assuming a name that still resolves means what it did.
+:::
 
 :::
 
@@ -765,7 +780,7 @@ There is deliberately **no total**: the permission filter runs after ranking, so
 
 **What a `FIELD` hit can be.** Only four `hugrType` values reach a hit: `column` (a stored value), `calculated` (`@sql`), `function` (`@function_call` or a table-function join) and `select` (a declared `@join`, with `refObjectName` set). Relation navigation fields and `@extra_field` companions are generated when the GraphQL type is built rather than stored, so they are never search hits.
 
-**Permissions.** Ranking reads the annotation index with full access — the index lives in the `core.entity_*` views, and a role may hold no rights on them — but nothing reaches the caller without passing the same visibility predicates `_catalog` applies. Search cannot surface anything `_dataObject` would then refuse to show.
+**Permissions.** Ranking reads the annotation index with full access — the index lives in the `core.catalog.*` views, and a role may hold no rights on them — but nothing reaches the caller without passing the same visibility predicates `_catalog` applies. Search cannot surface anything `_dataObject` would then refuse to show.
 
 ### `_Module`
 
@@ -851,25 +866,25 @@ All meta-types resolve through standard introspection (`__type(name: "_Module")`
 
 ---
 
-## Entity Views
+## Catalog Views
 
-The logical model is also queryable as plain rows: the `core` module publishes `entity_*` views over the CoreDB `catalog` schema, written on every catalog load/reload. They are the SQL half of the logical model (the `_catalog` meta queries are the GraphQL half). The views are hosted on the core data source, so they execute **entirely inside the CoreDB engine** — full pushdown on a PostgreSQL CoreDB, ready for pgvector/HNSW-backed semantic search.
+The logical model is also queryable as plain rows: the `core.catalog` module publishes views over the CoreDB `catalog` schema, written on every catalog load/reload. They are the SQL half of the logical model (the `_catalog` meta queries are the GraphQL half). The views are hosted on the core data source, so they execute **entirely inside the CoreDB engine** — full pushdown on a PostgreSQL CoreDB, ready for pgvector/HNSW-backed semantic search.
 
 | View | Content |
 |------|---------|
-| `core.entity_modules` | Module tree nodes (name, parent, effective description) — only modules with at least one active data source |
-| `core.entity_module_data_sources` | Module → contributing data sources, as a closure over submodules |
-| `core.entity_data_sources` | Data sources with their runtime state; configuration joined in when present |
-| `core.entity_catalogs` | Registered catalog (schema definition) sources |
-| `core.entity_catalog_dependencies` | Declared dependency edges between stored catalogs |
-| `core.entity_data_objects` | Tables/views: name, data source, module, kind, parsed properties |
-| `core.entity_fields` | Data-object fields: type, properties, attribution, `is_pk`, ordinal — including declared `@join` / `@function_call` fields |
-| `core.entity_relations` | ONE row per logical `@references` edge (`fk` / `m2m`), keyed `(source, name)`, with both generated nav fields (`source_field` / `destination_field`) and key mappings |
-| `core.entity_functions` | Functions, mutations and subscriptions with structured `args` |
-| `core.entity_types` | Residual source-defined types as raw SDL |
-| `core.entity_annotations` | The curation overlay: descriptions, audit fields, the embedding vector — including *orphans* (curation of currently unloaded entities) and load-time seed rows |
+| `core.catalog.modules` | Module tree nodes (name, parent, effective description) — only modules with at least one active data source |
+| `core.catalog.module_data_sources` | Module → contributing data sources, as a closure over submodules |
+| `core.catalog.active_sources` | Data sources with their runtime state; configuration joined in when present |
+| `core.catalog.stored_catalogs` | Registered catalog (schema definition) sources |
+| `core.catalog.catalog_dependencies` | Declared dependency edges between stored catalogs |
+| `core.catalog.data_objects` | Tables/views: name, data source, module, kind, parsed properties |
+| `core.catalog.fields` | Data-object fields: type, properties, attribution, `is_pk`, ordinal — including declared `@join` / `@function_call` fields |
+| `core.catalog.relations` | ONE row per logical `@references` edge (`fk` / `m2m`), keyed `(source, name)`, with both generated nav fields (`source_field` / `destination_field`) and key mappings |
+| `core.catalog.functions` | Functions, mutations and subscriptions with structured `args` |
+| `core.catalog.types` | Residual source-defined types as raw SDL |
+| `core.catalog.annotations` | The curation overlay: descriptions, audit fields, the embedding vector — including *orphans* (curation of currently unloaded entities) and load-time seed rows |
 
-The views apply **no row-level permission filtering** — they are an *administrative* surface. Access is governed by the ordinary data-object permission rules applied to the views themselves (grant, hide or disable `core.entity_*` per role exactly like any other data object); request-scoped, permission-filtered catalog introspection is exclusively the job of the `_catalog` meta queries (`_search` included). The views' only built-in filter is the **data-source state semi-join**: entities of unloaded, disabled or suspended data sources are hidden (their rows stay in storage — unloading is a flag flip, and loading an unchanged source back is instant; rows are physically deleted only when a source is *unregistered*). Effective descriptions COALESCE the annotations overlay over the source-provided text; raw SQL (view definitions, computed-field expressions, join conditions, default expressions, function SQL) is never projected. When an embedder is configured the views project the annotation-joined `vec` and carry `@embeddings` — semantic search pushes down into the CoreDB engine (pgvector/HNSW on PostgreSQL), and the engine **seeds** vector-only annotation rows from the source-schema descriptions during every load, so a just-connected source is semantically searchable immediately; curation and summarization refine on top and always win. Relation-generated navigation fields are curated as ordinary **field** annotations keyed by the owning object and the field name (`source.source_field` / `destination.destination_field` — set with `annotate_field`); `entity_relations` projects the curated text in its `*_field_description` columns.
+The views apply **no row-level permission filtering** — they are an *administrative* surface. Access is governed by the ordinary data-object permission rules applied to the views themselves (grant, hide or disable `core.catalog.*` per role exactly like any other data object); request-scoped, permission-filtered catalog introspection is exclusively the job of the `_catalog` meta queries (`_search` included). The views' only built-in filter is the **data-source state semi-join**: entities of unloaded, disabled or suspended data sources are hidden (their rows stay in storage — unloading is a flag flip, and loading an unchanged source back is instant; rows are physically deleted only when a source is *unregistered*). Effective descriptions COALESCE the annotations overlay over the source-provided text; raw SQL (view definitions, computed-field expressions, join conditions, default expressions, function SQL) is never projected. When an embedder is configured the views project the annotation-joined `vec` and carry `@embeddings` — semantic search pushes down into the CoreDB engine (pgvector/HNSW on PostgreSQL), and the engine **seeds** vector-only annotation rows from the source-schema descriptions during every load, so a just-connected source is semantically searchable immediately; curation and summarization refine on top and always win. Relation-generated navigation fields are curated as ordinary **field** annotations keyed by the owning object and the field name (`source.source_field` / `destination.destination_field` — set with `annotate_field`); `core.catalog.relations` projects the curated text in its `*_field_description` columns.
 
 ---
 
@@ -938,7 +953,7 @@ These are the underlying SQL tables in the core database that back the system. T
 
 A data source's schema is stored as a **logical model** in the `catalog` schema; the served GraphQL surface (filters, aggregations, mutation inputs, navigation fields, module roots) is generated from these rows **on read**. There is no compiled-schema table.
 
-Property bags are typed `STRUCT` columns on a DuckDB CoreDB and `JSONB` on PostgreSQL — the writer sends the same JSON text to both. Raw SQL that the engine executes (view definitions, computed-field expressions, join conditions, function bodies) lives in those bags and is never projected by the [`core.entity_*` views](#entity-views).
+Property bags are typed `STRUCT` columns on a DuckDB CoreDB and `JSONB` on PostgreSQL — the writer sends the same JSON text to both. Raw SQL that the engine executes (view definitions, computed-field expressions, join conditions, function bodies) lives in those bags and is never projected by the [`core.catalog.*` views](#catalog-views).
 
 | Table | Primary key | Content |
 |-------|-------------|---------|

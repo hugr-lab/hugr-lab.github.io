@@ -18,7 +18,7 @@ the summarization pipeline itself.
 The engine-side surface it used is described in the
 [system reference](/docs/references/system-reference#curation-functions):
 `core.catalog.annotate_*` writes descriptions, `core.catalog.reindex_embeddings`
-re-embeds after an embedder model change, and the `core.entity_*` views expose
+re-embeds after an embedder model change, and the `core.catalog.*` views expose
 the entities to summarize.
 
 :::
