@@ -423,14 +423,14 @@ What the meta queries *return* is filtered per role exactly as `__schema` is (se
 | `module` | `String` | `""` (all) | Restrict to this module's subtree. A field hit is scoped by the module of the object that owns it. Data sources are not module-scoped — a source contributes to several |
 | `object` | `String` | — | Restrict FIELD hits to one data object |
 | `limit` / `offset` | `Int` | 50 / 0 | Page size (1–200) and hits to skip |
-| `minScore` | `Float` | — | Drop hits below this score |
+| `minScore` | `Float` | — | Drop `MEANING` hits below this score. Name-track hits are never thresholded — a bar tuned for semantic similarity must not delete the identifier you typed |
 | `includeMcpExcluded` | `Boolean` | `true` | Include fields marked `@exclude_mcp` — an AI-tooling policy, not an access rule |
 
 **Name and meaning are different questions.** The vector index is built from **descriptions**, so an identifier never enters it: ranking `aw_Product` by meaning finds whatever is *described* in similar words, not the table you named. `match` selects the track:
 
 - `NAME` — substring matching over the entity's name. Always available, needs no embedder, and the only way to find an identifier. An exact name scores 1.
 - `MEANING` — semantic ranking over descriptions, degrading to substring matching when there is no vector index.
-- `BOTH` (default) — name matches first, then meaning, deduplicated. Each hit carries `matchedOn`, and scores are comparable **within** a track only: an exact identifier and an embedding distance are not on one scale, which is why the two are concatenated rather than blended.
+- `BOTH` (default) — name matches first, then meaning, deduplicated. Each hit carries `matchedOn`, and scores are comparable **within** a track only: an exact identifier and an embedding distance are not on one scale, which is why the two are concatenated rather than blended — and why `minScore` binds only the `MEANING` track.
 
 MCP's `catalog-search` pins `MEANING`: an agent describes the data it wants in its own words.
 

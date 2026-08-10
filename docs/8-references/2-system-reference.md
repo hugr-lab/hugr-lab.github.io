@@ -729,7 +729,7 @@ They are **meta-fields**, like `__schema` and `__typename`, with the two consequ
 | `object` | `String` | — | Restrict `FIELD` hits to one data object |
 | `limit` | `Int` | 50 | Page size, clamped to 1–200 |
 | `offset` | `Int` | 0 | Hits to skip |
-| `minScore` | `Float` | — | Drop hits scoring below this (0–1) |
+| `minScore` | `Float` | — | Drop `MEANING` hits scoring below this (0–1). Name-track hits rank on a scale of their own and are never thresholded |
 | `includeMcpExcluded` | `Boolean` | `true` | Include fields marked `@exclude_mcp` — an AI-tooling policy, not an access rule |
 
 #### `_SearchResult`
