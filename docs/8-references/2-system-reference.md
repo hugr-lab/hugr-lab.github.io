@@ -724,11 +724,12 @@ They are **meta-fields**, like `__schema` and `__typename`, with the two consequ
 |----------|------|---------|-------------|
 | `query` | `String!` | — | Natural-language description of what you are looking for |
 | `kinds` | `[_SearchKind!]` | all | `MODULE`, `DATA_SOURCE`, `DATA_OBJECT`, `FUNCTION`, `FIELD` |
+| `match` | `_SearchMatch` | `BOTH` | `NAME` — substring matching over the name, always available; `MEANING` — semantic ranking over descriptions; `BOTH` — name matches first, then meaning, deduplicated |
 | `module` | `String` | `""` | Restrict to this module's SUBTREE. A field hit takes the module of the object that owns it. `DATA_SOURCE` hits ignore it — a source contributes to several modules |
 | `object` | `String` | — | Restrict `FIELD` hits to one data object |
 | `limit` | `Int` | 50 | Page size, clamped to 1–200 |
 | `offset` | `Int` | 0 | Hits to skip |
-| `minScore` | `Float` | — | Drop hits scoring below this (0–1) |
+| `minScore` | `Float` | — | Drop `MEANING` hits scoring below this (0–1). Name-track hits rank on a scale of their own and are never thresholded |
 | `includeMcpExcluded` | `Boolean` | `true` | Include fields marked `@exclude_mcp` — an AI-tooling policy, not an access rule |
 
 #### `_SearchResult`
@@ -739,7 +740,7 @@ They are **meta-fields**, like `__schema` and `__typename`, with the two consequ
 | `limit` / `offset` | `Int!` | The page actually served |
 | `hasMore` | `Boolean!` | More hits past this page, or candidates left unverified |
 | `filteredOut` | `Int!` | Candidates dropped because the caller may not see them — non-zero distinguishes "nothing matches" from "nothing you may see matches" |
-| `lexical` | `Boolean!` | `true` when ranking fell back to substring matching |
+| `lexical` | `Boolean!` | `true` when the MEANING track fell back to substring matching. Always `false` for `match: NAME`, where substring matching is the point rather than a fallback |
 | `lexicalReason` | `String` | Why the vector index was unusable; `null` when it was used |
 
 There is deliberately **no total**: the permission filter runs after ranking, so an honest total would mean scanning the whole index on every query.
@@ -749,6 +750,7 @@ There is deliberately **no total**: the permission filter runs after ranking, so
 | Field | Type | Description |
 |-------|------|-------------|
 | `kind` | `_SearchKind!` | What the hit is |
+| `matchedOn` | `_SearchMatch!` | Which track found it — `NAME` or `MEANING`, never `BOTH`. Scores are comparable within a track and not across them |
 | `name` | `String!` | Module: dotted path. Data object: GraphQL type name. Function: field name in its module. Field: field name on its object |
 | `moduleName` | `String!` | Owning module — required to nest the query; `""` for `DATA_SOURCE` |
 | `dataSourceName` | `String` | Owning data source; `null` for `MODULE` |
@@ -760,6 +762,8 @@ There is deliberately **no total**: the permission filter runs after ranking, so
 | `refObjectName` | `String` | `FIELD` only: for a declared `@join`, the data object it navigates to |
 | `module` / `dataObject` / `function` / `dataSource` | meta types | Drill-down through the ordinary `_catalog` resolvers — exactly one is non-null, matching `kind`. Costs nothing unless selected |
 | `field` | `__Field` | `FIELD` only: the field definition |
+
+**Name is not meaning.** The vector index embeds **descriptions**, so an identifier never enters it and a semantic search for `aw_Product` returns what is *described* in similar words. The `NAME` track exists for identifiers, costs no embedder, and scores an exact name 1. `BOTH` concatenates the two — name first — rather than merge-sorting them, because an exact identifier and an embedding distance are not on one scale.
 
 **Ranking and its fallback.** With an embedder the ranking is semantic, over the annotation vectors the engine seeds and `reindex_embeddings` refreshes. Without one it falls back to substring matching and reports it (`lexical`, `lexicalReason`) — a silent fallback would be indistinguishable from a broken ranking query. Lexical scoring requires **every** word of the query to appear, so a multi-word query narrows rather than widens.
 
