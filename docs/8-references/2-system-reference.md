@@ -886,6 +886,12 @@ The logical model is also queryable as plain rows: the `core.catalog` module pub
 
 The views apply **no row-level permission filtering** — they are an *administrative* surface. Access is governed by the ordinary data-object permission rules applied to the views themselves (grant, hide or disable `core.catalog.*` per role exactly like any other data object); request-scoped, permission-filtered catalog introspection is exclusively the job of the `_catalog` meta queries (`_search` included). The views' only built-in filter is the **data-source state semi-join**: entities of unloaded, disabled or suspended data sources are hidden (their rows stay in storage — unloading is a flag flip, and loading an unchanged source back is instant; rows are physically deleted only when a source is *unregistered*). Effective descriptions COALESCE the annotations overlay over the source-provided text; raw SQL (view definitions, computed-field expressions, join conditions, default expressions, function SQL) is never projected. When an embedder is configured the views project the annotation-joined `vec` and carry `@embeddings` — semantic search pushes down into the CoreDB engine (pgvector/HNSW on PostgreSQL), and the engine **seeds** vector-only annotation rows from the source-schema descriptions during every load, so a just-connected source is semantically searchable immediately; curation and summarization refine on top and always win. Relation-generated navigation fields are curated as ordinary **field** annotations keyed by the owning object and the field name (`source.source_field` / `destination.destination_field` — set with `annotate_field`); `core.catalog.relations` projects the curated text in its `*_field_description` columns.
 
+:::warning Upgrading from v0.3.42
+
+v0.3.42 published these views under the `core` module as `core.entity_*` (GraphQL types `core_entity_modules`, `core_entity_fields`, …). The move is entirely in the served schema — CoreDB data and its schema version are untouched, so no migration runs — and that cuts both ways: **stored strings naming the old types are not rewritten**. A `role_permissions` row naming `core_entity_*` matches nothing after the upgrade, and access is allow-by-default, so a deny written against the old names silently stops applying. Curated annotations keyed to the old type names become orphan rows and their text drops out of the served surface and the search index. If you created either against `core.entity_*`, re-create them against the new names.
+
+:::
+
 ---
 
 ## Schema Management Functions
