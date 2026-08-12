@@ -1,0 +1,133 @@
+/* Join Us CTA Section Styles */
+.joinUsSection {
+  padding: 80px 0;
+  background: #f8fafc;
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  gap: 60px;
+  justify-content: space-between;
+}
+
+.textContent {
+  flex: 1;
+  max-width: 600px;
+}
+
+.title {
+  font-size: 2.5rem;
+  line-height: 1.2;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+  color: var(--ifm-heading-color);
+  font-family: 'Quicksand', sans-serif;
+}
+
+.description {
+  font-size: 1.1rem;
+  line-height: 1.75;
+  color: var(--ifm-font-color-base);
+  margin-bottom: 1.5rem;
+}
+
+.description strong {
+  color: #0d7271;
+  font-weight: 600;
+}
+
+.buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+
+.buttons a {
+  min-width: 200px;
+}
+
+.imageContainer {
+  flex-shrink: 0;
+  width: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image {
+  width: 100%;
+  height: auto;
+  max-width: 400px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 30px rgba(13, 114, 113, 0.15));
+}
+
+/* Responsive Design */
+@media (max-width: 996px) {
+  .content {
+    gap: 40px;
+  }
+
+  .imageContainer {
+    width: 300px;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .description {
+    font-size: 1rem;
+  }
+}
+
+/* Hide image on mobile devices */
+@media (max-width: 768px) {
+  .joinUsSection {
+    padding: 60px 0;
+  }
+
+  .content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .textContent {
+    max-width: 100%;
+  }
+
+  .title {
+    font-size: 1.875rem;
+  }
+
+  .description {
+    font-size: 1rem;
+  }
+
+  .buttons {
+    justify-content: center;
+  }
+
+  /* Hide image on mobile */
+  .imageContainer {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 1.625rem;
+  }
+
+  .buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .buttons a {
+    width: 100%;
+    max-width: 300px;
+  }
+}

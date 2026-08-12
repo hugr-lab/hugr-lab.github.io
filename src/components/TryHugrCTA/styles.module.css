@@ -1,0 +1,81 @@
+/* Try Hugr CTA Section Styles */
+.tryHugrSection {
+  padding: 80px 0;
+  background: linear-gradient(135deg, #0d7271 0%, #26bab5 100%);
+  text-align: center;
+}
+
+.content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 2.5rem;
+  line-height: 1.2;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: 'Quicksand', sans-serif;
+}
+
+.description {
+  font-size: 1.25rem;
+  line-height: 1.75;
+  color: #ffffff;
+  margin-bottom: 2.5rem;
+  opacity: 0.95;
+}
+
+.description strong {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.buttons a {
+  min-width: 180px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .tryHugrSection {
+    padding: 60px 0;
+  }
+
+  .title {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  .description {
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+  }
+
+  .buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .buttons a {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .description {
+    font-size: 1rem;
+  }
+}
