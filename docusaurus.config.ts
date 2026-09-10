@@ -157,6 +157,10 @@ const config: Config = {
               href: 'https://hugr-lab.github.io/mssql-extension/',
             },
             {
+              label: 'DuckLake on SQL Server (mssql_ducklake)',
+              href: 'https://hugr-lab.github.io/mssql-ducklake/',
+            },
+            {
               label: 'GitHub',
               href: 'https://github.com/hugr-lab/hugr/',
             },

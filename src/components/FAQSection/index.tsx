@@ -58,7 +58,7 @@ const faqItems: FAQItem[] = [
         <p>hugr supports multiple data source types:</p>
         <ul>
           <li><strong>Relational Databases:</strong> DuckDB, PostgreSQL (with PostGIS, TimescaleDB, pgvector), MySQL, <a href="https://hugr-lab.github.io/mssql-extension/">SQL Server / Azure SQL</a></li>
-          <li><strong>Data Lakes:</strong> DuckLake (snapshot-based time-travel, schema versioning), Apache Iceberg (REST catalogs, AWS Glue, S3 Tables — with time-travel and self-describing schema)</li>
+          <li><strong>Data Lakes:</strong> DuckLake (snapshot-based time-travel, schema versioning — with the catalog in PostgreSQL, DuckDB or <a href="https://hugr-lab.github.io/mssql-ducklake/">SQL Server / Azure SQL</a>), Apache Iceberg (REST catalogs, AWS Glue, S3 Tables — with time-travel and self-describing schema)</li>
           <li><strong>File Formats:</strong> Parquet, Delta Lake, CSV, JSON</li>
           <li><strong>Spatial Formats:</strong> GeoParquet, GeoJSON, Shapefiles (GDAL compatible)</li>
           <li><strong>Services:</strong> REST APIs with authentication (HTTP Basic, ApiKey, OAuth2)</li>
