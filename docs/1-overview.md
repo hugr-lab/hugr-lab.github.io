@@ -64,7 +64,7 @@ Schemas are defined using GraphQL SDL with extended directives, offering:
 	- SQL Server / Azure SQL – Microsoft SQL Server with SQL Server authentication, and Azure Fabric Warehouse / Analytical Endpoints with Azure EntraID (service principal) authentication (through DuckDB without join pushdown)
 
 **Data Lakes**:
-	- DuckLake – data lake with snapshot-based time-travel, schema versioning, and DDL/DML support. Metadata stored in PostgreSQL or DuckDB, data in S3-compatible storage.
+	- DuckLake – data lake with snapshot-based time-travel, schema versioning, and DDL/DML support. Metadata stored in PostgreSQL, DuckDB or [SQL Server / Azure SQL](https://hugr-lab.github.io/mssql-ducklake/), data in S3-compatible storage.
 	- Apache Iceberg – open table format with REST catalog support (Apache Polaris, Lakekeeper, AWS Glue, S3 Tables). Provides time-travel queries, self-describing schema, and standard DML operations.
 
 **Files**:
