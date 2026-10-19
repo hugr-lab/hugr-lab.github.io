@@ -22,7 +22,7 @@ export default function Impressum(): ReactNode {
 
         <hr />
 
-        <h2>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
+        <h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>
         <p>
           Vladimir Gribanov<br />
           Filderstr. 54<br />
@@ -80,17 +80,7 @@ export default function Impressum(): ReactNode {
 
         <hr />
 
-        <h2>EU-Streitschlichtung</h2>
-        <p>
-          Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS)
-          bereit:{' '}
-          <a
-            href="https://ec.europa.eu/consumers/odr/"
-            target="_blank"
-            rel="noopener noreferrer">
-            https://ec.europa.eu/consumers/odr/
-          </a>
-        </p>
+        <h2>Verbraucherstreitbeilegung</h2>
         <p>
           Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer
           Verbraucherschlichtungsstelle teilzunehmen.

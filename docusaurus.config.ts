@@ -63,7 +63,15 @@ const config: Config = {
           onUntruncatedBlogPosts: 'warn',
         },*/
         theme: {
-          customCss: './src/css/custom.css',
+          // Quicksand is served from this site (@fontsource, SIL OFL 1.1), never from Google's servers.
+          customCss: [
+            require.resolve('@fontsource/quicksand/latin-300.css'),
+            require.resolve('@fontsource/quicksand/latin-400.css'),
+            require.resolve('@fontsource/quicksand/latin-500.css'),
+            require.resolve('@fontsource/quicksand/latin-600.css'),
+            require.resolve('@fontsource/quicksand/latin-700.css'),
+            './src/css/custom.css',
+          ],
         },
         sitemap: {
           changefreq: 'weekly',
@@ -192,13 +200,6 @@ const config: Config = {
     },
   } satisfies Preset.ThemeConfig,
 
-  scripts: [
-    {
-      src: 'https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap',
-      async: true,
-    },
-  ],
-
   headTags: [
     {
       tagName: 'meta',
@@ -226,28 +227,6 @@ const config: Config = {
       attributes: {
         name: 'google-site-verification',
         content: 'oOE10EHH6DYiVidJkz9BmWI4832W_udAVtPrjMuEHlE',
-      },
-    },
-    {
-      tagName: 'link',
-      attributes: {
-        rel: 'preconnect',
-        href: 'https://fonts.googleapis.com',
-      },
-    },
-    {
-      tagName: 'link',
-      attributes: {
-        rel: 'preconnect',
-        href: 'https://fonts.gstatic.com',
-        crossorigin: 'anonymous',
-      },
-    },
-    {
-      tagName: 'link',
-      attributes: {
-        rel: 'stylesheet',
-        href: 'https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700;800&display=swap',
       },
     },
   ],
