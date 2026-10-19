@@ -19,6 +19,7 @@
     "@docusaurus/plugin-google-gtag": "^3.10.0",
     "@docusaurus/preset-classic": "^3.10.0",
     "@docusaurus/theme-mermaid": "^3.10.0",
+    "@fontsource/quicksand": "^5.3.0",
     "@mdx-js/react": "^3.0.0",
     "clsx": "^2.0.0",
     "prism-react-renderer": "^2.3.0",
