@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -31,3 +32,34 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build
           publish_branch: gh-pages # separate branch for deployment
+
+      # The second copy, for https://hugr-lab.com/docs/hugr-classic/ (IONOS): the docs alone, with
+      # hugr-lab.com's legal pages (DOCS_TARGET=ionos in docusaurus.config.ts). Built after the Pages
+      # deploy, so an IONOS failure never holds GitHub Pages back.
+      # Off until the organization sets DOCS_IONOS=true for this repository.
+      - name: Build for hugr-lab.com
+        if: ${{ vars.DOCS_IONOS == 'true' }}
+        env:
+          DOCS_TARGET: ionos
+        run: npm run build -- --out-dir build-ionos
+
+      # Pages and stylesheets only: the scripts also carry the docs' code samples as text.
+      - name: Check the hugr-lab.com copy requests no other server
+        if: ${{ vars.DOCS_IONOS == 'true' }}
+        run: |
+          found=$(grep -rhoE --include='*.html' --include='*.css' "(src=\"|srcset=\"|url\(|@import )['\"]?https?://[^\"') ]+" build-ionos | sort -u || true)
+          if [ -n "$found" ]; then echo "third-party requests in the hugr-lab.com build:"; echo "$found"; exit 1; fi
+
+      - name: Upload to hugr-lab.com (IONOS)
+        if: ${{ vars.DOCS_IONOS == 'true' }}
+        env:
+          HOST: ${{ secrets.IONOS_SFTP_HOST }}
+          USER: ${{ secrets.IONOS_SFTP_USER }}
+          LFTP_PASSWORD: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          REMOTE: ${{ vars.IONOS_DOCS_ROOT || '/hugr-lab/docs' }}/hugr-classic
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+          # Mirrors the build into docs/hugr-classic/ on IONOS; nothing outside that folder is touched.
+          lftp --env-password -u "$USER" -e "set sftp:auto-confirm yes; set net:max-retries 3; \
+            mirror --reverse --delete --verbose build-ionos/ $REMOTE; bye" \
+            "sftp://$HOST"

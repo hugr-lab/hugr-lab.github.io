@@ -28,7 +28,7 @@ hugr combines the power of modern data architecture patterns with the flexibilit
 - **Repository**: [hugr-lab/hugr](https://github.com/hugr-lab/hugr)
 - **Core Engine**: [hugr-lab/query-engine](https://github.com/hugr-lab/query-engine)
 - **Docker Images**: [hugr-lab/docker](https://github.com/hugr-lab/docker)
-- **Documentation**: [docs](https://hugr-lab.github.io/docs/)
+- **Documentation**: [docs](/docs/overview/)
 
 We are in active development, but you can already use `hugr` for your projects.
 

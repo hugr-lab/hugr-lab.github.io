@@ -1,8 +1,48 @@
 import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import type {Config, Plugin} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
+
+// The site is built twice: for GitHub Pages (default) and, as the hugr classic documentation,
+// for https://hugr-lab.com/docs/hugr-classic/ on IONOS (DOCS_TARGET=ionos). That copy is the
+// docs alone, at its root: no landing page, and the legal pages are hugr-lab.com's.
+const ionos = process.env.DOCS_TARGET === 'ionos';
+const site = ionos
+  ? {url: 'https://hugr-lab.com', baseUrl: '/docs/hugr-classic/', docs: '/', products: 'https://hugr-lab.com/docs/'}
+  : {url: 'https://hugr-lab.github.io', baseUrl: '/', docs: 'docs', products: 'https://hugr-lab.github.io/'};
+// A docs page: /docs/<page>/ on GitHub Pages, /<page>/ in the hugr-lab.com copy.
+const doc = (page: string) => (ionos ? '/' : '/docs/') + page;
+const legal = (label: string, page: string) =>
+  ionos ? {label, href: `https://hugr-lab.com/${page}/`} : {label, to: `/${page}/`};
+
+// hugr-lab.com pages request nothing from other servers: the files RemoteMarkdown shows and the
+// images the docs take from raw.githubusercontent.com are fetched once here, after the build, and
+// served from remote/ (see src/components/RemoteMarkdown and the image src rewrite below).
+const raw = 'https://raw.githubusercontent.com/';
+const remoteSnapshot = (): Plugin => ({
+  name: 'remote-snapshot',
+  async postBuild({outDir}) {
+    const urls = new Set<string>();
+    for (const file of fs.readdirSync('docs', {recursive: true, encoding: 'utf8'})) {
+      if (!/\.mdx?$/.test(file)) continue;
+      for (const m of fs.readFileSync(path.join('docs', file), 'utf8').matchAll(/(?:url|src)="(https:\/\/raw\.githubusercontent\.com\/[^"]+)"/g)) {
+        urls.add(m[1]);
+      }
+    }
+    for (const url of urls) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+      const dest = path.join(outDir, 'remote', new URL(url).pathname);
+      fs.mkdirSync(path.dirname(dest), {recursive: true});
+      fs.writeFileSync(dest, Buffer.from(await res.arrayBuffer()));
+    }
+    // Only the landing page plays the videos, and this copy has none.
+    fs.rmSync(path.join(outDir, 'video'), {recursive: true, force: true});
+  },
+});
 
 const config: Config = {
   title: 'Unified API for Your Data, Wherever It Lives',
@@ -10,11 +50,11 @@ const config: Config = {
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://hugr-lab.github.io',
-  // Set the /<baseUrl>/ pathname under which your site is served
-  // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/',
+  url: site.url,
+  baseUrl: site.baseUrl,
+  baseUrlIssueBanner: false,
   trailingSlash: true,
+  customFields: {docsTarget: ionos ? 'ionos' : 'github'},
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -39,14 +79,16 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          routeBasePath: 'docs',
+          routeBasePath: site.docs,
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl: 'https://github.com/hugr-lab/hugr-lab.github.io/',
+          editUrl: 'https://github.com/hugr-lab/hugr-lab.github.io/tree/main/',
 
           showLastUpdateAuthor: true,
           showLastUpdateTime: true,
         },
+        pages: ionos ? false : undefined,
+        blog: ionos ? false : undefined,
         /*blog: {
           showReadingTime: true,
           feedOptions: {
@@ -91,9 +133,18 @@ const config: Config = {
   ],
 
   themes: ['@docusaurus/theme-mermaid'],
+  plugins: ionos ? [remoteSnapshot] : [],
 
   markdown: {
     mermaid: true,
+    // The docs link each other as /docs/<page>/; in the hugr-lab.com copy they are /<page>/.
+    preprocessor: ({fileContent}) =>
+      ionos
+        ? fileContent
+            .replace(/\]\(\/docs\//g, '](/')
+            .replaceAll(`src="${raw}`, `src="${site.baseUrl}remote/`)
+            .replace(/https:\/\/hugr-lab\.github\.io\/(mssql-extension|mssql-ducklake)\//g, 'https://hugr-lab.com/docs/$1/')
+        : fileContent,
   },
 
   themeConfig: {
@@ -107,7 +158,8 @@ const config: Config = {
     navbar: {
       logo: {
         alt: 'Hugr Lab',
-        src: 'img/logo-circle.svg'
+        src: 'img/logo-circle.svg',
+        href: ionos ? doc('overview/') : undefined,
       },
       items: [
         {
@@ -117,10 +169,11 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          href: '/docs/join-us/',
+          to: doc('join-us/'),
           position: 'left',
           label: 'Join Us',
         },
+        ...(ionos ? [{href: 'https://hugr-lab.com/', label: 'Hugr Lab', position: 'right' as const}] : []),
         {
           href: 'https://github.com/hugr-lab/hugr',
           label: 'GitHub',
@@ -141,19 +194,19 @@ const config: Config = {
           items: [
             {
               label: 'Overview',
-              to: '/docs/overview/',
+              to: doc('overview/'),
             },
             {
               label: 'Key Concepts',
-              to: '/docs/concept/',
+              to: doc('concept/'),
             },
             {
               label: 'Get Started',
-              to: '/docs/get-started/',
+              to: doc('get-started/'),
             },
             {
               label: 'Query engine configuration',
-              to: '/docs/engine-configuration/',
+              to: doc('engine-configuration/'),
             },
           ],
         },
@@ -162,11 +215,11 @@ const config: Config = {
           items: [
             {
               label: 'DuckDB MSSQL Extension',
-              href: 'https://hugr-lab.github.io/mssql-extension/',
+              href: site.products + 'mssql-extension/',
             },
             {
               label: 'DuckLake on SQL Server (mssql_ducklake)',
-              href: 'https://hugr-lab.github.io/mssql-ducklake/',
+              href: site.products + 'mssql-ducklake/',
             },
             {
               label: 'GitHub',
@@ -181,14 +234,8 @@ const config: Config = {
               label: 'info@hugr-lab.com',
               href: 'mailto:info@hugr-lab.com',
             },
-            {
-              label: 'Impressum',
-              to: '/impressum/',
-            },
-            {
-              label: 'Datenschutz',
-              to: '/datenschutz/',
-            },
+            legal('Impressum', 'impressum'),
+            legal('Datenschutz', 'datenschutz'),
           ],
         },
       ],
@@ -222,13 +269,14 @@ const config: Config = {
         content: 'index, follow',
       },
     },
-    {
+    // Search Console's token for hugr-lab.github.io.
+    ...(ionos ? [] : [{
       tagName: 'meta',
       attributes: {
         name: 'google-site-verification',
         content: 'oOE10EHH6DYiVidJkz9BmWI4832W_udAVtPrjMuEHlE',
       },
-    },
+    }]),
   ],
 };
 

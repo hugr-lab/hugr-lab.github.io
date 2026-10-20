@@ -262,6 +262,6 @@ If you have questions or want to discuss contribution opportunities:
 
 - Open a discussion on GitHub: [hugr-lab/hugr/discussions](https://github.com/hugr-lab/hugr/discussions)
 - Report issues: [hugr-lab/hugr/issues](https://github.com/hugr-lab/hugr/issues)
-- Check our documentation: [https://hugr-lab.github.io](https://hugr-lab.github.io)
+- Check our documentation: [overview](/docs/overview/)
 
 We look forward to working with you!
