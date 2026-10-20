@@ -3,18 +3,24 @@ import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import CodeBlock from '@theme/CodeBlock';
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 export default function RemoteMarkdown({ 
   url, 
   fallback = "Loading...", 
   transform 
 }) {
+  // The hugr-lab.com copy serves these files itself (remoteSnapshot in docusaurus.config.ts).
+  const {siteConfig} = useDocusaurusContext();
+  const local = useBaseUrl('/remote' + new URL(url).pathname);
+  const src = siteConfig.customFields?.docsTarget === 'ionos' ? local : url;
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
   useEffect(() => {
-    fetch(url)
+    fetch(src)
       .then(response => {
         if (!response.ok) throw new Error('Failed to fetch');
         return response.text();
@@ -27,7 +33,7 @@ export default function RemoteMarkdown({
         setError(err.message);
         setLoading(false);
       });
-  }, [url, transform]);
+  }, [src, transform]);
   
   if (loading) return <div className="alert alert--info">{fallback}</div>;
   if (error) return <div className="alert alert--danger">Error: {error}</div>;
